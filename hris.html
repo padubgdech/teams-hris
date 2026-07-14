@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Teams — HR System</title>
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {
@@ -380,7 +381,18 @@
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+  /* Google Sign-In button */
+  .google-btn {
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;padding:11px;border:1.5px solid #E2E8F0;border-radius:10px;
+    background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:#374151;
+    transition:background .15s,box-shadow .15s;
+  }
+  .google-btn:hover { background:#F8FAFC; box-shadow:0 1px 6px rgba(0,0,0,.08); }
+  .divider-or { display:flex;align-items:center;gap:10px;margin:14px 0;color:#9CA3AF;font-size:12px;font-weight:600; }
+  .divider-or::before,.divider-or::after { content:'';flex:1;border-top:1px solid #E5E7EB; }
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -825,9 +837,6 @@
         <button id="ltab-pending" onclick="setLeaveTableTab('pending')" class="ltab">
           รออนุมัติ <span id="ltab-pending-count" style="display:none;background:#EF4444;color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px;min-width:18px;text-align:center">0</span>
         </button>
-        <button onclick="openCompModal()" class="ltab" style="color:#7C3AED">
-          ⚖️ ลาชดเชย <span id="comp-tab-count" style="background:#7C3AED;color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px;min-width:18px;text-align:center">2</span>
-        </button>
       </div>
 
       <div class="card" style="border-radius:12px;margin-bottom:24px">
@@ -893,7 +902,7 @@
               <button onclick="nextYear()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="gotoToday()">Today</button>
+              <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="gotoToday()">วันนี้</button>
               <select style="width:auto;font-size:12px;padding:6px 10px;border:1.5px solid var(--green);border-radius:8px;font-weight:600" id="cal-view-mode" onchange="switchCalView(this.value)">
                 <option value="month">Month</option>
                 <option value="year">Year</option>
@@ -957,7 +966,7 @@
       <div class="card">
         <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
           <span class="card-title">Payroll List — June 2026</span>
-          <button class="btn btn-primary" style="font-size:12px;padding:7px 14px">Export Payslip</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:7px 14px">ส่งออกสลิปเงินเดือน</button>
         </div>
         <table>
           <thead><tr><th>พนักงาน</th><th>เงินเดือน</th><th>เบี้ยเลี้ยง</th><th>โบนัส</th><th>หัก</th><th>รับสุทธิ</th><th></th></tr></thead>
@@ -1002,16 +1011,16 @@
       </div>
       <div class="card">
         <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
-          <span class="card-title">Active Job Openings</span>
-          <button class="btn btn-primary" style="font-size:12px;padding:7px 14px">Post Job</button>
+          <span class="card-title">ตำแหน่งงานที่เปิดรับ</span>
+          <button class="btn btn-primary" style="font-size:12px;padding:7px 14px">ลงประกาศงาน</button>
         </div>
         <table>
-          <thead><tr><th>Position</th><th>Department</th><th>Applicants</th><th>Posted</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>ตำแหน่ง</th><th>แผนก</th><th>ผู้สมัคร</th><th>ลงประกาศ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
           <tbody>
-            <tr><td style="font-weight:600">Senior Frontend Dev</td><td>Engineering</td><td>24</td><td>15 Jun 2026</td><td><span class="badge badge-green">Active</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">View</button></td></tr>
-            <tr><td style="font-weight:600">UX Designer</td><td>Design</td><td>18</td><td>10 Jun 2026</td><td><span class="badge badge-green">Active</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">View</button></td></tr>
-            <tr><td style="font-weight:600">Sales Manager</td><td>Sales</td><td>31</td><td>05 Jun 2026</td><td><span class="badge badge-orange">Review</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">View</button></td></tr>
-            <tr><td style="font-weight:600">HR Specialist</td><td>Human Resources</td><td>12</td><td>20 Jun 2026</td><td><span class="badge badge-green">Active</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">View</button></td></tr>
+            <tr><td style="font-weight:600">Senior Frontend Dev</td><td>Engineering</td><td>24</td><td>15 มิ.ย. 2569</td><td><span class="badge badge-green">เปิดรับ</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
+            <tr><td style="font-weight:600">UX Designer</td><td>Design</td><td>18</td><td>10 มิ.ย. 2569</td><td><span class="badge badge-green">เปิดรับ</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
+            <tr><td style="font-weight:600">Sales Manager</td><td>Sales</td><td>31</td><td>05 มิ.ย. 2569</td><td><span class="badge badge-orange">รอรีวิว</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
+            <tr><td style="font-weight:600">HR Specialist</td><td>Human Resources</td><td>12</td><td>20 มิ.ย. 2569</td><td><span class="badge badge-green">เปิดรับ</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
           </tbody>
         </table>
       </div>
@@ -1310,7 +1319,7 @@
       <div class="card">
         <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
           <span class="card-title">All Accounts</span>
-          <input type="search" placeholder="Search..." style="width:200px" oninput="filterAccounts(this.value)">
+          <input type="search" placeholder="ค้นหา..." style="width:200px" oninput="filterAccounts(this.value)">
         </div>
         <table>
           <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Permissions</th><th>Action</th></tr></thead>
@@ -1403,27 +1412,27 @@
 <div class="modal-overlay" id="modal-add-emp">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-add-emp')">✕</button>
-    <div class="modal-title">Add New Employee</div>
+    <div class="modal-title">เพิ่มพนักงานใหม่</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>First Name</label><input type="text" placeholder="John"></div>
-      <div class="form-group"><label>Last Name</label><input type="text" placeholder="Doe"></div>
-      <div class="form-group"><label>Email</label><input type="email" placeholder="john@company.com"></div>
-      <div class="form-group"><label>Phone</label><input type="tel" placeholder="+1 234 567 890"></div>
-      <div class="form-group"><label>Department</label><select><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
-      <div class="form-group"><label>Position</label><input type="text" placeholder="Job Title"></div>
-      <div class="form-group"><label>Join Date</label><input type="date" value="2026-06-26"></div>
-      <div class="form-group"><label>Employment Type</label><select><option>Full-Time</option><option>Part-Time</option><option>Contract</option></select></div>
+      <div class="form-group"><label>ชื่อ</label><input type="text" placeholder="สมชาย"></div>
+      <div class="form-group"><label>นามสกุล</label><input type="text" placeholder="ใจดี"></div>
+      <div class="form-group"><label>อีเมล</label><input type="email" placeholder="somchai@company.com"></div>
+      <div class="form-group"><label>เบอร์โทรศัพท์</label><input type="tel" placeholder="081-234-5678"></div>
+      <div class="form-group"><label>แผนก</label><select><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
+      <div class="form-group"><label>ตำแหน่ง</label><input type="text" placeholder="นักพัฒนาซอฟต์แวร์"></div>
+      <div class="form-group"><label>วันที่เริ่มงาน</label><input type="date" value="2026-06-26"></div>
+      <div class="form-group"><label>ประเภทการจ้างงาน</label><select><option>พนักงานประจำ</option><option>พนักงานพาร์ทไทม์</option><option>สัญญาจ้าง</option></select></div>
     </div>
-    <div class="form-group"><label>Work Model</label>
+    <div class="form-group"><label>รูปแบบการทำงาน</label>
       <div class="chip-select">
-        <div class="chip selected" onclick="selectChip(this)">Office</div>
-        <div class="chip" onclick="selectChip(this)">Remote</div>
-        <div class="chip" onclick="selectChip(this)">Hybrid</div>
+        <div class="chip selected" onclick="selectChip(this)">ออฟฟิศ</div>
+        <div class="chip" onclick="selectChip(this)">ทางไกล</div>
+        <div class="chip" onclick="selectChip(this)">ไฮบริด</div>
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-      <button class="btn btn-outline" onclick="closeModal('modal-add-emp')">Cancel</button>
-      <button class="btn btn-primary" onclick="addEmployee()">Add Employee</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-add-emp')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="addEmployee()">เพิ่มพนักงาน</button>
     </div>
   </div>
 </div>
@@ -1540,8 +1549,8 @@
 <div class="modal-overlay" id="modal-leave">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-leave')">✕</button>
-    <div class="modal-title">Request Leave</div>
-    <div class="form-group"><label>Leave Type</label>
+    <div class="modal-title">ยื่นคำขอลา</div>
+    <div class="form-group"><label>ประเภทการลา</label>
       <div class="chip-select" style="margin-top:6px">
         <div class="chip selected" id="chip-annual" onclick="selectLeaveType(this,'Annual')">ลาพักร้อน</div>
         <div class="chip" onclick="selectLeaveType(this,'Sick')">ลาป่วย</div>
@@ -1549,21 +1558,21 @@
         <div class="chip" onclick="selectLeaveType(this,'Compensatory')" style="border-color:#C4B5FD;color:#7C3AED">⚖️ ลาชดเชย</div>
       </div>
       <div id="leave-modal-probation-notice" style="display:none;background:#FEF3C7;border:0.5px solid #FDE68A;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400E;margin-top:8px">
-        🔒 อยู่ในช่วงทดลองงาน — ยังไม่สามารถยื่นลาพักร้อนได้ ลาป่วย/ลากิจ/ลาชดเชยใช้ได้ตามปกติ
+        ⚠️ อยู่ในช่วงทดลองงาน — ยังไม่สามารถยื่นลาพักร้อนได้ ลาป่วย/ลากิจ/ลาชดเชยใช้ได้ตามปกติ
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>From Date</label><input type="date" id="leave-from" value="2026-06-26"></div>
-      <div class="form-group"><label>To Date</label><input type="date" id="leave-to" value="2026-06-26"></div>
+      <div class="form-group"><label>วันที่เริ่มลา</label><input type="date" id="leave-from" value="2026-06-26"></div>
+      <div class="form-group"><label>วันที่สิ้นสุด</label><input type="date" id="leave-to" value="2026-06-26"></div>
     </div>
-    <div class="form-group"><label>Reason</label><textarea rows="3" placeholder="Briefly describe the reason for leave..."></textarea></div>
-    <div class="form-group"><label>Backup / Handover to</label><select><option>Select colleague</option><option>Mia Torres</option><option>Jacob Young</option><option>Ana Kim</option><option>Ethan Ray</option></select></div>
+    <div class="form-group"><label>เหตุผลการลา</label><textarea rows="3" placeholder="อธิบายเหตุผลการลาโดยย่อ..."></textarea></div>
+    <div class="form-group"><label>ผู้รับงานแทน</label><select><option>เลือกเพื่อนร่วมงาน</option><option>Mia Torres</option><option>Jacob Young</option><option>Ana Kim</option><option>Ethan Ray</option></select></div>
     <div style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:#065F46;margin-bottom:16px">
-      📋 <strong>Leave Balance:</strong> ลาพักร้อน: 6 วัน &nbsp;|&nbsp; ลาป่วย: 30 วัน &nbsp;|&nbsp; ลากิจ: 3 วัน
+      📋 <strong>วันลาคงเหลือ:</strong> ลาพักร้อน: 6 วัน &nbsp;|&nbsp; ลาป่วย: 30 วัน &nbsp;|&nbsp; ลากิจ: 3 วัน
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="closeModal('modal-leave')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitLeave()">Submit Request</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-leave')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitLeave()">ยื่นคำขอ</button>
     </div>
   </div>
 </div>
@@ -1572,28 +1581,28 @@
 <div class="modal-overlay" id="modal-appt">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-appt')">✕</button>
-    <div class="modal-title">New Appointment</div>
-    <div class="form-group"><label>Title</label><input type="text" id="appt-title" placeholder="Meeting / Interview / Review..."></div>
+    <div class="modal-title">นัดหมายใหม่</div>
+    <div class="form-group"><label>หัวเรื่อง</label><input type="text" id="appt-title" placeholder="ประชุม / สัมภาษณ์ / รีวิว..."></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>Date</label><input type="date" id="appt-date" value="2026-06-26"></div>
-      <div class="form-group"><label>Type</label>
+      <div class="form-group"><label>วันที่</label><input type="date" id="appt-date" value="2026-06-26"></div>
+      <div class="form-group"><label>ประเภท</label>
         <select id="appt-type">
-          <option value="meeting">Meeting</option>
-          <option value="review">Review</option>
-          <option value="interview">Interview</option>
-          <option value="training">Training</option>
-          <option value="other">Other</option>
+          <option value="meeting">ประชุม</option>
+          <option value="review">รีวิว</option>
+          <option value="interview">สัมภาษณ์</option>
+          <option value="training">อบรม</option>
+          <option value="other">อื่นๆ</option>
         </select>
       </div>
-      <div class="form-group"><label>Start Time</label><input type="time" id="appt-start" value="09:00"></div>
-      <div class="form-group"><label>End Time</label><input type="time" id="appt-end" value="10:00"></div>
+      <div class="form-group"><label>เวลาเริ่ม</label><input type="time" id="appt-start" value="09:00"></div>
+      <div class="form-group"><label>เวลาสิ้นสุด</label><input type="time" id="appt-end" value="10:00"></div>
     </div>
-    <div class="form-group"><label>Location / Link</label><input type="text" id="appt-loc" placeholder="Meeting Room A / Zoom link..."></div>
-    <div class="form-group"><label>Participants</label><input type="text" id="appt-participants" placeholder="Names or emails, comma separated"></div>
-    <div class="form-group"><label>Notes</label><textarea rows="2" id="appt-notes" placeholder="Agenda, notes..."></textarea></div>
+    <div class="form-group"><label>สถานที่ / ลิงก์</label><input type="text" id="appt-loc" placeholder="ห้องประชุม A / ลิงก์ Zoom..."></div>
+    <div class="form-group"><label>ผู้เข้าร่วม</label><input type="text" id="appt-participants" placeholder="ชื่อหรืออีเมล คั่นด้วยเครื่องหมายจุลภาค"></div>
+    <div class="form-group"><label>หมายเหตุ</label><textarea rows="2" id="appt-notes" placeholder="วาระ, บันทึก..."></textarea></div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="closeModal('modal-appt')">Cancel</button>
-      <button class="btn btn-primary" onclick="addAppointment()">Create Appointment</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-appt')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="addAppointment()">สร้างนัดหมาย</button>
     </div>
   </div>
 </div>
@@ -1602,44 +1611,44 @@
 <div class="modal-overlay" id="modal-ot-request">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-ot-request')">✕</button>
-    <div class="modal-title">Request Overtime (OT)</div>
+    <div class="modal-title">ยื่นขอทำงานล่วงเวลา (OT)</div>
 
     <div style="background:var(--green-light);border-radius:10px;padding:12px 14px;font-size:12px;color:#065F46;margin-bottom:18px;line-height:1.6">
-      📋 OT requests require <strong>manager approval</strong> before taking effect. You will be notified once reviewed.
+      📋 คำขอ OT ต้องได้รับ<strong>การอนุมัติจากผู้จัดการ</strong>ก่อนมีผล ระบบจะแจ้งเตือนเมื่อได้รับการตรวจสอบ
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
       <div class="form-group" style="grid-column:1/-1">
-        <label>OT Date</label>
+        <label>วันที่ทำ OT</label>
         <input type="date" id="ot-date" value="2026-06-26">
       </div>
       <div class="form-group">
-        <label>Start Time</label>
+        <label>เวลาเริ่ม</label>
         <input type="time" id="ot-start" value="18:00">
       </div>
       <div class="form-group">
-        <label>End Time</label>
+        <label>เวลาสิ้นสุด</label>
         <input type="time" id="ot-end" value="20:00">
       </div>
     </div>
 
     <div class="form-group">
-      <label>OT Type</label>
+      <label>ประเภท OT</label>
       <select id="ot-req-type">
-        <option value="Voluntary">Voluntary</option>
-        <option value="Manager Requested">Manager Requested</option>
-        <option value="Emergency">Emergency</option>
-        <option value="Project Deadline">Project Deadline</option>
+        <option value="Voluntary">ทำเองโดยสมัครใจ</option>
+        <option value="Manager Requested">ผู้จัดการขอให้ทำ</option>
+        <option value="Emergency">เหตุฉุกเฉิน</option>
+        <option value="Project Deadline">กำหนดส่งโปรเจกต์</option>
       </select>
     </div>
 
     <div class="form-group">
-      <label>Reason <span style="color:var(--red)">*</span></label>
-      <textarea id="ot-req-reason" rows="3" placeholder="Describe the reason for overtime (e.g. sprint deadline, client delivery, urgent fix...)"></textarea>
+      <label>เหตุผล <span style="color:var(--red)">*</span></label>
+      <textarea id="ot-req-reason" rows="3" placeholder="อธิบายเหตุผลการทำ OT เช่น กำหนดส่งงาน, ส่งงานลูกค้า, แก้ไขด่วน..."></textarea>
     </div>
 
     <div class="form-group">
-      <label>Request to (Approver)</label>
+      <label>ส่งคำขอถึง (ผู้อนุมัติ)</label>
       <select id="ot-approver">
         <option>Davis Levin — HR Manager</option>
         <option>Mia Torres — HR Officer</option>
@@ -1647,13 +1656,13 @@
     </div>
 
     <div id="ot-hours-preview" style="background:var(--bg);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px;display:flex;justify-content:space-between">
-      <span style="color:var(--text-muted)">Estimated OT hours</span>
+      <span style="color:var(--text-muted)">จำนวนชั่วโมง OT โดยประมาณ</span>
       <strong id="ot-hours-val">2h 00m</strong>
     </div>
 
     <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="closeModal('modal-ot-request')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitOTRequest()">Submit Request</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-ot-request')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitOTRequest()">ยื่นคำขอ</button>
     </div>
   </div>
 </div>
@@ -1662,7 +1671,7 @@
 <div class="modal-overlay" id="modal-edit-perm">
   <div class="modal" style="width:520px">
     <button class="modal-close" onclick="closeModal('modal-edit-perm')">✕</button>
-    <div class="modal-title" id="perm-modal-title">Edit Permissions</div>
+    <div class="modal-title" id="perm-modal-title">แก้ไขสิทธิ์การใช้งาน</div>
     <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg);border-radius:10px;margin-bottom:20px">
       <div class="emp-avatar" id="perm-modal-avatar" style="background:#3B82F6;width:40px;height:40px;font-size:14px">MT</div>
       <div>
@@ -1671,24 +1680,24 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Role</label>
+      <label>บทบาท</label>
       <select id="perm-modal-role" onchange="updateRoleChips()">
-        <option value="admin">Admin</option>
-        <option value="hr_manager">HR Manager</option>
-        <option value="hr_staff">HR Staff</option>
-        <option value="employee">Employee</option>
+        <option value="admin">ผู้ดูแลระบบ</option>
+        <option value="hr_manager">ผู้จัดการ HR</option>
+        <option value="hr_staff">เจ้าหน้าที่ HR</option>
+        <option value="employee">พนักงาน</option>
       </select>
     </div>
     <div class="form-group">
-      <label>Module Access</label>
+      <label>สิทธิ์เข้าถึงโมดูล</label>
       <div id="perm-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
     </div>
     <div style="background:#FEF3C7;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400E;margin-bottom:16px">
-      ⚠ Changing permissions takes effect on next login.
+      ⚠ การเปลี่ยนสิทธิ์จะมีผลเมื่อเข้าสู่ระบบครั้งถัดไป
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="closeModal('modal-edit-perm')">Cancel</button>
-      <button class="btn btn-primary" onclick="savePermissions()">Save Changes</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-perm')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="savePermissions()">บันทึกการเปลี่ยนแปลง</button>
     </div>
   </div>
 </div>
@@ -1697,24 +1706,24 @@
 <div class="modal-overlay" id="modal-add-account">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-add-account')">✕</button>
-    <div class="modal-title">Add New Account</div>
+    <div class="modal-title">เพิ่มบัญชีใหม่</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>Full Name</label><input type="text" id="new-acc-name" placeholder="John Doe"></div>
-      <div class="form-group"><label>Email</label><input type="email" id="new-acc-email" placeholder="john@teams.com"></div>
-      <div class="form-group"><label>Password</label><input type="password" id="new-acc-pass" placeholder="Set password"></div>
-      <div class="form-group"><label>Role</label>
+      <div class="form-group"><label>ชื่อ-นามสกุล</label><input type="text" id="new-acc-name" placeholder="สมชาย ใจดี"></div>
+      <div class="form-group"><label>อีเมล</label><input type="email" id="new-acc-email" placeholder="somchai@teams.com"></div>
+      <div class="form-group"><label>รหัสผ่าน</label><input type="password" id="new-acc-pass" placeholder="ตั้งรหัสผ่าน"></div>
+      <div class="form-group"><label>บทบาท</label>
         <select id="new-acc-role">
-          <option value="admin">Admin</option>
-          <option value="hr_manager">HR Manager</option>
-          <option value="hr_staff" selected>HR Staff</option>
-          <option value="employee">Employee</option>
+          <option value="admin">ผู้ดูแลระบบ</option>
+          <option value="hr_manager">ผู้จัดการ HR</option>
+          <option value="hr_staff" selected>เจ้าหน้าที่ HR</option>
+          <option value="employee">พนักงาน</option>
         </select>
       </div>
     </div>
-    <div class="form-group"><label>Department</label><select><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
+    <div class="form-group"><label>แผนก</label><select><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-      <button class="btn btn-outline" onclick="closeModal('modal-add-account')">Cancel</button>
-      <button class="btn btn-primary" onclick="addAccount()">Create Account</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-add-account')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="addAccount()">สร้างบัญชี</button>
     </div>
   </div>
 </div>
@@ -1769,34 +1778,15 @@
       style="width:100%;background:var(--green);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s">
       <span id="lbl-signin-btn">เข้าสู่ระบบ</span>
     </button>
-    <div style="text-align:center;margin-top:18px;font-size:13px;color:var(--text-muted)">
+    <div class="divider-or">หรือ</div>
+    <button class="google-btn" onclick="triggerGoogleLogin()" id="google-login-btn">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      เข้าสู่ระบบด้วย Google
+    </button>
+    <div id="google-login-error" style="display:none;margin-top:8px;font-size:12px;color:#EF4444;text-align:center"></div>
+    <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-muted)">
       <span id="lbl-no-account">ยังไม่มีบัญชี?</span>
       <span onclick="showPanel('signup')" style="color:var(--green);font-weight:700;cursor:pointer;margin-left:4px" id="lbl-signup-link">สมัครสมาชิก</span>
-    </div>
-    <div style="margin-top:16px">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-align:center;font-weight:600" id="lbl-demo-header">บัญชีทดลอง — คลิกเพื่อกรอก</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div onclick="fillDemo('admin@teams.com','admin123')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:border .15s" onmouseover="this.style.borderColor='#6366F1'" onmouseout="this.style.borderColor='transparent'">
-          <div style="width:28px;height:28px;border-radius:50%;background:#6366F1;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">SA</div>
-          <div style="flex:1"><div style="font-size:12px;font-weight:700">Super Admin</div><div style="font-size:11px;color:var(--text-muted)">admin@teams.com · <span class="demo-desc-all">ทุกโมดูล</span></div></div>
-          <span style="font-size:10px;background:#6366F120;color:#6366F1;padding:2px 8px;border-radius:99px;font-weight:700">Admin</span>
-        </div>
-        <div onclick="fillDemo('davis@teams.com','password123')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:border .15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='transparent'">
-          <div style="width:28px;height:28px;border-radius:50%;background:#00C896;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">DL</div>
-          <div style="flex:1"><div style="font-size:12px;font-weight:700">Davis Levin</div><div style="font-size:11px;color:var(--text-muted)">davis@teams.com · HR + Payroll</div></div>
-          <span style="font-size:10px;background:#00C89620;color:#009E78;padding:2px 8px;border-radius:99px;font-weight:700">HR Manager</span>
-        </div>
-        <div onclick="fillDemo('mia@teams.com','mia123')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:border .15s" onmouseover="this.style.borderColor='#3B82F6'" onmouseout="this.style.borderColor='transparent'">
-          <div style="width:28px;height:28px;border-radius:50%;background:#3B82F6;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">MT</div>
-          <div style="flex:1"><div style="font-size:12px;font-weight:700">Mia Torres</div><div style="font-size:11px;color:var(--text-muted)">mia@teams.com · <span class="demo-desc-hr">HR จำกัดสิทธิ์</span></div></div>
-          <span style="font-size:10px;background:#3B82F620;color:#2563EB;padding:2px 8px;border-radius:99px;font-weight:700">HR Staff</span>
-        </div>
-        <div onclick="fillDemo('jacob@teams.com','jacob123')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:border .15s" onmouseover="this.style.borderColor='#8B5CF6'" onmouseout="this.style.borderColor='transparent'">
-          <div style="width:28px;height:28px;border-radius:50%;background:#8B5CF6;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">JY</div>
-          <div style="flex:1"><div style="font-size:12px;font-weight:700">Jacob Young</div><div style="font-size:11px;color:var(--text-muted)">jacob@teams.com · <span class="demo-desc-emp">เช็กอิน & วันลา</span></div></div>
-          <span style="font-size:10px;background:#8B5CF620;color:#7C3AED;padding:2px 8px;border-radius:99px;font-weight:700">Employee</span>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -1839,8 +1829,8 @@
         <div class="form-group"><label>นามสกุล (ไทย) <span style="color:var(--red)">*</span></label><input type="text" id="su-lastname-th" placeholder="ใจดี"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
-        <div class="form-group"><label>First Name</label><input type="text" id="su-firstname" placeholder="Somchai"></div>
-        <div class="form-group"><label>Last Name</label><input type="text" id="su-lastname" placeholder="Jaidee"></div>
+        <div class="form-group"><label>ชื่อ (อังกฤษ)</label><input type="text" id="su-firstname" placeholder="Somchai"></div>
+        <div class="form-group"><label>นามสกุล (อังกฤษ)</label><input type="text" id="su-lastname" placeholder="Jaidee"></div>
       </div>
       <div class="form-group">
         <label>อีเมล <span style="color:var(--red)">*</span></label>
@@ -1942,17 +1932,17 @@
 
     <!-- Step 1: Enter email -->
     <div id="forgot-step1">
-      <div class="login-title">Forgot Password 🔑</div>
-      <div class="login-sub" style="margin-bottom:24px">Enter your email and we'll send you a reset link</div>
+      <div class="login-title">ลืมรหัสผ่าน 🔑</div>
+      <div class="login-sub" style="margin-bottom:24px">กรอกอีเมลและเราจะส่งลิงก์รีเซ็ตให้คุณ</div>
       <div class="form-group">
-        <label>Email Address</label>
+        <label>อีเมล</label>
         <input type="email" id="forgot-email" placeholder="you@company.com"
           onkeydown="if(event.key==='Enter')sendReset()">
       </div>
-      <div id="forgot-error" class="login-error">Email not found in our system.</div>
+      <div id="forgot-error" class="login-error">ไม่พบอีเมลนี้ในระบบ</div>
       <button onclick="sendReset()" id="forgot-btn"
         style="width:100%;background:var(--green);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">
-        Send Reset Link
+        ส่งลิงก์รีเซ็ต
       </button>
     </div>
 
@@ -1999,83 +1989,20 @@ const state = {
 const COLORS = ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4','#EC4899','#6366F1'];
 
 // ── EMPLOYEES DATA ──
-const employees = [
-  {id:'EMP-001',name:'Mia Torres',dept:'Human Resources',pos:'HR Officer',joined:'14 Feb 2025',status:'Active',initials:'MT',color:'#3B82F6'},
-  {id:'EMP-002',name:'Jacob Young',dept:'Engineering',pos:'Senior Developer',joined:'01 Mar 2024',status:'Active',initials:'JY',color:'#8B5CF6'},
-  {id:'EMP-003',name:'Ana Kim',dept:'Design',pos:'UI/UX Designer',joined:'15 Jan 2025',status:'On Leave',initials:'AK',color:'#F59E0B'},
-  {id:'EMP-004',name:'Ethan Ray',dept:'Sales',pos:'Sales Lead',joined:'10 Jun 2023',status:'Active',initials:'ER',color:'#EF4444'},
-  {id:'EMP-005',name:'Sofia Park',dept:'Marketing',pos:'Marketing Manager',joined:'22 Sep 2024',status:'Active',initials:'SP',color:'#10B981'},
-  {id:'EMP-006',name:'Liam Chen',dept:'Finance',pos:'Financial Analyst',joined:'05 Apr 2024',status:'Active',initials:'LC',color:'#06B6D4'},
-  {id:'EMP-007',name:'Aria Patel',dept:'Engineering',pos:'Backend Developer',joined:'18 Nov 2023',status:'Active',initials:'AP',color:'#EC4899'},
-  {id:'EMP-008',name:'Noah Martinez',dept:'Design',pos:'Brand Designer',joined:'30 Jul 2024',status:'Inactive',initials:'NM',color:'#6366F1'},
-];
+const employees = [];  // โหลดจาก API
 
 // ── LEAVE DATA ──
-const leaveData = [
-  {emp:'Davis Levin',init:'DL',color:'#00C896',type:'Annual',from:'2026-06-10',to:'2026-06-12',days:3,reason:'Family vacation',status:'Approved'},
-  {emp:'Mia Torres',init:'MT',color:'#3B82F6',type:'Annual',from:'2026-06-28',to:'2026-06-30',days:3,reason:'Personal',status:'Pending'},
-  {emp:'Jacob Young',init:'JY',color:'#8B5CF6',type:'Sick',from:'2026-06-20',to:'2026-06-20',days:1,reason:'Flu',status:'Pending'},
-  {emp:'Ana Kim',init:'AK',color:'#F59E0B',type:'Casual',from:'2026-06-25',to:'2026-06-26',days:2,reason:'Personal errands',status:'Pending'},
-  {emp:'Ethan Ray',init:'ER',color:'#EF4444',type:'Sick',from:'2026-06-18',to:'2026-06-19',days:2,reason:'Fever',status:'Approved'},
-  {emp:'Sofia Park',init:'SP',color:'#10B981',type:'Annual',from:'2026-06-15',to:'2026-06-15',days:1,reason:'Training',status:'Rejected'},
-];
+const leaveData = [];  // โหลดจาก API
 
 // ── APPOINTMENTS ──
-const appointments = [
-  {title:'Team Standup',date:'2026-06-26',start:'09:00',end:'09:30',type:'meeting',loc:'Meeting Room A'},
-  {title:'Performance Review — Mia',date:'2026-06-26',start:'14:00',end:'15:00',type:'review',loc:'HR Office'},
-  {title:'Q3 Planning',date:'2026-06-26',start:'16:30',end:'17:30',type:'planning',loc:'Zoom'},
-  {title:'New Hire Interview',date:'2026-06-28',start:'10:00',end:'11:00',type:'interview',loc:'Meeting Room B'},
-  {title:'Leadership Training',date:'2026-07-02',start:'09:00',end:'12:00',type:'training',loc:'Conference Hall'},
-  {title:'Board Meeting',date:'2026-07-05',start:'13:00',end:'16:00',type:'meeting',loc:'Boardroom'},
-];
+const appointments = [];  // โหลดจาก API
 
 // ── ATTENDANCE HISTORY ──
-// Demo attendance history — only for built-in demo users (by email)
-const DEMO_ATT_HISTORY = {
-  'jacob@teams.com': [
-    {date:'2026-06-25',in:'09:02',out:'18:05',hours:'9h 03m',ot:'2h 25m',location:'Office',status:'Present'},
-    {date:'2026-06-24',in:'09:45',out:'18:00',hours:'8h 15m',ot:'',location:'Office',status:'Late'},
-    {date:'2026-06-23',in:'08:55',out:'19:45',hours:'9h 15m',ot:'1h 45m',location:'Remote',status:'Present'},
-    {date:'2026-06-22',in:'09:00',out:'18:03',hours:'9h 03m',ot:'',location:'Office',status:'Present'},
-    {date:'2026-06-21',in:'--',out:'--',hours:'--',ot:'',location:'',status:'Weekend'},
-    {date:'2026-06-20',in:'--',out:'--',hours:'--',ot:'',location:'',status:'Weekend'},
-    {date:'2026-06-19',in:'09:01',out:'18:00',hours:'8h 59m',ot:'',location:'Field',status:'Present'},
-    {date:'2026-06-18',in:'--',out:'--',hours:'--',ot:'',location:'',status:'Absent'},
-  ],
-  'mia@teams.com': [
-    {date:'2026-06-25',in:'08:30',out:'17:30',hours:'9h 00m',ot:'',location:'Office',status:'Present'},
-    {date:'2026-06-24',in:'08:45',out:'18:00',hours:'9h 15m',ot:'',location:'Office',status:'Present'},
-    {date:'2026-06-23',in:'08:50',out:'17:50',hours:'9h 00m',ot:'',location:'Office',status:'Present'},
-  ],
-  'admin@teams.com': [
-    {date:'2026-06-25',in:'09:00',out:'18:00',hours:'9h 00m',ot:'',location:'Office',status:'Present'},
-    {date:'2026-06-24',in:'09:00',out:'18:30',hours:'9h 30m',ot:'30m',location:'Office',status:'Present'},
-  ],
-};
-// Active attendance history for current user (populated on login)
+const DEMO_ATT_HISTORY = {};  // ไม่มี demo attendance
 let attHistory = [];
 
 // ── INBOX DATA ──
-// Demo inbox messages — keyed by email; only built-in accounts see these
-const DEMO_MESSAGES = {
-  'davis@teams.com': [
-    {from:'Mia Torres',init:'MT',color:'#3B82F6',subject:'Leave Request Approval',time:'2h ago',body:'Hi Davis,\n\nI would like to request annual leave from June 28-30, 2026.\nI have completed all pending tasks and briefed Jacob on the handover.\n\nThank you,\nMia Torres',unread:true},
-    {from:'HR System',init:'HR',color:'#00C896',subject:'Performance Review Due',time:'5h ago',body:'Performance review deadline is July 5, 2026. Please complete evaluations for your team members.',unread:true},
-    {from:'Jacob Young',init:'JY',color:'#8B5CF6',subject:'System Notification',time:'1d ago',body:'The quarterly performance reports have been submitted. Please review and provide feedback by end of week.',unread:false},
-    {from:'Admin',init:'AD',color:'#6B7280',subject:'Payroll Processing',time:'2d ago',body:'June payroll has been processed. Payslips are available in the employee portal.',unread:false},
-  ],
-  'admin@teams.com': [
-    {from:'HR System',init:'HR',color:'#00C896',subject:'System Alert',time:'1h ago',body:'Employee headcount updated. 4 active accounts in the system.',unread:true},
-    {from:'Mia Torres',init:'MT',color:'#3B82F6',subject:'Leave Approval Request',time:'3h ago',body:'Requesting approval for annual leave June 28-30.',unread:false},
-  ],
-  'mia@teams.com': [
-    {from:'Admin',init:'AD',color:'#6B7280',subject:'Leave Approved',time:'1d ago',body:'Your leave request for June 28-30 has been approved.',unread:true},
-  ],
-  'jacob@teams.com': [
-    {from:'Davis Levin',init:'DL',color:'#00C896',subject:'OT Approved',time:'2h ago',body:'Your OT request for June 25 has been approved. Great work on the hotfix!',unread:true},
-  ],
-};
+const DEMO_MESSAGES = {};  // ไม่มี demo messages — โหลดจาก API
 // Per-user inbox — loaded from DEMO_MESSAGES or localStorage
 let messages = [];
 function loadUserInbox(email) {
@@ -2137,8 +2064,8 @@ function renderEmployees(list) {
       <td>${e.dept}</td>
       <td>${e.pos}</td>
       <td>${e.joined}</td>
-      <td><span class="badge ${e.status==='Active'?'badge-green':e.status==='On Leave'?'badge-orange':'badge-gray'}">${e.status}</span></td>
-      <td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">View</button></td>
+      <td><span class="badge ${e.status==='Active'?'badge-green':e.status==='On Leave'?'badge-orange':'badge-gray'}">${e.status==='Active'?'ทำงานอยู่':e.status==='On Leave'?'กำลังลา':'ไม่ทำงาน'}</span></td>
+      <td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td>
     </tr>`).join('');
 }
 function filterEmps(q) {
@@ -2387,7 +2314,7 @@ function renderLeave() {
     const empColor = r.color || r.empColor || '#6B7280';
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px"><div class="emp-avatar" style="background:${empColor};width:28px;height:28px;font-size:10px">${empInit}</div>${empName}</div></td>
-      <td><span class="badge badge-blue">${r.type||'—'}</span></td>
+      <td><span class="badge ${r.type==='Compensatory'?'badge-purple':'badge-blue'}">${{Annual:'ลาพักร้อน',Sick:'ลาป่วย',Casual:'ลากิจ',Compensatory:'⚖️ ลาชดเชย'}[r.type]||r.type||'—'}</span></td>
       <td>${r.from||'—'}</td>
       <td>${r.to||'—'}</td>
       <td style="font-weight:700">${r.days||0} วัน</td>
@@ -2532,7 +2459,7 @@ function openLeaveModal() {
       chipAnnual.style.opacity = '0.4';
       chipAnnual.style.pointerEvents = 'none';
       chipAnnual.style.cursor = 'not-allowed';
-      chipAnnual.innerHTML = '🔒 ลาพักร้อน';
+      chipAnnual.textContent = 'ลาพักร้อน';
     }
     // Auto-select Sick if Annual was default
     if (!state.selectedLeaveType || state.selectedLeaveType === 'Annual') {
@@ -2676,10 +2603,7 @@ function updateLeavePendingBadge(count) {
 }
 
 // ── Comp leave requests data (demo) ──
-const compRequests = [
-  {emp:'Jacob Young', init:'JY', otDate:'21 มิ.ย. 2026', leaveDate:'28 มิ.ย. 2026', days:1, reason:'OT วันเสาร์ โปรเจค Alpha', status:'Pending'},
-  {emp:'Mia Torres',  init:'MT', otDate:'22 มิ.ย. 2026', leaveDate:'30 มิ.ย. 2026', days:1, reason:'OT วันอาทิตย์ ปิด Quarter',  status:'Pending'},
-];
+const compRequests = [];  // โหลดจาก API
 
 // ── Compensatory Leave Modal ──
 // Approval chain config: role required to approve each type
@@ -3295,10 +3219,10 @@ function openMsg(i) {
       <div><div style="font-size:13px;font-weight:600">${m.from}</div><div style="font-size:11px;color:var(--text-muted)">To: Davis Levin</div></div>
     </div>
     <div style="font-size:13px;line-height:1.8;white-space:pre-wrap;background:var(--bg);padding:16px;border-radius:10px;margin-bottom:20px">${m.body}</div>
-    <div class="form-group"><label>Reply</label><textarea rows="3" placeholder="Type your reply..."></textarea></div>
+    <div class="form-group"><label>ตอบกลับ</label><textarea rows="3" placeholder="พิมพ์ข้อความตอบกลับ..."></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-outline">Forward</button>
-      <button class="btn btn-primary" onclick="showToast('Reply sent!','success')">Send Reply</button>
+      <button class="btn btn-outline">ส่งต่อ</button>
+      <button class="btn btn-primary" onclick="showToast('ส่งข้อความเรียบร้อย','success')">ส่งข้อความ</button>
     </div>`;
   renderInbox();
 }
@@ -3547,22 +3471,13 @@ function restoreBackupAt(idx) {
   showToast('กู้คืนข้อมูลสำเร็จ', 'success');
 }
 
-let USERS = [
-  {email:'admin@teams.com',  pass:'admin123',    name:'Super Admin',  role:'admin',      init:'SA', color:'#6366F1', permissions:[...ROLE_DEFAULTS.admin],
-   position:'System Administrator', dept:'IT & Operations', phone:'081-000-0001', dob:'1985-03-15', startDate:'2018-01-01', contractType:'ประจำ', workType:'Full-time', nationality:'ไทย', idCard:'1-1001-00001-00-1'},
-  {email:'davis@teams.com',  pass:'password123', name:'Davis Levin',  role:'hr_manager', init:'DL', color:'#00C896', permissions:[...ROLE_DEFAULTS.hr_manager],
-   position:'HR Manager', dept:'Human Resources', phone:'082-111-2222', dob:'1990-07-22', startDate:'2020-06-01', contractType:'ประจำ', workType:'Full-time', nationality:'ไทย', idCard:'1-1002-00002-00-2'},
-  {email:'mia@teams.com',    pass:'mia123',      name:'Mia Torres',   role:'hr_staff',   init:'MT', color:'#3B82F6', permissions:[...ROLE_DEFAULTS.hr_staff],
-   position:'HR Officer', dept:'Human Resources', phone:'083-333-4444', dob:'1995-11-08', startDate:'2022-03-15', contractType:'ประจำ', workType:'Full-time', nationality:'ไทย', idCard:'1-1003-00003-00-3'},
-  {email:'jacob@teams.com',  pass:'jacob123',    name:'Jacob Young',  role:'employee',   init:'JY', color:'#8B5CF6', permissions:[...ROLE_DEFAULTS.employee],
-   position:'Software Engineer', dept:'Technology', phone:'084-555-6666', dob:'1998-04-30', startDate:'2023-09-01', contractType:'ประจำ', workType:'Full-time', nationality:'ไทย', idCard:'1-1004-00004-00-4'},
-];
+let USERS = [];  // ไม่มี demo users — ข้อมูลทั้งหมดมาจาก backend
 
 let currentUser = null;
 let editingUserEmail = null;
 
-// ── Persist registered users across page reloads ──────────────────────
-const _DEMO_EMAILS = new Set(['admin@teams.com','davis@teams.com','mia@teams.com','jacob@teams.com']);
+// ── No local user persistence needed — backend handles auth ──────────────────────
+const _DEMO_EMAILS = new Set([]);
 
 function saveLocalUsers() {
   try {
@@ -4011,7 +3926,7 @@ function openEditPerm(email) {
   const u = USERS.find(u=>u.email===email);
   if(!u) return;
   editingUserEmail = email;
-  document.getElementById('perm-modal-title').textContent = `Edit Permissions — ${u.name}`;
+  document.getElementById('perm-modal-title').textContent = `แก้ไขสิทธิ์ — ${u.name}`;
   document.getElementById('perm-modal-avatar').textContent = u.init;
   document.getElementById('perm-modal-avatar').style.background = u.color;
   document.getElementById('perm-modal-name').textContent = u.name;
@@ -4942,7 +4857,13 @@ function calcHours(inTime, outTime) {
 //  API LAYER — connects frontend to Node.js backend
 //  Falls back to in-memory demo data if server is off
 // ════════════════════════════════════════════════════
-const API_BASE = 'http://localhost:3001';
+// ── CONFIG ─────────────────────────────────────────────────────────────
+// เปลี่ยน API_BASE ให้ตรงกับ URL ของ backend ที่ deploy (หรือ localhost สำหรับรันในเครื่อง)
+const API_BASE = window.HRIS_API_BASE || 'http://localhost:3001';
+// ใส่ Google OAuth Client ID จาก Google Cloud Console
+const GOOGLE_CLIENT_ID = window.HRIS_GOOGLE_CLIENT_ID || '';
+// ─────────────────────────────────────────────────────────────────────
+
 let apiToken = null;
 let useApi   = false;
 
@@ -4956,11 +4877,97 @@ async function apiCall(method, path, body) {
   } catch { return null; }
 }
 
+// ── Google OAuth ─────────────────────────────────────────────────────
+function triggerGoogleLogin() {
+  const errEl = document.getElementById('google-login-error');
+  if (!GOOGLE_CLIENT_ID) {
+    if (errEl) { errEl.textContent = 'Google login ยังไม่ได้ตั้งค่า — กรุณาติดต่อผู้ดูแลระบบ'; errEl.style.display='block'; }
+    return;
+  }
+  if (!useApi) {
+    if (errEl) { errEl.textContent = 'ไม่สามารถเชื่อมต่อ backend ได้ กรุณาลองใหม่'; errEl.style.display='block'; }
+    return;
+  }
+  // Prompt Google One Tap / sign-in
+  if (window.google && window.google.accounts) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Fallback: open popup
+        window.google.accounts.id.renderButton(
+          document.createElement('div'),
+          { theme:'outline', size:'large' }
+        );
+        // Direct redirect sign-in
+        const params = new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          redirect_uri: window.location.origin + window.location.pathname,
+          response_type: 'token id_token',
+          scope: 'openid email profile',
+          nonce: Math.random().toString(36).slice(2),
+        });
+        window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'openid email profile',
+          callback: () => {},
+        });
+        window.google.accounts.id.prompt();
+      }
+    });
+  } else {
+    if (errEl) { errEl.textContent = 'Google SDK ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่'; errEl.style.display='block'; }
+  }
+}
+
+const _GOOGLE_BTN_HTML = '<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> เข้าสู่ระบบด้วย Google';
+
+async function handleGoogleCredential(response) {
+  const errEl = document.getElementById('google-login-error');
+  if (errEl) errEl.style.display = 'none';
+  const btn = document.getElementById('google-login-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...'; }
+  try {
+    const data = await apiCall('POST', '/api/auth/google', { credential: response.credential });
+    if (!data || data.error) {
+      if (errEl) { errEl.textContent = data?.error || 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ'; errEl.style.display='block'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = _GOOGLE_BTN_HTML; }
+      return;
+    }
+    apiToken = data.token;
+    currentUser = data.user;
+    const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
+    currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
+    try { localStorage.setItem('hris_session', JSON.stringify({email: currentUser.email, pass:'', token: apiToken, google: true})); } catch(e){}
+    document.getElementById('login-screen').classList.add('hidden');
+    buildSidebar();
+    applyLang();
+    const h = new Date().getHours();
+    const dg = document.getElementById('dash-greeting');
+    if(dg) dg.textContent = t(h<12?'good_morning':h<18?'good_afternoon':'good_evening') + ', ' + currentUser.name.split(' ')[0] + ' 👋';
+    nav(currentUser.permissions[0] || 'checkin');
+    loadTodayCheckin();
+  } catch(err) {
+    if (errEl) { errEl.textContent = 'เกิดข้อผิดพลาด กรุณาลองใหม่'; errEl.style.display='block'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = _GOOGLE_BTN_HTML; }
+  }
+}
+
 async function initApi() {
   try {
-    const r = await fetch(API_BASE + '/api/health', { signal: AbortSignal.timeout(1500) });
+    const r = await fetch(API_BASE + '/api/health', { signal: AbortSignal.timeout(2000) });
     useApi = r.ok;
   } catch { useApi = false; }
+  // Init Google Sign-In if client ID configured
+  if (GOOGLE_CLIENT_ID && window.google && window.google.accounts) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+      auto_select: false,
+    });
+  }
 }
 
 // ── AUTH overrides ──────────────────────────────────

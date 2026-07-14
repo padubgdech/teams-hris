@@ -11,9 +11,12 @@ const cors      = require('cors');
 const path      = require('path');
 const fs        = require('fs');
 const initSqlJs = require('sql.js');
+const { OAuth2Client } = require('google-auth-library');
 
-const PORT       = 3001;
-const JWT_SECRET = 'teams-hris-secret-2026';
+const PORT             = process.env.PORT || 3001;
+const JWT_SECRET       = process.env.JWT_SECRET || 'teams-hris-secret-change-me';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';  // ← ใส่ Client ID จาก Google Cloud Console
+const googleClient     = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 const DATA_DIR   = path.join(__dirname, 'data');
 const DB_FILE    = path.join(DATA_DIR, 'hris.db');
 
@@ -75,12 +78,18 @@ function dbExec(sql) { db.run(sql); }
 function initSchema() {
   dbExec(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL, password TEXT NOT NULL DEFAULT '',
     role TEXT NOT NULL DEFAULT 'employee', permissions TEXT NOT NULL DEFAULT '[]',
     department TEXT DEFAULT '', position TEXT DEFAULT '', phone TEXT DEFAULT '',
     color TEXT DEFAULT '#6B7280', init TEXT DEFAULT '?',
+    google_id TEXT DEFAULT '', auth_provider TEXT DEFAULT 'local',
+    picture TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
   )`);
+  // Migrate existing DBs
+  try { dbExec(`ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT ''`); } catch(e){}
+  try { dbExec(`ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'local'`); } catch(e){}
+  try { dbExec(`ALTER TABLE users ADD COLUMN picture TEXT DEFAULT ''`); } catch(e){}
   dbExec(`CREATE TABLE IF NOT EXISTS employees (
     id INTEGER PRIMARY KEY AUTOINCREMENT, emp_id TEXT, user_id INTEGER,
     name TEXT NOT NULL, email TEXT, department TEXT, position TEXT,
@@ -138,114 +147,14 @@ function initSchema() {
 }
 
 // ══════════════════════════════════════
-//  SEED DATA
+//  ROLE DEFAULTS
 // ══════════════════════════════════════
-function seedData() {
-  const count = dbGet('SELECT COUNT(*) as c FROM users').c;
-  if (count > 0) return;
-  console.log('Seeding initial data...');
-
-  const ROLE_DEFAULTS = {
-    admin:      ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment','permissions'],
-    hr_manager: ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment'],
-    hr_staff:   ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave'],
-    employee:   ['checkin','ot','inbox','calendar','leave'],
-  };
-
-  const seedUsers = [
-    { name:'Super Admin', email:'admin@teams.com',  pass:'admin123',    role:'admin',      dept:'Administration',  pos:'System Admin',     color:'#6366F1', init:'SA' },
-    { name:'Davis Levin', email:'davis@teams.com',  pass:'password123', role:'hr_manager', dept:'Human Resources', pos:'HR Manager',       color:'#00C896', init:'DL' },
-    { name:'Mia Torres',  email:'mia@teams.com',    pass:'mia123',      role:'hr_staff',   dept:'Human Resources', pos:'HR Officer',       color:'#3B82F6', init:'MT' },
-    { name:'Jacob Young', email:'jacob@teams.com',  pass:'jacob123',    role:'employee',   dept:'Engineering',     pos:'Senior Developer', color:'#8B5CF6', init:'JY' },
-    { name:'Ana Kim',     email:'ana@teams.com',    pass:'ana123',      role:'employee',   dept:'Design',          pos:'UI/UX Designer',   color:'#F59E0B', init:'AK' },
-    { name:'Ethan Ray',   email:'ethan@teams.com',  pass:'ethan123',    role:'employee',   dept:'Sales',           pos:'Sales Lead',       color:'#EF4444', init:'ER' },
-  ];
-
-  const userIds = {};
-  seedUsers.forEach((u, i) => {
-    const hash  = bcrypt.hashSync(u.pass, 10);
-    const perms = JSON.stringify(ROLE_DEFAULTS[u.role]);
-    const res   = dbRun(
-      'INSERT INTO users (name,email,password,role,permissions,department,position,color,init) VALUES (?,?,?,?,?,?,?,?,?)',
-      [u.name, u.email, hash, u.role, perms, u.dept, u.pos, u.color, u.init]
-    );
-    userIds[u.email] = res.lastInsertRowid;
-    const empId    = 'EMP-' + String(i + 1).padStart(3, '0');
-    const joinDate = new Date(2024, i % 12, (i * 7 % 28) + 1).toISOString().split('T')[0];
-    const status   = u.email === 'ana@teams.com' ? 'On Leave' : 'Active';
-    dbRun('INSERT INTO employees (emp_id,user_id,name,email,department,position,join_date,status,color,init) VALUES (?,?,?,?,?,?,?,?,?,?)',
-      [empId, res.lastInsertRowid, u.name, u.email, u.dept, u.pos, joinDate, status, u.color, u.init]);
-  });
-
-  const davisId = userIds['davis@teams.com'];
-  const miaId   = userIds['mia@teams.com'];
-  const jacobId = userIds['jacob@teams.com'];
-
-  [
-    [davisId,'2026-06-25','09:02','18:05','9h 03m','Office','Present'],
-    [davisId,'2026-06-24','09:45','18:00','8h 15m','Office','Late'],
-    [davisId,'2026-06-23','08:55','18:10','9h 15m','Remote','Present'],
-    [davisId,'2026-06-22','09:00','18:03','9h 03m','Office','Present'],
-    [davisId,'2026-06-19','09:01','18:00','8h 59m','Field','Present'],
-    [davisId,'2026-06-18',null,null,null,null,'Absent'],
-  ].forEach(r => dbRun('INSERT INTO attendance (user_id,date,check_in,check_out,work_hours,location,status) VALUES (?,?,?,?,?,?,?)', r));
-
-  [
-    [davisId,'Annual','2026-06-10','2026-06-12',3,'Family vacation','Approved'],
-    [davisId,'Annual','2026-06-28','2026-06-30',3,'Personal','Pending'],
-    [miaId,'Casual','2026-06-25','2026-06-26',2,'Personal errands','Pending'],
-    [jacobId,'Sick','2026-06-20','2026-06-20',1,'Flu','Pending'],
-  ].forEach(r => dbRun('INSERT INTO leave_requests (user_id,type,from_date,to_date,days,reason,status) VALUES (?,?,?,?,?,?,?)', r));
-
-  [
-    [davisId,'2026-06-25','18:00','20:30','2h 30m','Project Deadline','Q2 report finalization','Approved'],
-    [davisId,'2026-06-23','19:00','20:45','1h 45m','Voluntary','Catch up on backlog','Approved'],
-    [davisId,'2026-06-26','18:00','20:00','2h 00m','Project Deadline','Sprint deadline','Pending'],
-    [miaId,'2026-06-24','18:30','21:00','2h 30m','Emergency','System outage support','Pending'],
-    [jacobId,'2026-06-25','18:00','19:30','1h 30m','Manager Requested','Deploy hotfix','Pending'],
-  ].forEach(r => dbRun('INSERT INTO ot_requests (user_id,date,start_time,end_time,hours,type,reason,status) VALUES (?,?,?,?,?,?,?,?)', r));
-
-  [
-    [miaId, davisId, 'Leave Request Approval', 'Hi Davis,\n\nI would like to request annual leave from June 28-30.\nAll tasks are complete and Jacob is briefed.\n\nThank you,\nMia', 0],
-    [null,  davisId, 'Performance Review Due', 'Performance review deadline is July 5, 2026. Please complete evaluations for your team.', 0],
-    [jacobId, davisId, 'System Notification', 'Quarterly performance reports submitted. Please review by end of week.', 1],
-  ].forEach(r => dbRun('INSERT INTO inbox (from_user,to_user,subject,body,is_read) VALUES (?,?,?,?,?)', r));
-
-  [
-    [davisId,'Team Standup','2026-06-26','09:00','09:30','meeting','Meeting Room A'],
-    [davisId,'Performance Review — Mia','2026-06-26','14:00','15:00','review','HR Office'],
-    [davisId,'Q3 Planning','2026-06-26','16:30','17:30','planning','Zoom'],
-    [davisId,'New Hire Interview','2026-06-28','10:00','11:00','interview','Meeting Room B'],
-    [davisId,'Leadership Training','2026-07-02','09:00','12:00','training','Conference Hall'],
-  ].forEach(r => dbRun('INSERT INTO appointments (user_id,title,date,start_time,end_time,type,location) VALUES (?,?,?,?,?,?,?)', r));
-
-  // Thai Public Holidays 2026 (BE 2569) — 19 days
-  const holidays2026 = [
-    ['2026-01-01','วันขึ้นปีใหม่','New Year\'s Day','official'],
-    ['2026-01-02','วันหยุดพิเศษ (ครม.)','Special Holiday','special'],
-    ['2026-04-06','วันจักรี','Chakri Memorial Day','official'],
-    ['2026-04-13','วันสงกรานต์','Songkran Festival','official'],
-    ['2026-04-14','วันสงกรานต์','Songkran Festival','official'],
-    ['2026-04-15','วันสงกรานต์ (เพิ่มเติม)','Songkran Festival (Extra)','official'],
-    ['2026-05-01','วันแรงงานแห่งชาติ','National Labour Day','official'],
-    ['2026-05-04','วันฉัตรมงคล','Coronation Day','official'],
-    ['2026-06-01','ชดเชยวิสาขบูชา','Visakha Bucha (in lieu)','compensatory'],
-    ['2026-06-03','วันพระบรมราชินี','HM Queen\'s Birthday','official'],
-    ['2026-07-28','วันเฉลิมพระชนมพรรษา ร.10','HM King\'s Birthday','official'],
-    ['2026-07-29','วันอาสาฬหบูชา','Asarnha Bucha Day','official'],
-    ['2026-07-30','วันเข้าพรรษา','Buddhist Lent Day','official'],
-    ['2026-08-12','วันแม่แห่งชาติ','HM Queen Mother\'s Birthday / Mother\'s Day','official'],
-    ['2026-10-13','วันคล้ายวันสวรรคต ร.9','HM King Bhumibol Memorial Day','official'],
-    ['2026-10-23','วันปิยมหาราช','Chulalongkorn Day','official'],
-    ['2026-12-10','วันรัฐธรรมนูญ','Constitution Day','official'],
-    ['2026-12-31','วันสิ้นปี','New Year\'s Eve','official'],
-  ];
-  const insertHoliday = 'INSERT OR IGNORE INTO holidays (date,name,name_en,type,year) VALUES (?,?,?,?,2026)';
-  holidays2026.forEach(h => dbRun(insertHoliday, h));
-
-  saveDb();
-  console.log('Seed complete');
-}
+const ROLE_DEFAULTS = {
+  admin:      ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment','permissions'],
+  hr_manager: ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment'],
+  hr_staff:   ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave'],
+  employee:   ['checkin','ot','inbox','calendar','leave'],
+};
 
 // Seed holidays separately — runs even if users already exist
 function seedHolidays() {
@@ -301,7 +210,9 @@ function requireRole(...roles) {
 function fmtUser(u) {
   return { id:u.id, name:u.name, email:u.email, role:u.role,
     permissions: JSON.parse(u.permissions||'[]'),
-    department:u.department, position:u.position, phone:u.phone, color:u.color, init:u.init };
+    department:u.department, position:u.position, phone:u.phone,
+    color:u.color, init:u.init,
+    picture:u.picture||'', auth_provider:u.auth_provider||'local' };
 }
 
 // AUTH
@@ -320,14 +231,16 @@ app.post('/api/auth/register', (req, res) => {
   if (!firstName || !lastName || !email || !password) return res.status(400).json({ error: 'Missing required fields' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
   if (dbGet('SELECT id FROM users WHERE email = ?', [email.toLowerCase()])) return res.status(409).json({ error: 'Email already registered' });
-  const name   = firstName + ' ' + lastName;
-  const init   = (firstName[0] + (lastName[0]||'')).toUpperCase();
-  const colors = ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
-  const color  = colors[Math.floor(Math.random() * colors.length)];
-  const perms  = JSON.stringify(['checkin','ot','inbox','calendar','leave']);
-  const hash   = bcrypt.hashSync(password, 10);
-  const result = dbRun('INSERT INTO users (name,email,password,role,permissions,department,position,phone,color,init) VALUES (?,?,?,?,?,?,?,?,?,?)',
-    [name, email.toLowerCase(), hash, 'employee', perms, department||'', position||'', phone||'', color, init]);
+  const name      = firstName + ' ' + lastName;
+  const init      = (firstName[0] + (lastName[0]||'')).toUpperCase();
+  const colors    = ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
+  const color     = colors[Math.floor(Math.random() * colors.length)];
+  const userCount = dbGet('SELECT COUNT(*) as c FROM users').c;
+  const role      = userCount === 0 ? 'admin' : 'employee';  // first user = admin
+  const perms     = JSON.stringify(ROLE_DEFAULTS[role]);
+  const hash      = bcrypt.hashSync(password, 10);
+  const result    = dbRun('INSERT INTO users (name,email,password,role,permissions,department,position,phone,color,init,auth_provider) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+    [name, email.toLowerCase(), hash, role, perms, department||'', position||'', phone||'', color, init, 'local']);
   const empCount = dbGet('SELECT COUNT(*) as c FROM employees').c;
   dbRun('INSERT INTO employees (emp_id,user_id,name,email,department,position,join_date,color,init) VALUES (?,?,?,?,?,?,date("now"),?,?)',
     ['EMP-'+String(empCount+1).padStart(3,'0'), result.lastInsertRowid, name, email.toLowerCase(), department||'', position||'', color, init]);
@@ -335,6 +248,47 @@ app.post('/api/auth/register', (req, res) => {
   const user  = dbGet('SELECT * FROM users WHERE id = ?', [result.lastInsertRowid]);
   const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, JWT_SECRET, { expiresIn:'7d' });
   res.status(201).json({ token, user: fmtUser(user) });
+});
+
+// GOOGLE OAUTH
+app.post('/api/auth/google', async (req, res) => {
+  if (!googleClient) return res.status(503).json({ error: 'Google login not configured on this server' });
+  const { credential } = req.body;
+  if (!credential) return res.status(400).json({ error: 'credential required' });
+  try {
+    const ticket  = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+    let user = dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+    if (!user) {
+      // Auto-register: first user ever becomes admin
+      const nameParts = (name||'User').split(' ');
+      const init  = nameParts.map(p=>p[0]).slice(0,2).join('').toUpperCase() || 'U';
+      const colors= ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
+      const color = colors[Math.floor(Math.random()*colors.length)];
+      const userCount = dbGet('SELECT COUNT(*) as c FROM users').c;
+      const role  = userCount === 0 ? 'admin' : 'employee';
+      const perms = JSON.stringify(ROLE_DEFAULTS[role]);
+      const result = dbRun(
+        'INSERT INTO users (name,email,password,role,permissions,color,init,google_id,auth_provider,picture) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [name, email.toLowerCase(), '', role, perms, color, init, googleId, 'google', picture||'']
+      );
+      const empCount = dbGet('SELECT COUNT(*) as c FROM employees').c;
+      dbRun('INSERT INTO employees (emp_id,user_id,name,email,join_date,color,init) VALUES (?,?,?,?,date("now"),?,?)',
+        ['EMP-'+String(empCount+1).padStart(3,'0'), result.lastInsertRowid, name, email.toLowerCase(), color, init]);
+      saveDb();
+      user = dbGet('SELECT * FROM users WHERE id = ?', [result.lastInsertRowid]);
+    } else if (!user.google_id) {
+      dbRun('UPDATE users SET google_id=?,auth_provider=?,picture=? WHERE id=?', [googleId,'google',picture||'',user.id]);
+      saveDb();
+      user = dbGet('SELECT * FROM users WHERE id = ?', [user.id]);
+    }
+    const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, JWT_SECRET, { expiresIn:'7d' });
+    res.json({ token, user: fmtUser(user) });
+  } catch(err) {
+    console.error('Google auth error:', err.message);
+    res.status(401).json({ error: 'Invalid Google token' });
+  }
 });
 
 app.post('/api/auth/forgot-password', (req, res) => {
@@ -628,8 +582,7 @@ initSqlJs().then(SQL => {
     console.log('Created new database');
   }
   initSchema();
-  seedData();
-  seedHolidays();  // always run — inserts holidays if table is empty
+  seedHolidays();  // seed Thai public holidays only
   app.listen(PORT, () => {
     console.log('');
     console.log('  Teams HRIS Backend Running');
