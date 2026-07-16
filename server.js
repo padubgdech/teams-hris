@@ -495,6 +495,35 @@ app.get('/api/users', auth, requireRole('admin','hr_manager'), (req, res) => {
     color:u.color||'#6B7280', init:u.init||'?', created_at:u.created_at
   })).sort((a,b) => (a.name||'').localeCompare(b.name||'')));
 });
+app.put('/api/users/:id/profile', auth, (req, res) => {
+  if (req.user.id != req.params.id && req.user.role !== 'admin')
+    return res.status(403).json({ error: 'Forbidden' });
+  const user = store.users.find(u => u.id == req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  const { name, department, position, phone } = req.body;
+  if (name)       user.name       = name;
+  if (department !== undefined) user.department = department;
+  if (position   !== undefined) user.position   = position;
+  if (phone      !== undefined) user.phone       = phone;
+  // Update init from name
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    user.init = parts.length > 1
+      ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+      : (parts[0].slice(0,2)).toUpperCase();
+  }
+  // Sync employee record too
+  const emp = store.employees.find(e => e.user_id === user.id);
+  if (emp) {
+    if (name)       { emp.name = name; emp.init = user.init; }
+    if (department !== undefined) emp.department = department;
+    if (position   !== undefined) emp.position   = position;
+    if (phone      !== undefined) emp.phone       = phone;
+  }
+  saveDb();
+  res.json(fmtUser(user));
+});
+
 app.put('/api/users/:id/permissions', auth, requireRole('admin'), (req, res) => {
   const user = store.users.find(u => u.id == req.params.id);
   if (!user) return res.status(404).json({ error: 'Not found' });

@@ -1938,6 +1938,37 @@
 
 </div>
 
+<!-- ══════════════════ PROFILE COMPLETE MODAL ══════════════════ -->
+<div id="modal-profile-complete" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:36px 40px;width:480px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.3)">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:40px;margin-bottom:10px">👤</div>
+      <div style="font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:6px">กรุณาเติมข้อมูลโปรไฟล์</div>
+      <div style="font-size:13px;color:#6b7280;line-height:1.5">กรุณากรอกข้อมูลให้ครบถ้วนก่อนเข้าใช้งานระบบ<br>ไม่สามารถปิดหน้าต่างนี้ได้จนกว่าจะบันทึกข้อมูล</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">ชื่อ-นามสกุล (ภาษาไทย) <span style="color:#ef4444">*</span></label>
+      <input id="pc-name" type="text" placeholder="เช่น สมชาย ใจดี" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">แผนก <span style="color:#ef4444">*</span></label>
+      <input id="pc-department" type="text" placeholder="เช่น ฝ่ายไอที, ฝ่ายบัญชี, ฝ่ายขาย" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">ตำแหน่งงาน <span style="color:#ef4444">*</span></label>
+      <input id="pc-position" type="text" placeholder="เช่น Software Developer, บัญชี" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    </div>
+    <div style="margin-bottom:22px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">เบอร์โทรศัพท์</label>
+      <input id="pc-phone" type="tel" placeholder="0xx-xxx-xxxx (ไม่จำเป็น)" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    </div>
+    <div id="pc-error" style="display:none;background:#fee2e2;border-radius:8px;padding:10px 14px;font-size:13px;color:#b91c1c;margin-bottom:14px"></div>
+    <button id="pc-save-btn" onclick="saveProfileComplete()" style="width:100%;background:#10b981;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+      💾 บันทึกข้อมูล
+    </button>
+  </div>
+</div>
+
 <!-- ══════════════════ SCRIPTS ══════════════════ -->
 <script>
 // ── STATE ──
@@ -2017,6 +2048,61 @@ function nav(page) {
   if(page==='ot') renderOT();
   if(page==='myrecords') renderMyRecords();
   if(page==='checkin') { loadRetroRequests(); renderCheckinWeek(); }
+}
+
+// ════════════ PROFILE COMPLETE POPUP ════════════
+function checkProfileComplete() {
+  if (!currentUser || !useApi) return true;
+  return !!(currentUser.department && currentUser.position);
+}
+
+function showProfileCompleteModal() {
+  const modal = document.getElementById('modal-profile-complete');
+  if (!modal) return;
+  const nameEl  = document.getElementById('pc-name');
+  const deptEl  = document.getElementById('pc-department');
+  const posEl   = document.getElementById('pc-position');
+  const phoneEl = document.getElementById('pc-phone');
+  if (nameEl  && currentUser.name)       nameEl.value  = currentUser.name;
+  if (deptEl  && currentUser.department) deptEl.value  = currentUser.department;
+  if (posEl   && currentUser.position)   posEl.value   = currentUser.position;
+  if (phoneEl && currentUser.phone)      phoneEl.value = currentUser.phone;
+  modal.style.display = 'flex';
+  if (nameEl) setTimeout(() => nameEl.focus(), 100);
+}
+
+async function saveProfileComplete() {
+  const name  = (document.getElementById('pc-name')        || {}).value?.trim();
+  const dept  = (document.getElementById('pc-department')  || {}).value?.trim();
+  const pos   = (document.getElementById('pc-position')    || {}).value?.trim();
+  const phone = (document.getElementById('pc-phone')       || {}).value?.trim();
+  const errEl = document.getElementById('pc-error');
+  const btn   = document.getElementById('pc-save-btn');
+
+  if (!name || !dept || !pos) {
+    errEl.textContent = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบ (ชื่อ, แผนก, ตำแหน่ง)';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+
+  const result = await apiCall('PUT', '/api/users/' + currentUser.id + '/profile', { name, department: dept, position: pos, phone });
+  if (result && !result.error) {
+    currentUser.name       = result.name       || name;
+    currentUser.department = result.department || dept;
+    currentUser.position   = result.position   || pos;
+    if (phone) currentUser.phone = result.phone || phone;
+    buildSidebar();
+    document.getElementById('modal-profile-complete').style.display = 'none';
+    showToast('บันทึกข้อมูลเรียบร้อยแล้ว ✓', 'success');
+  } else {
+    errEl.textContent = (result && result.error) || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '💾 บันทึกข้อมูล';
+  }
 }
 
 // ════════════ DASHBOARD ════════════
@@ -5029,6 +5115,7 @@ doLogin = async function() {
     try { localStorage.setItem('hris_session', JSON.stringify({email, pass, token: result.token})); } catch(e){}
     nav(result.user.permissions[0] || 'checkin');
     loadTodayCheckin();
+    if (!checkProfileComplete()) showProfileCompleteModal();
   } else {
     err.textContent = (result && result.error) || 'Incorrect email or password';
     err.style.display = 'block';
