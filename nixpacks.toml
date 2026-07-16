@@ -1,0 +1,2 @@
+[phases.start]
+cmd = "node --experimental-sqlite server.js"
