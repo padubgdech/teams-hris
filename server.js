@@ -10,7 +10,7 @@ const jwt       = require('jsonwebtoken');
 const cors      = require('cors');
 const path      = require('path');
 const fs        = require('fs');
-const Database  = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const { OAuth2Client } = require('google-auth-library');
 
 const PORT             = process.env.PORT || 3001;
@@ -25,7 +25,7 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 // ══════════════════════════════════════
 //  DB HELPERS (better-sqlite3)
 // ══════════════════════════════════════
-const db = new Database(DB_FILE);
+const db = new DatabaseSync(DB_FILE);
 
 function saveDb() { /* better-sqlite3 writes to disk automatically */ }
 
