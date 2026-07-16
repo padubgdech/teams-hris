@@ -14,5 +14,5 @@
  *    → คัดลอก Client ID มาใส่ด้านล่าง
  */
 
-window.HRIS_API_BASE         = 'http://localhost:3001';
+window.HRIS_API_BASE         = 'https://teams-hris-production.up.railway.app';
 window.HRIS_GOOGLE_CLIENT_ID = '261071644785-4a5jlonrubqang0ppn1bq05upc1g4tvt.apps.googleusercontent.com';
