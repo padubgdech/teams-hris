@@ -10,7 +10,7 @@ const jwt       = require('jsonwebtoken');
 const cors      = require('cors');
 const path      = require('path');
 const fs        = require('fs');
-const initSqlJs = require('sql.js');
+const Database  = require('better-sqlite3');
 const { OAuth2Client } = require('google-auth-library');
 
 const PORT             = process.env.PORT || 3001;
@@ -20,57 +20,29 @@ const googleClient     = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) :
 const DATA_DIR   = path.join(__dirname, 'data');
 const DB_FILE    = path.join(DATA_DIR, 'hris.db');
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // ══════════════════════════════════════
-//  DB HELPERS (wrap sql.js API)
+//  DB HELPERS (better-sqlite3)
 // ══════════════════════════════════════
-let db;
+const db = new Database(DB_FILE);
 
-function saveDb() {
-  const data = db.export();
-  fs.writeFileSync(DB_FILE, Buffer.from(data));
-}
+function saveDb() { /* better-sqlite3 writes to disk automatically */ }
 
 function dbGet(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
-  if (stmt.step()) {
-    const cols = stmt.getColumnNames();
-    const vals = stmt.get();
-    const row  = {};
-    cols.forEach((c, i) => row[c] = vals[i]);
-    stmt.free();
-    return row;
-  }
-  stmt.free();
-  return null;
+  return db.prepare(sql).get(...params) || null;
 }
 
 function dbAll(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
-  const rows = [];
-  while (stmt.step()) {
-    const cols = stmt.getColumnNames();
-    const vals = stmt.get();
-    const row  = {};
-    cols.forEach((c, i) => row[c] = vals[i]);
-    rows.push(row);
-  }
-  stmt.free();
-  return rows;
+  return db.prepare(sql).all(...params);
 }
 
 function dbRun(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.run(params);
-  stmt.free();
-  const lastId = db.exec('SELECT last_insert_rowid()');
-  return { lastInsertRowid: lastId[0]?.values[0][0] ?? null };
+  const info = db.prepare(sql).run(...params);
+  return { lastInsertRowid: info.lastInsertRowid };
 }
 
-function dbExec(sql) { db.run(sql); }
+function dbExec(sql) { db.exec(sql); }
 
 // ══════════════════════════════════════
 //  SCHEMA
@@ -573,16 +545,11 @@ app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toIS
 // ══════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════
-initSqlJs({ locateFile: file => `${__dirname}/node_modules/sql.js/dist/${file}` }).then(SQL => {
-  if (fs.existsSync(DB_FILE)) {
-    db = new SQL.Database(fs.readFileSync(DB_FILE));
-    console.log('Loaded existing database');
-  } else {
-    db = new SQL.Database();
-    console.log('Created new database');
-  }
+//  BOOT
+// ══════════════════════════════════════
+try {
   initSchema();
-  seedHolidays();  // seed Thai public holidays only
+  seedHolidays();
   app.listen(PORT, () => {
     console.log('');
     console.log('  Teams HRIS Backend Running');
@@ -590,4 +557,7 @@ initSqlJs({ locateFile: file => `${__dirname}/node_modules/sql.js/dist/${file}` 
     console.log('  API: http://localhost:' + PORT + '/api');
     console.log('');
   });
-}).catch(err => { console.error('DB init failed:', err); process.exit(1); });
+} catch(err) {
+  console.error('DB init failed:', err);
+  process.exit(1);
+}
