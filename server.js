@@ -573,7 +573,7 @@ app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toIS
 // ══════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════
-initSqlJs().then(SQL => {
+initSqlJs({ locateFile: file => `${__dirname}/node_modules/sql.js/dist/${file}` }).then(SQL => {
   if (fs.existsSync(DB_FILE)) {
     db = new SQL.Database(fs.readFileSync(DB_FILE));
     console.log('Loaded existing database');
