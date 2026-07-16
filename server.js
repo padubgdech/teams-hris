@@ -540,6 +540,7 @@ app.get('/api/stats', auth, requireRole('admin','hr_manager','hr_staff'), (req, 
     presentToday:   store.attendance.filter(a => a.date === today && a.check_in).length,
     pendingLeave:   store.leave_requests.filter(r => r.status === 'Pending').length,
     pendingOT:      store.ot_requests.filter(r => r.status === 'Pending').length,
+    onLeaveToday:   store.leave_requests.filter(r => r.status === 'Approved' && r.start_date <= today && r.end_date >= today).length,
   });
 });
 
