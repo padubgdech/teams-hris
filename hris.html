@@ -441,7 +441,7 @@
           <div class="stat-card">
             <div class="stat-icon" style="background:#3B82F6"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
             <div>
-              <div class="stat-val" id="dash-emp-count">146</div>
+              <div class="stat-val" id="dash-emp-count">—</div>
               <div class="stat-label" data-i18n="total_employees">พนักงานทั้งหมด</div>
               <div class="stat-change up" data-i18n="emp_this_month">↑ 5 คนเดือนนี้</div>
             </div>
@@ -451,9 +451,9 @@
           <div class="stat-card">
             <div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div>
-              <div class="stat-val">132</div>
+              <div class="stat-val" id="dash-present-count">—</div>
               <div class="stat-label" data-i18n="present_today">มาทำงานวันนี้</div>
-              <div class="stat-change up" data-i18n="attendance_rate">↑ 90.4% อัตราการมา</div>
+              <div class="stat-change up" id="dash-attendance-rate"></div>
             </div>
           </div>
         </div>
@@ -461,9 +461,9 @@
           <div class="stat-card">
             <div class="stat-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
             <div>
-              <div class="stat-val">8</div>
-              <div class="stat-label" data-i18n="on_leave_today">ลาวันนี้</div>
-              <div class="stat-change down" data-i18n="pending_approval">5 รออนุมัติ</div>
+              <div class="stat-val" id="dash-pending-count">—</div>
+              <div class="stat-label" data-i18n="pending_leave">รออนุมัติ</div>
+              <div class="stat-change down" id="dash-pending-change"></div>
             </div>
           </div>
         </div>
@@ -541,11 +541,8 @@
           </div>
           <table>
             <thead><tr><th data-i18n="employee">พนักงาน</th><th data-i18n="department">แผนก</th><th data-i18n="status">สถานะ</th><th data-i18n="performance">ผลงาน</th></tr></thead>
-            <tbody>
-              <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="emp-avatar" style="background:#3B82F6">MT</div><div><div class="emp-name">Mia Torres</div><div class="emp-id">HR Officer</div></div></div></td><td>Human Resources</td><td><span class="badge badge-green">Active</span></td><td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:86%"></div></div></td></tr>
-              <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="emp-avatar" style="background:#8B5CF6">JY</div><div><div class="emp-name">Jacob Young</div><div class="emp-id">Developer</div></div></div></td><td>Engineering</td><td><span class="badge badge-green">Active</span></td><td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:72%"></div></div></td></tr>
-              <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="emp-avatar" style="background:#F59E0B">AK</div><div><div class="emp-name">Ana Kim</div><div class="emp-id">Designer</div></div></div></td><td>Design</td><td><span class="badge badge-orange">On Leave</span></td><td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:91%"></div></div></td></tr>
-              <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="emp-avatar" style="background:#EF4444">ER</div><div><div class="emp-name">Ethan Ray</div><div class="emp-id">Sales Lead</div></div></div></td><td>Sales</td><td><span class="badge badge-green">Active</span></td><td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:65%"></div></div></td></tr>
+            <tbody id="dash-recent-tbody">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">กำลังโหลด...</td></tr>
             </tbody>
           </table>
         </div>
@@ -554,42 +551,10 @@
         <div class="card" style="width:300px">
           <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
             <span class="card-title" data-i18n="pending_approvals">รออนุมัติ</span>
-            <span class="badge badge-orange">5</span>
+            <span class="badge badge-orange" id="dash-pending-badge">—</span>
           </div>
-          <div style="padding:12px 16px">
-            <div class="event-item">
-              <div class="emp-avatar" style="background:#3B82F6;width:32px;height:32px;font-size:11px;flex-shrink:0">MT</div>
-              <div class="flex-1">
-                <div style="font-size:13px;font-weight:600">Mia Torres</div>
-                <div style="font-size:11px;color:var(--text-muted)">Annual Leave · 3 days</div>
-              </div>
-              <div style="display:flex;gap:4px">
-                <button onclick="approvLeave(this,'approved')" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
-                <button onclick="approvLeave(this,'rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>
-              </div>
-            </div>
-            <div class="event-item">
-              <div class="emp-avatar" style="background:#8B5CF6;width:32px;height:32px;font-size:11px;flex-shrink:0">JY</div>
-              <div class="flex-1">
-                <div style="font-size:13px;font-weight:600">Jacob Young</div>
-                <div style="font-size:11px;color:var(--text-muted)">Sick Leave · 1 day</div>
-              </div>
-              <div style="display:flex;gap:4px">
-                <button onclick="approvLeave(this,'approved')" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
-                <button onclick="approvLeave(this,'rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>
-              </div>
-            </div>
-            <div class="event-item">
-              <div class="emp-avatar" style="background:#F59E0B;width:32px;height:32px;font-size:11px;flex-shrink:0">AK</div>
-              <div class="flex-1">
-                <div style="font-size:13px;font-weight:600">Ana Kim</div>
-                <div style="font-size:11px;color:var(--text-muted)">Casual Leave · 2 days</div>
-              </div>
-              <div style="display:flex;gap:4px">
-                <button onclick="approvLeave(this,'approved')" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
-                <button onclick="approvLeave(this,'rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>
-              </div>
-            </div>
+          <div style="padding:12px 16px" id="dash-pending-list">
+            <div style="text-align:center;color:var(--text-muted);padding:16px;font-size:13px">กำลังโหลด...</div>
           </div>
         </div>
       </div>
@@ -2042,6 +2007,7 @@ function nav(page) {
   };
   document.getElementById('breadcrumb').innerHTML = `<span style="color:var(--text-muted)">Home</span> &rsaquo; <strong>${labels[page]||page}</strong>`;
 
+  if(page==='dashboard') renderDashboard();
   if(page==='attendance') renderAttHistory();
   if(page==='leave') { renderLeave(); updateLeaveBalances(); }
   if(page==='calendar') { loadHolidaysForMonth(state.calYear, state.calMonth).then(()=>renderCalendar()); }
@@ -2051,6 +2017,69 @@ function nav(page) {
   if(page==='ot') renderOT();
   if(page==='myrecords') renderMyRecords();
   if(page==='checkin') { loadRetroRequests(); renderCheckinWeek(); }
+}
+
+// ════════════ DASHBOARD ════════════
+async function renderDashboard() {
+  const isManager = currentUser && ['admin','hr_manager','hr_staff'].includes(currentUser.role);
+  const el = id => document.getElementById(id);
+  // Stats (managers only)
+  if (isManager && useApi) {
+    const stats = await apiCall('GET', '/api/stats');
+    if (stats && !stats.error) {
+      if (el('dash-emp-count'))     el('dash-emp-count').textContent     = stats.totalEmployees ?? '—';
+      if (el('dash-present-count')) el('dash-present-count').textContent = stats.presentToday   ?? '—';
+      if (el('dash-pending-count')) el('dash-pending-count').textContent = (stats.pendingLeave||0) + (stats.pendingOT||0);
+      if (el('dash-pending-badge')) el('dash-pending-badge').textContent = stats.pendingLeave   ?? '—';
+    }
+  }
+  // Recent employees
+  const tbody = el('dash-recent-tbody');
+  if (tbody && useApi) {
+    const emps = await apiCall('GET', '/api/employees') || [];
+    if (!emps.length) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">ยังไม่มีพนักงาน</td></tr>`;
+    } else {
+      tbody.innerHTML = emps.slice(0,5).map(e => `
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:10px">
+            <div class="emp-avatar" style="background:${e.color||'#6B7280'}">${e.init||'?'}</div>
+            <div><div class="emp-name">${e.name}</div><div class="emp-id">${e.position||''}</div></div>
+          </div></td>
+          <td>${e.department||'—'}</td>
+          <td><span class="badge ${e.status==='Active'?'badge-green':e.status==='On Leave'?'badge-orange':'badge-gray'}">${e.status==='Active'?'ทำงานอยู่':e.status==='On Leave'?'กำลังลา':e.status||'Active'}</span></td>
+          <td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:70%"></div></div></td>
+        </tr>`).join('');
+    }
+  } else if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">ยังไม่มีพนักงาน</td></tr>`;
+  }
+  // Pending leaves (managers only)
+  const pendingList = el('dash-pending-list');
+  if (pendingList && isManager && useApi) {
+    const leaves = await apiCall('GET', '/api/leave?scope=pending') || [];
+    if (!leaves.length) {
+      pendingList.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:16px;font-size:13px">ไม่มีรายการรออนุมัติ</div>`;
+    } else {
+      pendingList.innerHTML = leaves.slice(0,5).map(r => `
+        <div class="event-item">
+          <div class="emp-avatar" style="background:${r.emp_color||'#6B7280'};width:32px;height:32px;font-size:11px;flex-shrink:0">${r.emp_init||'?'}</div>
+          <div class="flex-1">
+            <div style="font-size:13px;font-weight:600">${r.emp_name||'—'}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${r.type} · ${r.days} วัน</div>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button onclick="dashApproveLeave(${r.id},'Approved',this)" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
+            <button onclick="dashApproveLeave(${r.id},'Rejected',this)" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>
+          </div>
+        </div>`).join('');
+    }
+  }
+}
+async function dashApproveLeave(id, status, btn) {
+  btn.closest('.event-item').style.opacity = '0.5';
+  await apiCall('PUT', `/api/leave/${id}/status`, { status });
+  renderDashboard();
 }
 
 // ════════════ EMPLOYEES ════════════
