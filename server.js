@@ -1,6 +1,6 @@
 /**
  * Teams HRIS — Backend API Server
- * Node.js + Express + sql.js (pure JavaScript SQLite)
+ * Node.js + Express + JSON file storage (no SQLite needed)
  * Port: 3001  |  start: node server.js
  */
 
@@ -10,112 +10,50 @@ const jwt       = require('jsonwebtoken');
 const cors      = require('cors');
 const path      = require('path');
 const fs        = require('fs');
-const { DatabaseSync } = require('node:sqlite');
 const { OAuth2Client } = require('google-auth-library');
 
 const PORT             = process.env.PORT || 3001;
 const JWT_SECRET       = process.env.JWT_SECRET || 'teams-hris-secret-change-me';
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';  // ← ใส่ Client ID จาก Google Cloud Console
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClient     = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
-const DATA_DIR   = path.join(__dirname, 'data');
-const DB_FILE    = path.join(DATA_DIR, 'hris.db');
+const DATA_DIR         = path.join(__dirname, 'data');
+const STORE_FILE       = path.join(DATA_DIR, 'hris.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // ══════════════════════════════════════
-//  DB HELPERS (better-sqlite3)
+//  PURE-JS DATA STORE
 // ══════════════════════════════════════
-const db = new DatabaseSync(DB_FILE);
+let store = {
+  users: [], employees: [], attendance: [],
+  leave_requests: [], ot_requests: [], inbox: [],
+  appointments: [], holidays: [], _seq: {}
+};
 
-function saveDb() { /* better-sqlite3 writes to disk automatically */ }
-
-function dbGet(sql, params = []) {
-  return db.prepare(sql).get(...params) || null;
+function loadStore() {
+  if (fs.existsSync(STORE_FILE)) {
+    try {
+      const d = JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'));
+      ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq'].forEach(k => {
+        if (d[k] !== undefined) store[k] = d[k];
+      });
+      console.log('Store loaded:', STORE_FILE);
+    } catch(e) { console.error('Load error:', e.message); }
+  }
 }
 
-function dbAll(sql, params = []) {
-  return db.prepare(sql).all(...params);
+function saveDb() {
+  try { fs.writeFileSync(STORE_FILE, JSON.stringify(store)); }
+  catch(e) { console.error('Save error:', e.message); }
 }
 
-function dbRun(sql, params = []) {
-  const info = db.prepare(sql).run(...params);
-  return { lastInsertRowid: info.lastInsertRowid };
-}
-
-function dbExec(sql) { db.exec(sql); }
-
-// ══════════════════════════════════════
-//  SCHEMA
-// ══════════════════════════════════════
-function initSchema() {
-  dbExec(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL, password TEXT NOT NULL DEFAULT '',
-    role TEXT NOT NULL DEFAULT 'employee', permissions TEXT NOT NULL DEFAULT '[]',
-    department TEXT DEFAULT '', position TEXT DEFAULT '', phone TEXT DEFAULT '',
-    color TEXT DEFAULT '#6B7280', init TEXT DEFAULT '?',
-    google_id TEXT DEFAULT '', auth_provider TEXT DEFAULT 'local',
-    picture TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-  // Migrate existing DBs
-  try { dbExec(`ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT ''`); } catch(e){}
-  try { dbExec(`ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'local'`); } catch(e){}
-  try { dbExec(`ALTER TABLE users ADD COLUMN picture TEXT DEFAULT ''`); } catch(e){}
-  dbExec(`CREATE TABLE IF NOT EXISTS employees (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, emp_id TEXT, user_id INTEGER,
-    name TEXT NOT NULL, email TEXT, department TEXT, position TEXT,
-    join_date TEXT, status TEXT DEFAULT 'Active', work_model TEXT DEFAULT 'Office',
-    phone TEXT, color TEXT DEFAULT '#6B7280', init TEXT DEFAULT '?',
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-  dbExec(`CREATE TABLE IF NOT EXISTS attendance (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
-    date TEXT NOT NULL, check_in TEXT, check_out TEXT, work_hours TEXT,
-    location TEXT DEFAULT 'Office', note TEXT DEFAULT '', status TEXT DEFAULT 'Present',
-    is_retroactive INTEGER DEFAULT 0,
-    retro_status TEXT DEFAULT 'Approved',
-    retro_reason TEXT DEFAULT '',
-    retro_approved_by INTEGER,
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-  // Migrate: add retro columns to existing attendance table if missing
-  try { dbExec(`ALTER TABLE attendance ADD COLUMN is_retroactive INTEGER DEFAULT 0`); } catch(e){}
-  try { dbExec(`ALTER TABLE attendance ADD COLUMN retro_status TEXT DEFAULT 'Approved'`); } catch(e){}
-  try { dbExec(`ALTER TABLE attendance ADD COLUMN retro_reason TEXT DEFAULT ''`); } catch(e){}
-  try { dbExec(`ALTER TABLE attendance ADD COLUMN retro_approved_by INTEGER`); } catch(e){}
-  dbExec(`CREATE TABLE IF NOT EXISTS leave_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
-    type TEXT NOT NULL, from_date TEXT NOT NULL, to_date TEXT NOT NULL,
-    days INTEGER NOT NULL DEFAULT 1, reason TEXT, status TEXT DEFAULT 'Pending',
-    approved_by INTEGER, note TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now'))
-  )`);
-  dbExec(`CREATE TABLE IF NOT EXISTS ot_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
-    date TEXT NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL,
-    hours TEXT, type TEXT DEFAULT 'Voluntary', reason TEXT,
-    status TEXT DEFAULT 'Pending', approved_by INTEGER, note TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-  dbExec(`CREATE TABLE IF NOT EXISTS inbox (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, from_user INTEGER, to_user INTEGER,
-    subject TEXT NOT NULL, body TEXT, is_read INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-  dbExec(`CREATE TABLE IF NOT EXISTS appointments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
-    title TEXT NOT NULL, date TEXT NOT NULL, start_time TEXT, end_time TEXT,
-    type TEXT DEFAULT 'meeting', location TEXT, participants TEXT DEFAULT '',
-    notes TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now'))
-  )`);
-  dbExec(`CREATE TABLE IF NOT EXISTS holidays (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    name_en TEXT DEFAULT '',
-    type TEXT DEFAULT 'official',
-    year INTEGER NOT NULL
-  )`);
+function genId(table) {
+  const rows = store[table];
+  if (!store._seq[table]) {
+    store._seq[table] = rows.length > 0 ? Math.max(...rows.map(r => r.id || 0)) + 1 : 1;
+  }
+  const id = store._seq[table]++;
+  return id;
 }
 
 // ══════════════════════════════════════
@@ -128,34 +66,35 @@ const ROLE_DEFAULTS = {
   employee:   ['checkin','ot','inbox','calendar','leave'],
 };
 
-// Seed holidays separately — runs even if users already exist
 function seedHolidays() {
-  const count = dbGet('SELECT COUNT(*) as c FROM holidays').c;
-  if (count > 0) return;
-  console.log('Seeding holidays...');
+  if (store.holidays.length > 0) return;
   const holidays2026 = [
-    ['2026-01-01','วันขึ้นปีใหม่','New Year\'s Day','official'],
-    ['2026-01-02','วันหยุดพิเศษ (ครม.)','Special Holiday','special'],
-    ['2026-04-06','วันจักรี','Chakri Memorial Day','official'],
-    ['2026-04-13','วันสงกรานต์','Songkran Festival','official'],
-    ['2026-04-14','วันสงกรานต์','Songkran Festival','official'],
-    ['2026-04-15','วันสงกรานต์ (เพิ่มเติม)','Songkran Festival (Extra)','official'],
-    ['2026-05-01','วันแรงงานแห่งชาติ','National Labour Day','official'],
-    ['2026-05-04','วันฉัตรมงคล','Coronation Day','official'],
-    ['2026-06-01','ชดเชยวิสาขบูชา','Visakha Bucha (in lieu)','compensatory'],
-    ['2026-06-03','วันพระบรมราชินี','HM Queen\'s Birthday','official'],
-    ['2026-07-28','วันเฉลิมพระชนมพรรษา ร.10','HM King\'s Birthday','official'],
-    ['2026-07-29','วันอาสาฬหบูชา','Asarnha Bucha Day','official'],
-    ['2026-07-30','วันเข้าพรรษา','Buddhist Lent Day','official'],
-    ['2026-08-12','วันแม่แห่งชาติ','HM Queen Mother\'s Birthday / Mother\'s Day','official'],
-    ['2026-10-13','วันคล้ายวันสวรรคต ร.9','HM King Bhumibol Memorial Day','official'],
-    ['2026-10-23','วันปิยมหาราช','Chulalongkorn Day','official'],
-    ['2026-12-10','วันรัฐธรรมนูญ','Constitution Day','official'],
-    ['2026-12-31','วันสิ้นปี','New Year\'s Eve','official'],
+    {date:'2026-01-01',name:'วันขึ้นปีใหม่',name_en:"New Year's Day",type:'official'},
+    {date:'2026-01-02',name:'วันหยุดพิเศษ (ครม.)',name_en:'Special Holiday',type:'special'},
+    {date:'2026-04-06',name:'วันจักรี',name_en:'Chakri Memorial Day',type:'official'},
+    {date:'2026-04-13',name:'วันสงกรานต์',name_en:'Songkran Festival',type:'official'},
+    {date:'2026-04-14',name:'วันสงกรานต์',name_en:'Songkran Festival',type:'official'},
+    {date:'2026-04-15',name:'วันสงกรานต์ (เพิ่มเติม)',name_en:'Songkran Festival (Extra)',type:'official'},
+    {date:'2026-05-01',name:'วันแรงงานแห่งชาติ',name_en:'National Labour Day',type:'official'},
+    {date:'2026-05-04',name:'วันฉัตรมงคล',name_en:'Coronation Day',type:'official'},
+    {date:'2026-06-01',name:'ชดเชยวิสาขบูชา',name_en:'Visakha Bucha (in lieu)',type:'compensatory'},
+    {date:'2026-06-03',name:'วันพระบรมราชินี',name_en:"HM Queen's Birthday",type:'official'},
+    {date:'2026-07-28',name:'วันเฉลิมพระชนมพรรษา ร.10',name_en:"HM King's Birthday",type:'official'},
+    {date:'2026-07-29',name:'วันอาสาฬหบูชา',name_en:'Asarnha Bucha Day',type:'official'},
+    {date:'2026-07-30',name:'วันเข้าพรรษา',name_en:'Buddhist Lent Day',type:'official'},
+    {date:'2026-08-12',name:'วันแม่แห่งชาติ',name_en:"HM Queen Mother's Birthday / Mother's Day",type:'official'},
+    {date:'2026-10-13',name:'วันคล้ายวันสวรรคต ร.9',name_en:'HM King Bhumibol Memorial Day',type:'official'},
+    {date:'2026-10-23',name:'วันปิยมหาราช',name_en:'Chulalongkorn Day',type:'official'},
+    {date:'2026-12-10',name:'วันรัฐธรรมนูญ',name_en:'Constitution Day',type:'official'},
+    {date:'2026-12-31',name:'วันสิ้นปี',name_en:"New Year's Eve",type:'official'},
   ];
-  holidays2026.forEach(h => dbRun('INSERT OR IGNORE INTO holidays (date,name,name_en,type,year) VALUES (?,?,?,?,2026)', h));
+  holidays2026.forEach(h => {
+    if (!store.holidays.find(x => x.date === h.date)) {
+      store.holidays.push({ id: genId('holidays'), ...h, year: 2026 });
+    }
+  });
   saveDb();
-  console.log('Holidays seeded: 18 days');
+  console.log('Holidays seeded:', store.holidays.length);
 }
 
 // ══════════════════════════════════════
@@ -181,17 +120,17 @@ function requireRole(...roles) {
 }
 function fmtUser(u) {
   return { id:u.id, name:u.name, email:u.email, role:u.role,
-    permissions: JSON.parse(u.permissions||'[]'),
-    department:u.department, position:u.position, phone:u.phone,
-    color:u.color, init:u.init,
+    permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions,
+    department:u.department||'', position:u.position||'', phone:u.phone||'',
+    color:u.color||'#6B7280', init:u.init||'?',
     picture:u.picture||'', auth_provider:u.auth_provider||'local' };
 }
 
-// AUTH
+// ── AUTH ──────────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-  const user = dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase().trim()]);
+  const user = store.users.find(u => u.email === email.toLowerCase().trim());
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'Incorrect email or password' });
   const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, JWT_SECRET, { expiresIn:'7d' });
@@ -202,27 +141,34 @@ app.post('/api/auth/register', (req, res) => {
   const { firstName, lastName, email, password, department, position, phone } = req.body;
   if (!firstName || !lastName || !email || !password) return res.status(400).json({ error: 'Missing required fields' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
-  if (dbGet('SELECT id FROM users WHERE email = ?', [email.toLowerCase()])) return res.status(409).json({ error: 'Email already registered' });
-  const name      = firstName + ' ' + lastName;
-  const init      = (firstName[0] + (lastName[0]||'')).toUpperCase();
-  const colors    = ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
-  const color     = colors[Math.floor(Math.random() * colors.length)];
-  const userCount = dbGet('SELECT COUNT(*) as c FROM users').c;
-  const role      = userCount === 0 ? 'admin' : 'employee';  // first user = admin
-  const perms     = JSON.stringify(ROLE_DEFAULTS[role]);
-  const hash      = bcrypt.hashSync(password, 10);
-  const result    = dbRun('INSERT INTO users (name,email,password,role,permissions,department,position,phone,color,init,auth_provider) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-    [name, email.toLowerCase(), hash, role, perms, department||'', position||'', phone||'', color, init, 'local']);
-  const empCount = dbGet('SELECT COUNT(*) as c FROM employees').c;
-  dbRun('INSERT INTO employees (emp_id,user_id,name,email,department,position,join_date,color,init) VALUES (?,?,?,?,?,?,date("now"),?,?)',
-    ['EMP-'+String(empCount+1).padStart(3,'0'), result.lastInsertRowid, name, email.toLowerCase(), department||'', position||'', color, init]);
+  if (store.users.find(u => u.email === email.toLowerCase())) return res.status(409).json({ error: 'Email already registered' });
+  const name   = firstName + ' ' + lastName;
+  const init   = (firstName[0] + (lastName[0]||'')).toUpperCase();
+  const colors = ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
+  const color  = colors[Math.floor(Math.random() * colors.length)];
+  const role   = store.users.length === 0 ? 'admin' : 'employee';
+  const perms  = ROLE_DEFAULTS[role];
+  const hash   = bcrypt.hashSync(password, 10);
+  const newUser = {
+    id: genId('users'), name, email: email.toLowerCase(), password: hash,
+    role, permissions: JSON.stringify(perms), department: department||'',
+    position: position||'', phone: phone||'', color, init,
+    google_id:'', auth_provider:'local', picture:'',
+    created_at: new Date().toISOString()
+  };
+  store.users.push(newUser);
+  const empId = 'EMP-' + String(store.employees.length + 1).padStart(3,'0');
+  store.employees.push({
+    id: genId('employees'), emp_id: empId, user_id: newUser.id,
+    name, email: email.toLowerCase(), department: department||'', position: position||'',
+    join_date: new Date().toISOString().split('T')[0], status:'Active', work_model:'Office',
+    phone: phone||'', color, init, created_at: new Date().toISOString()
+  });
   saveDb();
-  const user  = dbGet('SELECT * FROM users WHERE id = ?', [result.lastInsertRowid]);
-  const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, JWT_SECRET, { expiresIn:'7d' });
-  res.status(201).json({ token, user: fmtUser(user) });
+  const token = jwt.sign({ id:newUser.id, email:newUser.email, role:newUser.role }, JWT_SECRET, { expiresIn:'7d' });
+  res.status(201).json({ token, user: fmtUser(newUser) });
 });
 
-// GOOGLE OAUTH
 app.post('/api/auth/google', async (req, res) => {
   if (!googleClient) return res.status(503).json({ error: 'Google login not configured on this server' });
   const { credential } = req.body;
@@ -231,29 +177,33 @@ app.post('/api/auth/google', async (req, res) => {
     const ticket  = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
     const payload = ticket.getPayload();
     const { sub: googleId, email, name, picture } = payload;
-    let user = dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+    let user = store.users.find(u => u.email === email.toLowerCase());
     if (!user) {
-      // Auto-register: first user ever becomes admin
       const nameParts = (name||'User').split(' ');
       const init  = nameParts.map(p=>p[0]).slice(0,2).join('').toUpperCase() || 'U';
       const colors= ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
       const color = colors[Math.floor(Math.random()*colors.length)];
-      const userCount = dbGet('SELECT COUNT(*) as c FROM users').c;
-      const role  = userCount === 0 ? 'admin' : 'employee';
-      const perms = JSON.stringify(ROLE_DEFAULTS[role]);
-      const result = dbRun(
-        'INSERT INTO users (name,email,password,role,permissions,color,init,google_id,auth_provider,picture) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [name, email.toLowerCase(), '', role, perms, color, init, googleId, 'google', picture||'']
-      );
-      const empCount = dbGet('SELECT COUNT(*) as c FROM employees').c;
-      dbRun('INSERT INTO employees (emp_id,user_id,name,email,join_date,color,init) VALUES (?,?,?,?,date("now"),?,?)',
-        ['EMP-'+String(empCount+1).padStart(3,'0'), result.lastInsertRowid, name, email.toLowerCase(), color, init]);
+      const role  = store.users.length === 0 ? 'admin' : 'employee';
+      const perms = ROLE_DEFAULTS[role];
+      const newUser = {
+        id: genId('users'), name, email: email.toLowerCase(), password:'',
+        role, permissions: JSON.stringify(perms), department:'', position:'',
+        phone:'', color, init, google_id: googleId, auth_provider:'google',
+        picture: picture||'', created_at: new Date().toISOString()
+      };
+      store.users.push(newUser);
+      const empId = 'EMP-' + String(store.employees.length + 1).padStart(3,'0');
+      store.employees.push({
+        id: genId('employees'), emp_id: empId, user_id: newUser.id,
+        name, email: email.toLowerCase(), department:'', position:'',
+        join_date: new Date().toISOString().split('T')[0], status:'Active', work_model:'Office',
+        phone:'', color, init, created_at: new Date().toISOString()
+      });
       saveDb();
-      user = dbGet('SELECT * FROM users WHERE id = ?', [result.lastInsertRowid]);
+      user = newUser;
     } else if (!user.google_id) {
-      dbRun('UPDATE users SET google_id=?,auth_provider=?,picture=? WHERE id=?', [googleId,'google',picture||'',user.id]);
+      user.google_id = googleId; user.auth_provider = 'google'; user.picture = picture||'';
       saveDb();
-      user = dbGet('SELECT * FROM users WHERE id = ?', [user.id]);
     }
     const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, JWT_SECRET, { expiresIn:'7d' });
     res.json({ token, user: fmtUser(user) });
@@ -264,82 +214,93 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 app.post('/api/auth/forgot-password', (req, res) => {
-  const user = dbGet('SELECT id FROM users WHERE email = ?', [(req.body.email||'').toLowerCase()]);
+  const user = store.users.find(u => u.email === (req.body.email||'').toLowerCase());
   if (!user) return res.status(404).json({ error: 'Email not found' });
-  dbRun('UPDATE users SET password = ? WHERE id = ?', [bcrypt.hashSync('newpass123', 10), user.id]);
+  user.password = bcrypt.hashSync('newpass123', 10);
   saveDb();
   res.json({ message: 'Password reset to newpass123 (demo)' });
 });
 
 app.get('/api/auth/me', auth, (req, res) => {
-  const user = dbGet('SELECT * FROM users WHERE id = ?', [req.user.id]);
+  const user = store.users.find(u => u.id === req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(fmtUser(user));
 });
 
-// EMPLOYEES
+// ── EMPLOYEES ─────────────────────────────────────────────────────────────────
 app.get('/api/employees', auth, (req, res) => {
-  res.json(dbAll('SELECT * FROM employees ORDER BY name'));
+  res.json([...store.employees].sort((a,b) => (a.name||'').localeCompare(b.name||'')));
 });
 app.post('/api/employees', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
   const { name, email, department, position, join_date, work_model, phone, color, init } = req.body;
-  const empCount = dbGet('SELECT COUNT(*) as c FROM employees').c;
-  const emp_id   = 'EMP-' + String(empCount+1).padStart(3,'0');
-  const result   = dbRun('INSERT INTO employees (emp_id,name,email,department,position,join_date,work_model,phone,color,init) VALUES (?,?,?,?,?,?,?,?,?,?)',
-    [emp_id, name, email, department, position, join_date, work_model||'Office', phone||'', color||'#6B7280', init||'?']);
+  const empId = 'EMP-' + String(store.employees.length + 1).padStart(3,'0');
+  const emp = {
+    id: genId('employees'), emp_id: empId, user_id: null,
+    name, email: email||'', department: department||'', position: position||'',
+    join_date: join_date||new Date().toISOString().split('T')[0], status:'Active',
+    work_model: work_model||'Office', phone: phone||'',
+    color: color||'#6B7280', init: init||'?', created_at: new Date().toISOString()
+  };
+  store.employees.push(emp);
   saveDb();
-  res.status(201).json({ id: result.lastInsertRowid, emp_id });
+  res.status(201).json({ id: emp.id, emp_id: empId });
 });
 app.put('/api/employees/:id', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const emp = store.employees.find(e => e.id == req.params.id);
+  if (!emp) return res.status(404).json({ error: 'Not found' });
   const { name, department, position, status, work_model, phone } = req.body;
-  dbRun('UPDATE employees SET name=?,department=?,position=?,status=?,work_model=?,phone=? WHERE id=?',
-    [name, department, position, status, work_model, phone, req.params.id]);
+  Object.assign(emp, { name, department, position, status, work_model, phone });
   saveDb(); res.json({ ok: true });
 });
 app.delete('/api/employees/:id', auth, requireRole('admin'), (req, res) => {
-  dbRun('DELETE FROM employees WHERE id = ?', [req.params.id]); saveDb(); res.json({ ok: true });
+  store.employees = store.employees.filter(e => e.id != req.params.id);
+  saveDb(); res.json({ ok: true });
 });
 
-// ATTENDANCE
+// ── ATTENDANCE ────────────────────────────────────────────────────────────────
 app.get('/api/attendance', auth, (req, res) => {
   const { userId, month } = req.query;
-  const targetId = userId || req.user.id;
-  if (String(targetId) !== String(req.user.id) && !['admin','hr_manager','hr_staff'].includes(req.user.role))
+  const targetId = Number(userId || req.user.id);
+  if (targetId !== req.user.id && !['admin','hr_manager','hr_staff'].includes(req.user.role))
     return res.status(403).json({ error: 'Forbidden' });
-  let sql = 'SELECT * FROM attendance WHERE user_id = ?';
-  const params = [targetId];
-  if (month) { sql += ' AND date LIKE ?'; params.push(month + '%'); }
-  res.json(dbAll(sql + ' ORDER BY date DESC', params));
+  let rows = store.attendance.filter(a => a.user_id === targetId);
+  if (month) rows = rows.filter(a => a.date && a.date.startsWith(month));
+  res.json([...rows].sort((a,b) => b.date.localeCompare(a.date)));
 });
 app.get('/api/attendance/today', auth, (req, res) => {
   const today = new Date().toISOString().split('T')[0];
-  res.json(dbGet('SELECT * FROM attendance WHERE user_id = ? AND date = ?', [req.user.id, today]) || null);
+  res.json(store.attendance.find(a => a.user_id === req.user.id && a.date === today) || null);
 });
 app.post('/api/attendance/checkin', auth, (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const now   = new Date().toLocaleTimeString('en-GB', { hour12:false, hour:'2-digit', minute:'2-digit' });
   const { location, note } = req.body;
-  const existing = dbGet('SELECT * FROM attendance WHERE user_id = ? AND date = ?', [req.user.id, today]);
+  const existing = store.attendance.find(a => a.user_id === req.user.id && a.date === today);
   if (existing && existing.check_in) return res.status(409).json({ error: 'Already checked in today' });
   if (existing) {
-    dbRun('UPDATE attendance SET check_in=?,location=?,note=? WHERE id=?', [now, location||'Office', note||'', existing.id]);
+    existing.check_in = now; existing.location = location||'Office'; existing.note = note||'';
   } else {
-    dbRun('INSERT INTO attendance (user_id,date,check_in,location,note,status) VALUES (?,?,?,?,?,?)',
-      [req.user.id, today, now, location||'Office', note||'', 'Present']);
+    store.attendance.push({
+      id: genId('attendance'), user_id: req.user.id, date: today,
+      check_in: now, check_out: null, work_hours: null,
+      location: location||'Office', note: note||'', status:'Present',
+      is_retroactive: 0, retro_status:'Approved', retro_reason:'', retro_approved_by: null,
+      created_at: new Date().toISOString()
+    });
   }
   saveDb(); res.json({ check_in: now, date: today });
 });
 app.post('/api/attendance/checkout', auth, (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const now   = new Date().toLocaleTimeString('en-GB', { hour12:false, hour:'2-digit', minute:'2-digit' });
-  const row   = dbGet('SELECT * FROM attendance WHERE user_id = ? AND date = ?', [req.user.id, today]);
+  const row   = store.attendance.find(a => a.user_id === req.user.id && a.date === today);
   if (!row || !row.check_in) return res.status(400).json({ error: 'Not checked in yet' });
   const [ih, im] = row.check_in.split(':').map(Number);
   const [oh, om] = now.split(':').map(Number);
-  const mins      = (oh*60+om) - (ih*60+im);
-  const workHours = Math.floor(mins/60) + 'h ' + String(mins%60).padStart(2,'0') + 'm';
-  dbRun('UPDATE attendance SET check_out=?,work_hours=? WHERE id=?', [now, workHours, row.id]);
-  saveDb(); res.json({ check_out: now, work_hours: workHours });
+  const mins = (oh*60+om) - (ih*60+im);
+  row.check_out   = now;
+  row.work_hours  = Math.floor(mins/60) + 'h ' + String(mins%60).padStart(2,'0') + 'm';
+  saveDb(); res.json({ check_out: now, work_hours: row.work_hours });
 });
 
 // RETROACTIVE ATTENDANCE
@@ -348,216 +309,243 @@ app.post('/api/attendance/retroactive', auth, (req, res) => {
   if (!date || !check_in) return res.status(400).json({ error: 'Date and check-in time required' });
   const today = new Date().toISOString().split('T')[0];
   if (date >= today) return res.status(400).json({ error: 'Can only submit retroactive for past dates' });
-  // Calculate work hours if both provided
   let workHours = null;
   if (check_in && check_out) {
-    const [ih, im] = check_in.split(':').map(Number);
-    const [oh, om] = check_out.split(':').map(Number);
+    const [ih,im] = check_in.split(':').map(Number);
+    const [oh,om] = check_out.split(':').map(Number);
     const mins = (oh*60+om) - (ih*60+im);
     if (mins > 0) workHours = Math.floor(mins/60) + 'h ' + String(mins%60).padStart(2,'0') + 'm';
   }
-  // Check if record already exists for that date
-  const existing = dbGet('SELECT id FROM attendance WHERE user_id=? AND date=?', [req.user.id, date]);
-  if (existing) return res.status(409).json({ error: 'Attendance record already exists for this date' });
-  const result = dbRun(
-    'INSERT INTO attendance (user_id,date,check_in,check_out,work_hours,location,note,status,is_retroactive,retro_status,retro_reason) VALUES (?,?,?,?,?,?,?,?,1,"Pending",?)',
-    [req.user.id, date, check_in, check_out||null, workHours, location||'Office', '', 'Present', reason||'']
-  );
-  // Send inbox notification to managers
-  const managers = dbAll('SELECT id FROM users WHERE role IN ("admin","hr_manager","hr_staff")');
-  const requester = dbGet('SELECT name FROM users WHERE id=?', [req.user.id]);
-  managers.forEach(m => {
-    dbRun('INSERT INTO inbox (from_user,to_user,subject,body) VALUES (?,?,?,?)',
-      [req.user.id, m.id,
-       `[รออนุมัติ] บันทึกเวลาย้อนหลัง — ${requester.name}`,
-       `${requester.name} ขอบันทึกเวลาย้อนหลังวันที่ ${date} เวลา ${check_in}${check_out?' – '+check_out:''}\nเหตุผล: ${reason||'-'}`
-      ]);
-  });
+  if (store.attendance.find(a => a.user_id === req.user.id && a.date === date))
+    return res.status(409).json({ error: 'Attendance record already exists for this date' });
+  const row = {
+    id: genId('attendance'), user_id: req.user.id, date, check_in, check_out: check_out||null,
+    work_hours: workHours, location: location||'Office', note:'', status:'Present',
+    is_retroactive: 1, retro_status:'Pending', retro_reason: reason||'', retro_approved_by: null,
+    created_at: new Date().toISOString()
+  };
+  store.attendance.push(row);
+  const requester = store.users.find(u => u.id === req.user.id);
+  const managers  = store.users.filter(u => ['admin','hr_manager','hr_staff'].includes(u.role));
+  managers.forEach(m => store.inbox.push({
+    id: genId('inbox'), from_user: req.user.id, to_user: m.id,
+    subject: `[รออนุมัติ] บันทึกเวลาย้อนหลัง — ${requester?.name||''}`,
+    body: `${requester?.name||''} ขอบันทึกเวลาย้อนหลังวันที่ ${date}\nเหตุผล: ${reason||'-'}`,
+    is_read: 0, created_at: new Date().toISOString()
+  }));
   saveDb();
-  res.status(201).json({ id: result.lastInsertRowid, retro_status: 'Pending' });
+  res.status(201).json({ id: row.id, retro_status:'Pending' });
 });
-
 app.get('/api/attendance/retroactive', auth, (req, res) => {
   const isManager = ['admin','hr_manager','hr_staff'].includes(req.user.role);
-  let sql = `SELECT a.*, u.name as emp_name, u.init as emp_init, u.color as emp_color,
-             ap.name as approver_name
-             FROM attendance a
-             JOIN users u ON a.user_id=u.id
-             LEFT JOIN users ap ON a.retro_approved_by=ap.id
-             WHERE a.is_retroactive=1`;
-  const params = [];
-  if (!isManager) { sql += ' AND a.user_id=?'; params.push(req.user.id); }
-  else if (req.query.pending) { sql += ' AND a.retro_status="Pending"'; }
-  res.json(dbAll(sql + ' ORDER BY a.date DESC', params));
+  let rows = store.attendance.filter(a => a.is_retroactive === 1 || a.is_retroactive === true);
+  if (!isManager) rows = rows.filter(a => a.user_id === req.user.id);
+  else if (req.query.pending) rows = rows.filter(a => a.retro_status === 'Pending');
+  const result = rows.map(a => {
+    const u  = store.users.find(x => x.id === a.user_id) || {};
+    const ap = store.users.find(x => x.id === a.retro_approved_by) || {};
+    return { ...a, emp_name: u.name||'', emp_init: u.init||'?', emp_color: u.color||'#6B7280', approver_name: ap.name||'' };
+  });
+  res.json([...result].sort((a,b) => b.date.localeCompare(a.date)));
 });
-
 app.put('/api/attendance/retroactive/:id/status', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
   const { status, note } = req.body;
   if (!['Approved','Rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  const row = dbGet('SELECT * FROM attendance WHERE id=? AND is_retroactive=1', [req.params.id]);
+  const row = store.attendance.find(a => a.id == req.params.id && (a.is_retroactive === 1 || a.is_retroactive === true));
   if (!row) return res.status(404).json({ error: 'Not found' });
-  dbRun('UPDATE attendance SET retro_status=?,retro_approved_by=? WHERE id=?',
-    [status, req.user.id, req.params.id]);
-  // Notify requester
-  const approver = dbGet('SELECT name FROM users WHERE id=?', [req.user.id]);
+  row.retro_status = status; row.retro_approved_by = req.user.id;
+  const approver = store.users.find(u => u.id === req.user.id);
   const emoji = status === 'Approved' ? '✅' : '❌';
-  dbRun('INSERT INTO inbox (from_user,to_user,subject,body) VALUES (?,?,?,?)',
-    [req.user.id, row.user_id,
-     `${emoji} บันทึกเวลาย้อนหลังวันที่ ${row.date} — ${status}`,
-     `${approver.name} ${status==='Approved'?'อนุมัติ':'ไม่อนุมัติ'}การบันทึกเวลาย้อนหลังของคุณวันที่ ${row.date}${note?'\nหมายเหตุ: '+note:''}`
-    ]);
+  store.inbox.push({
+    id: genId('inbox'), from_user: req.user.id, to_user: row.user_id,
+    subject: `${emoji} บันทึกเวลาย้อนหลังวันที่ ${row.date} — ${status}`,
+    body: `${approver?.name||''} ${status==='Approved'?'อนุมัติ':'ไม่อนุมัติ'}การบันทึกเวลาย้อนหลังของคุณวันที่ ${row.date}${note?'\nหมายเหตุ: '+note:''}`,
+    is_read: 0, created_at: new Date().toISOString()
+  });
   saveDb();
   res.json({ ok: true, status });
 });
 
-// LEAVE
+// ── LEAVE ─────────────────────────────────────────────────────────────────────
 app.get('/api/leave', auth, (req, res) => {
   const { scope } = req.query;
   const isManager = ['admin','hr_manager','hr_staff'].includes(req.user.role);
-  let sql = 'SELECT lr.*, u.name as emp_name, u.init as emp_init, u.color as emp_color, a.name as approver_name FROM leave_requests lr JOIN users u ON lr.user_id=u.id LEFT JOIN users a ON lr.approved_by=a.id';
-  const params = [];
-  if (scope === 'pending' && isManager) sql += ' WHERE lr.status="Pending"';
-  else if (scope === 'team' && isManager) {}
-  else { sql += ' WHERE lr.user_id=?'; params.push(req.user.id); }
-  res.json(dbAll(sql + ' ORDER BY lr.created_at DESC', params));
+  let rows = scope === 'pending' && isManager
+    ? store.leave_requests.filter(r => r.status === 'Pending')
+    : scope === 'team' && isManager
+    ? [...store.leave_requests]
+    : store.leave_requests.filter(r => r.user_id === req.user.id);
+  const result = rows.map(r => {
+    const u  = store.users.find(x => x.id === r.user_id) || {};
+    const ap = store.users.find(x => x.id === r.approved_by) || {};
+    return { ...r, emp_name: u.name||'', emp_init: u.init||'?', emp_color: u.color||'#6B7280', approver_name: ap.name||'' };
+  });
+  res.json([...result].sort((a,b) => b.created_at.localeCompare(a.created_at)));
 });
 app.post('/api/leave', auth, (req, res) => {
   const { type, from_date, to_date, days, reason } = req.body;
   if (!type || !from_date || !to_date) return res.status(400).json({ error: 'Missing fields' });
-  const result = dbRun('INSERT INTO leave_requests (user_id,type,from_date,to_date,days,reason) VALUES (?,?,?,?,?,?)',
-    [req.user.id, type, from_date, to_date, days||1, reason||'']);
-  saveDb(); res.status(201).json({ id: result.lastInsertRowid });
+  const row = {
+    id: genId('leave_requests'), user_id: req.user.id, type, from_date, to_date,
+    days: days||1, reason: reason||'', status:'Pending',
+    approved_by: null, note:'', created_at: new Date().toISOString()
+  };
+  store.leave_requests.push(row);
+  saveDb(); res.status(201).json({ id: row.id });
 });
 app.put('/api/leave/:id/status', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
+  const row = store.leave_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
   const { status, note } = req.body;
-  dbRun('UPDATE leave_requests SET status=?,approved_by=?,note=? WHERE id=?', [status, req.user.id, note||'', req.params.id]);
+  row.status = status; row.approved_by = req.user.id; row.note = note||'';
   saveDb(); res.json({ ok: true });
 });
 
-// OT
+// ── OT ────────────────────────────────────────────────────────────────────────
 app.get('/api/ot', auth, (req, res) => {
   const { scope } = req.query;
   const isManager = ['admin','hr_manager','hr_staff'].includes(req.user.role);
-  let sql = 'SELECT ot.*, u.name as emp_name, u.init as emp_init, u.color as emp_color, a.name as approver_name FROM ot_requests ot JOIN users u ON ot.user_id=u.id LEFT JOIN users a ON ot.approved_by=a.id';
-  const params = [];
-  if (scope === 'pending' && isManager) sql += ' WHERE ot.status="Pending"';
-  else if (scope === 'team' && isManager) {}
-  else { sql += ' WHERE ot.user_id=?'; params.push(req.user.id); }
-  res.json(dbAll(sql + ' ORDER BY ot.created_at DESC', params));
+  let rows = scope === 'pending' && isManager
+    ? store.ot_requests.filter(r => r.status === 'Pending')
+    : scope === 'team' && isManager
+    ? [...store.ot_requests]
+    : store.ot_requests.filter(r => r.user_id === req.user.id);
+  const result = rows.map(r => {
+    const u  = store.users.find(x => x.id === r.user_id) || {};
+    const ap = store.users.find(x => x.id === r.approved_by) || {};
+    return { ...r, emp_name: u.name||'', emp_init: u.init||'?', emp_color: u.color||'#6B7280', approver_name: ap.name||'' };
+  });
+  res.json([...result].sort((a,b) => b.created_at.localeCompare(a.created_at)));
 });
 app.post('/api/ot', auth, (req, res) => {
   const { date, start_time, end_time, hours, type, reason } = req.body;
   if (!date || !start_time || !end_time || !reason) return res.status(400).json({ error: 'Missing fields' });
-  const result = dbRun('INSERT INTO ot_requests (user_id,date,start_time,end_time,hours,type,reason) VALUES (?,?,?,?,?,?,?)',
-    [req.user.id, date, start_time, end_time, hours||'', type||'Voluntary', reason]);
-  saveDb(); res.status(201).json({ id: result.lastInsertRowid });
+  const row = {
+    id: genId('ot_requests'), user_id: req.user.id, date, start_time, end_time,
+    hours: hours||'', type: type||'Voluntary', reason,
+    status:'Pending', approved_by: null, note:'', created_at: new Date().toISOString()
+  };
+  store.ot_requests.push(row);
+  saveDb(); res.status(201).json({ id: row.id });
 });
 app.put('/api/ot/:id/status', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
+  const row = store.ot_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
   const { status, note } = req.body;
-  dbRun('UPDATE ot_requests SET status=?,approved_by=?,note=? WHERE id=?', [status, req.user.id, note||'', req.params.id]);
+  row.status = status; row.approved_by = req.user.id; row.note = note||'';
   saveDb(); res.json({ ok: true });
 });
 
-// INBOX
+// ── INBOX ─────────────────────────────────────────────────────────────────────
 app.get('/api/inbox', auth, (req, res) => {
-  res.json(dbAll('SELECT i.*, u.name as from_name, u.init as from_init, u.color as from_color FROM inbox i LEFT JOIN users u ON i.from_user=u.id WHERE i.to_user=? ORDER BY i.created_at DESC', [req.user.id]));
+  const rows = store.inbox
+    .filter(i => i.to_user === req.user.id)
+    .map(i => {
+      const u = store.users.find(x => x.id === i.from_user) || {};
+      return { ...i, from_name: u.name||'', from_init: u.init||'?', from_color: u.color||'#6B7280' };
+    });
+  res.json([...rows].sort((a,b) => b.created_at.localeCompare(a.created_at)));
 });
 app.post('/api/inbox', auth, (req, res) => {
   const { to_user, subject, body } = req.body;
   if (!subject) return res.status(400).json({ error: 'Subject required' });
-  const result = dbRun('INSERT INTO inbox (from_user,to_user,subject,body) VALUES (?,?,?,?)',
-    [req.user.id, to_user||null, subject, body||'']);
-  saveDb(); res.status(201).json({ id: result.lastInsertRowid });
+  const row = {
+    id: genId('inbox'), from_user: req.user.id, to_user: to_user||null,
+    subject, body: body||'', is_read: 0, created_at: new Date().toISOString()
+  };
+  store.inbox.push(row);
+  saveDb(); res.status(201).json({ id: row.id });
 });
 app.put('/api/inbox/:id/read', auth, (req, res) => {
-  dbRun('UPDATE inbox SET is_read=1 WHERE id=? AND to_user=?', [req.params.id, req.user.id]);
-  saveDb(); res.json({ ok: true });
+  const row = store.inbox.find(i => i.id == req.params.id && i.to_user === req.user.id);
+  if (row) { row.is_read = 1; saveDb(); }
+  res.json({ ok: true });
 });
 
-// APPOINTMENTS
+// ── APPOINTMENTS ──────────────────────────────────────────────────────────────
 app.get('/api/appointments', auth, (req, res) => {
   const { month } = req.query;
-  let sql = 'SELECT * FROM appointments WHERE user_id = ?';
-  const params = [req.user.id];
-  if (month) { sql += ' AND date LIKE ?'; params.push(month + '%'); }
-  res.json(dbAll(sql + ' ORDER BY date,start_time', params));
+  let rows = store.appointments.filter(a => a.user_id === req.user.id);
+  if (month) rows = rows.filter(a => a.date && a.date.startsWith(month));
+  res.json([...rows].sort((a,b) => (a.date+a.start_time).localeCompare(b.date+b.start_time)));
 });
 app.post('/api/appointments', auth, (req, res) => {
   const { title, date, start_time, end_time, type, location, participants, notes } = req.body;
   if (!title || !date) return res.status(400).json({ error: 'Title and date required' });
-  const result = dbRun('INSERT INTO appointments (user_id,title,date,start_time,end_time,type,location,participants,notes) VALUES (?,?,?,?,?,?,?,?,?)',
-    [req.user.id, title, date, start_time||'', end_time||'', type||'meeting', location||'', participants||'', notes||'']);
-  saveDb(); res.status(201).json({ id: result.lastInsertRowid });
+  const row = {
+    id: genId('appointments'), user_id: req.user.id, title, date,
+    start_time: start_time||'', end_time: end_time||'', type: type||'meeting',
+    location: location||'', participants: participants||'', notes: notes||'',
+    created_at: new Date().toISOString()
+  };
+  store.appointments.push(row);
+  saveDb(); res.status(201).json({ id: row.id });
 });
 app.delete('/api/appointments/:id', auth, (req, res) => {
-  dbRun('DELETE FROM appointments WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
+  store.appointments = store.appointments.filter(a => !(a.id == req.params.id && a.user_id === req.user.id));
   saveDb(); res.json({ ok: true });
 });
 
-// USERS (Admin)
+// ── USERS ─────────────────────────────────────────────────────────────────────
 app.get('/api/users', auth, requireRole('admin','hr_manager'), (req, res) => {
-  const rows = dbAll('SELECT id,name,email,role,permissions,department,position,color,init,created_at FROM users ORDER BY name');
-  res.json(rows.map(u => ({ ...u, permissions: JSON.parse(u.permissions||'[]') })));
+  res.json(store.users.map(u => ({
+    id:u.id, name:u.name, email:u.email, role:u.role,
+    permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions,
+    department:u.department||'', position:u.position||'',
+    color:u.color||'#6B7280', init:u.init||'?', created_at:u.created_at
+  })).sort((a,b) => (a.name||'').localeCompare(b.name||'')));
 });
 app.put('/api/users/:id/permissions', auth, requireRole('admin'), (req, res) => {
+  const user = store.users.find(u => u.id == req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
   const { role, permissions } = req.body;
-  dbRun('UPDATE users SET role=?,permissions=? WHERE id=?', [role, JSON.stringify(permissions), req.params.id]);
+  user.role = role; user.permissions = JSON.stringify(permissions);
   saveDb(); res.json({ ok: true });
 });
 
-// STATS
+// ── STATS ─────────────────────────────────────────────────────────────────────
 app.get('/api/stats', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   res.json({
-    totalEmployees: dbGet('SELECT COUNT(*) as c FROM employees').c,
-    presentToday:   dbGet('SELECT COUNT(*) as c FROM attendance WHERE date=? AND check_in IS NOT NULL', [today]).c,
-    pendingLeave:   dbGet('SELECT COUNT(*) as c FROM leave_requests WHERE status="Pending"').c,
-    pendingOT:      dbGet('SELECT COUNT(*) as c FROM ot_requests WHERE status="Pending"').c,
+    totalEmployees: store.employees.length,
+    presentToday:   store.attendance.filter(a => a.date === today && a.check_in).length,
+    pendingLeave:   store.leave_requests.filter(r => r.status === 'Pending').length,
+    pendingOT:      store.ot_requests.filter(r => r.status === 'Pending').length,
   });
 });
 
-// HOLIDAYS
+// ── HOLIDAYS ──────────────────────────────────────────────────────────────────
 app.get('/api/holidays', (req, res) => {
   const { year, month } = req.query;
-  let sql = 'SELECT * FROM holidays WHERE 1=1';
-  const params = [];
-  if (year)  { sql += ' AND year = ?';      params.push(Number(year)); }
-  if (month) { sql += ' AND date LIKE ?';   params.push(`${year||'%'}-${String(month).padStart(2,'0')}-%`); }
-  res.json(dbAll(sql + ' ORDER BY date', params));
+  let rows = [...store.holidays];
+  if (year)  rows = rows.filter(h => h.year === Number(year));
+  if (month) rows = rows.filter(h => h.date && h.date.startsWith(`${year||''}-${String(month).padStart(2,'0')}-`));
+  res.json([...rows].sort((a,b) => a.date.localeCompare(b.date)));
 });
-
 app.post('/api/holidays', auth, requireRole('admin','hr_manager'), (req, res) => {
   const { date, name, name_en, type } = req.body;
   if (!date || !name) return res.status(400).json({ error: 'date and name required' });
   const year = parseInt(date.slice(0,4));
-  dbRun('INSERT OR REPLACE INTO holidays (date,name,name_en,type,year) VALUES (?,?,?,?,?)',
-    [date, name, name_en||'', type||'official', year]);
+  const existing = store.holidays.find(h => h.date === date);
+  if (existing) { existing.name = name; existing.name_en = name_en||''; existing.type = type||'official'; }
+  else store.holidays.push({ id: genId('holidays'), date, name, name_en: name_en||'', type: type||'official', year });
   saveDb(); res.status(201).json({ ok: true });
 });
-
 app.delete('/api/holidays/:date', auth, requireRole('admin'), (req, res) => {
-  dbRun('DELETE FROM holidays WHERE date = ?', [req.params.date]);
+  store.holidays = store.holidays.filter(h => h.date !== req.params.date);
   saveDb(); res.json({ ok: true });
 });
 
-app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toISOString() }));
+app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toISOString(), mode:'json-store' }));
 
 // ══════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════
-//  BOOT
-// ══════════════════════════════════════
-try {
-  initSchema();
-  seedHolidays();
-  app.listen(PORT, () => {
-    console.log('');
-    console.log('  Teams HRIS Backend Running');
-    console.log('  http://localhost:' + PORT);
-    console.log('  API: http://localhost:' + PORT + '/api');
-    console.log('');
-  });
-} catch(err) {
-  console.error('DB init failed:', err);
-  process.exit(1);
-}
+loadStore();
+seedHolidays();
+app.listen(PORT, () => {
+  console.log('');
+  console.log('  Teams HRIS Backend Running (JSON store)');
+  console.log('  http://localhost:' + PORT);
+  console.log('');
+});

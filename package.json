@@ -4,8 +4,8 @@
   "description": "Teams HR Information System - Backend API",
   "main": "server.js",
   "scripts": {
-    "start": "node --experimental-sqlite server.js",
-    "dev": "node --experimental-sqlite server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
