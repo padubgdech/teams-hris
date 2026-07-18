@@ -3968,8 +3968,14 @@ function doLogout() {
   document.getElementById('login-pass').value = '';
   document.getElementById('login-email').value = '';
   document.getElementById('login-error').style.display = 'none';
+  // Reset email sign-in button
   const btn = document.getElementById('login-btn');
   btn.innerHTML = `<span id="lbl-signin-btn">${(LOGIN_STRINGS[_loginLang]||LOGIN_STRINGS.th).btn}</span>`; btn.disabled = false;
+  // Reset Google button
+  const gBtn = document.getElementById('google-login-btn');
+  if (gBtn) { gBtn.disabled = false; gBtn.innerHTML = _GOOGLE_BTN_HTML; }
+  const gErrEl = document.getElementById('google-login-error');
+  if (gErrEl) gErrEl.style.display = 'none';
   document.getElementById('nav-container').innerHTML = '';
   document.getElementById('sidebar-footer').innerHTML = '';
   document.getElementById('header-user').innerHTML = '';
