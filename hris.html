@@ -3961,9 +3961,13 @@ function doLogout() {
   currentUser = null;
   apiToken = null;
   try { localStorage.removeItem('hris_session'); } catch(e){}
+  // Hide profile complete popup if still showing
+  const profileModal = document.getElementById('modal-profile-complete');
+  if (profileModal) profileModal.style.display = 'none';
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('login-pass').value = '';
   document.getElementById('login-email').value = '';
+  document.getElementById('login-error').style.display = 'none';
   const btn = document.getElementById('login-btn');
   btn.innerHTML = `<span id="lbl-signin-btn">${(LOGIN_STRINGS[_loginLang]||LOGIN_STRINGS.th).btn}</span>`; btn.disabled = false;
   document.getElementById('nav-container').innerHTML = '';
