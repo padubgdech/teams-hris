@@ -1724,6 +1724,8 @@
       <span id="lbl-signin-btn">เข้าสู่ระบบ</span>
     </button>
     <div class="divider-or">หรือ</div>
+    <!-- Hidden real Google button — needed for popup to open reliably -->
+    <div id="g-signin-container" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden"></div>
     <button class="google-btn" onclick="triggerGoogleLogin()" id="google-login-btn">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       เข้าสู่ระบบด้วย Google
@@ -4978,8 +4980,29 @@ async function apiCall(method, path, body) {
 }
 
 // ── Google OAuth ─────────────────────────────────────────────────────
+let _gsiInitialized = false;
+
+function _initGSI() {
+  if (_gsiInitialized || !window.google || !window.google.accounts) return;
+  window.google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  });
+  // Render real Google button into hidden container so popup works
+  const container = document.getElementById('g-signin-container');
+  if (container) {
+    window.google.accounts.id.renderButton(container, {
+      type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular',
+    });
+  }
+  _gsiInitialized = true;
+}
+
 function triggerGoogleLogin() {
   const errEl = document.getElementById('google-login-error');
+  if (errEl) errEl.style.display = 'none';
   if (!GOOGLE_CLIENT_ID) {
     if (errEl) { errEl.textContent = 'Google login ยังไม่ได้ตั้งค่า — กรุณาติดต่อผู้ดูแลระบบ'; errEl.style.display='block'; }
     return;
@@ -4988,37 +5011,24 @@ function triggerGoogleLogin() {
     if (errEl) { errEl.textContent = 'ไม่สามารถเชื่อมต่อ backend ได้ กรุณาลองใหม่'; errEl.style.display='block'; }
     return;
   }
-  // Prompt Google One Tap / sign-in
-  if (window.google && window.google.accounts) {
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential,
-    });
-    window.google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // Fallback: open popup
-        window.google.accounts.id.renderButton(
-          document.createElement('div'),
-          { theme:'outline', size:'large' }
-        );
-        // Direct redirect sign-in
-        const params = new URLSearchParams({
-          client_id: GOOGLE_CLIENT_ID,
-          redirect_uri: window.location.origin + window.location.pathname,
-          response_type: 'token id_token',
-          scope: 'openid email profile',
-          nonce: Math.random().toString(36).slice(2),
-        });
-        window.google.accounts.oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: 'openid email profile',
-          callback: () => {},
-        });
-        window.google.accounts.id.prompt();
+  if (!window.google || !window.google.accounts) {
+    if (errEl) { errEl.textContent = 'Google SDK ยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าแล้วลองใหม่'; errEl.style.display='block'; }
+    return;
+  }
+  _initGSI();
+  // Click the real rendered Google button (opens proper OAuth popup — no One Tap cooldown)
+  const container = document.getElementById('g-signin-container');
+  const gBtn = container && (container.querySelector('div[role="button"]') || container.querySelector('iframe'));
+  if (gBtn) {
+    gBtn.click();
+  } else {
+    // Last resort: One Tap
+    window.google.accounts.id.prompt((n) => {
+      if ((n.isNotDisplayed() || n.isSkippedMoment()) && errEl) {
+        errEl.textContent = 'Google login ถูกบล็อกโดย browser — ลองล้าง cookie แล้วลองใหม่ หรือใช้ email login แทน';
+        errEl.style.display = 'block';
       }
     });
-  } else {
-    if (errEl) { errEl.textContent = 'Google SDK ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่'; errEl.style.display='block'; }
   }
 }
 
@@ -5060,13 +5070,14 @@ async function initApi() {
     const r = await fetch(API_BASE + '/api/health', { signal: AbortSignal.timeout(2000) });
     useApi = r.ok;
   } catch { useApi = false; }
-  // Init Google Sign-In if client ID configured
-  if (GOOGLE_CLIENT_ID && window.google && window.google.accounts) {
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential,
-      auto_select: false,
-    });
+  // Init Google Sign-In — render real button so popup works without One Tap cooldown
+  if (GOOGLE_CLIENT_ID) {
+    if (window.google && window.google.accounts) {
+      _initGSI();
+    } else {
+      // SDK might still be loading — retry after it loads
+      window.onGoogleLibraryLoad = _initGSI;
+    }
   }
 }
 
