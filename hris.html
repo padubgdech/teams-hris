@@ -5039,6 +5039,7 @@ async function handleGoogleCredential(response) {
     if(dg) dg.textContent = t(h<12?'good_morning':h<18?'good_afternoon':'good_evening') + ', ' + currentUser.name.split(' ')[0] + ' 👋';
     nav(currentUser.permissions[0] || 'checkin');
     loadTodayCheckin();
+    if (!checkProfileComplete()) showProfileCompleteModal();
   } catch(err) {
     _initGSI();  // Re-render the button
     if (errEl) { errEl.textContent = 'เกิดข้อผิดพลาด กรุณาลองใหม่'; errEl.style.display='block'; }
@@ -5495,6 +5496,7 @@ window.addEventListener('load', async ()=>{
           const startPage = (lastPage && currentUser.permissions.includes(lastPage)) ? lastPage : (currentUser.permissions[0] || 'checkin');
           nav(startPage);
           loadTodayCheckin();
+          if (!checkProfileComplete()) showProfileCompleteModal();
         } else { localStorage.removeItem('hris_session'); }
       } else if (!useApi && sess.email && sess.pass) {
         const user = USERS.find(u => u.email.toLowerCase()===sess.email.toLowerCase() && u.pass===sess.pass);
