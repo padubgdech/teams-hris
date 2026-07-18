@@ -3959,6 +3959,7 @@ function doLogin() {
 }
 function doLogout() {
   currentUser = null;
+  apiToken = null;
   try { localStorage.removeItem('hris_session'); } catch(e){}
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('login-pass').value = '';
@@ -5139,10 +5140,21 @@ doSignUp = async function() {
   const result = await apiCall('POST', '/api/auth/register', {firstName:first,lastName:last,email,password:pass,department:dept,position:pos,phone});
   btn.textContent='Create Account'; btn.disabled=false;
   if(result && result.token) {
-    sucEl.textContent='✓ Account created for '+first+' '+last+'. You can now sign in!';
-    sucEl.style.display='block';
-    document.getElementById('login-email').value = email;
-    setTimeout(()=>showPanel('signin'), 2000);
+    // Auto-login immediately after registration — no need to sign in again
+    apiToken = result.token;
+    currentUser = result.user;
+    const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
+    currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
+    try { localStorage.setItem('hris_session', JSON.stringify({email, pass, token: result.token})); } catch(e){}
+    document.getElementById('login-screen').classList.add('hidden');
+    buildSidebar();
+    applyLang();
+    const h = new Date().getHours();
+    const dg = document.getElementById('dash-greeting');
+    if(dg) dg.textContent = t(h<12?'good_morning':h<18?'good_afternoon':'good_evening') + ', ' + currentUser.name.split(' ')[0] + ' 👋';
+    nav(currentUser.permissions[0] || 'checkin');
+    loadTodayCheckin();
+    showToast('✓ สร้างบัญชีและเข้าสู่ระบบสำเร็จ!', 'success');
   } else {
     errEl.textContent=(result&&result.error)||'Registration failed.';
     errEl.style.display='block';

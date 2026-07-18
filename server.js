@@ -573,6 +573,38 @@ app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toIS
 // ══════════════════════════════════════
 loadStore();
 seedHolidays();
+
+// ── Seed default admin if no users exist (survives Railway restarts) ──────────
+function seedAdmin() {
+  if (store.users.length > 0) return; // already have users
+  const SEED_EMAIL = process.env.ADMIN_EMAIL || 'padungdech.w@gmail.com';
+  const SEED_PASS  = process.env.ADMIN_PASS  || 'Admin1234!';
+  const SEED_NAME  = process.env.ADMIN_NAME  || 'Padungdech Wongvoraruj';
+  const parts = SEED_NAME.trim().split(/\s+/);
+  const init  = parts.length > 1
+    ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+    : parts[0].slice(0,2).toUpperCase();
+  const admin = {
+    id: genId('users'), email: SEED_EMAIL, name: SEED_NAME,
+    password: bcrypt.hashSync(SEED_PASS, 10),
+    role: 'admin', permissions: JSON.stringify(['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','permissions','myrecords']),
+    department: 'Management', position: 'System Admin',
+    phone: '', color: '#10B981', init,
+    picture: '', auth_provider: 'local', created_at: new Date().toISOString(),
+  };
+  store.users.push(admin);
+  store.employees.push({
+    id: genId('employees'), emp_id: 'EMP001', user_id: admin.id,
+    name: SEED_NAME, email: SEED_EMAIL, department: 'Management',
+    position: 'System Admin', join_date: new Date().toISOString().split('T')[0],
+    status: 'Active', work_model: 'Office', phone: '', color: '#10B981', init,
+    created_at: new Date().toISOString(),
+  });
+  saveDb();
+  console.log('  Default admin seeded:', SEED_EMAIL);
+}
+seedAdmin();
+
 app.listen(PORT, () => {
   console.log('');
   console.log('  Teams HRIS Backend Running (JSON store)');
