@@ -5146,7 +5146,7 @@ function _initGSI() {
     container.innerHTML = '';
     window.google.accounts.id.renderButton(container, {
       type: 'standard', theme: 'outline', size: 'large',
-      text: 'signin_with', shape: 'rectangular', width: 340,
+      text: 'signin_with', shape: 'rectangular',
     });
   }
 }
@@ -5189,14 +5189,21 @@ async function initApi() {
     const r = await fetch(API_BASE + '/api/health', { signal: AbortSignal.timeout(2000) });
     useApi = r.ok;
   } catch { useApi = false; }
-  // Init Google Sign-In — render real button so popup works without One Tap cooldown
+  // Init Google Sign-In
   if (GOOGLE_CLIENT_ID) {
-    if (window.google && window.google.accounts) {
-      _initGSI();
-    } else {
-      // SDK might still be loading — retry after it loads
-      window.onGoogleLibraryLoad = _initGSI;
-    }
+    window.onGoogleLibraryLoad = _initGSI;  // fires if SDK loads after this line
+    // Retry polling for 5s — handles case where SDK already loaded (cache) before callback was set
+    let _gsiAttempts = 0;
+    const _tryGSI = () => {
+      if (_gsiInitialized) return;
+      if (window.google?.accounts?.id) { _initGSI(); return; }
+      if (++_gsiAttempts < 10) setTimeout(_tryGSI, 500);
+      else {
+        const c = document.getElementById('g-signin-container');
+        if (c) c.innerHTML = '<div style="font-size:12px;color:#9CA3AF;text-align:center">Google Sign-In ไม่พร้อมใช้งาน — ลองรีเฟรชหน้า</div>';
+      }
+    };
+    _tryGSI();
   }
 }
 
