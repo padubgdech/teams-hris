@@ -119,11 +119,21 @@ function requireRole(...roles) {
   };
 }
 function fmtUser(u) {
+  const emp = store.employees.find(e => e.user_id === u.id);
   return { id:u.id, name:u.name, email:u.email, role:u.role,
     permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions,
     department:u.department||'', position:u.position||'', phone:u.phone||'',
     color:u.color||'#6B7280', init:u.init||'?',
-    picture:u.picture||'', auth_provider:u.auth_provider||'local' };
+    picture:u.picture||'', auth_provider:u.auth_provider||'local',
+    dob:u.dob||'', nationality:u.nationality||'', id_card:u.id_card||'',
+    name_th:u.name_th||'', name_en:u.name_en||'',
+    bank_name:u.bank_name||'', bank_account:u.bank_account||'', bank_holder:u.bank_holder||'',
+    // From employee record (admin-managed)
+    emp_id: emp ? emp.emp_id : '',
+    start_date: emp ? (emp.start_date||emp.join_date||'') : '',
+    contract_type: emp ? (emp.contract_type||'') : '',
+    work_type: emp ? (emp.work_type||emp.work_model||'') : '',
+  };
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
@@ -500,11 +510,14 @@ app.put('/api/users/:id/profile', auth, (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   const user = store.users.find(u => u.id == req.params.id);
   if (!user) return res.status(404).json({ error: 'Not found' });
-  const { name, department, position, phone } = req.body;
-  if (name)       user.name       = name;
+  const { name, department, position, phone, dob, nationality, id_card } = req.body;
+  if (name)                    user.name        = name;
   if (department !== undefined) user.department = department;
   if (position   !== undefined) user.position   = position;
   if (phone      !== undefined) user.phone       = phone;
+  if (dob        !== undefined) user.dob         = dob;
+  if (nationality!== undefined) user.nationality = nationality;
+  if (id_card    !== undefined) user.id_card     = id_card;
   // Update init from name
   if (name) {
     const parts = name.trim().split(/\s+/);
@@ -515,11 +528,25 @@ app.put('/api/users/:id/profile', auth, (req, res) => {
   // Sync employee record too
   const emp = store.employees.find(e => e.user_id === user.id);
   if (emp) {
-    if (name)       { emp.name = name; emp.init = user.init; }
+    if (name)        { emp.name = name; emp.init = user.init; }
     if (department !== undefined) emp.department = department;
     if (position   !== undefined) emp.position   = position;
     if (phone      !== undefined) emp.phone       = phone;
   }
+  saveDb();
+  res.json(fmtUser(user));
+});
+
+// Admin-only: set employment fields (start_date, contract_type, work_type)
+app.put('/api/users/:id/employment', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const user = store.users.find(u => u.id == req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  const emp = store.employees.find(e => e.user_id === user.id);
+  if (!emp) return res.status(404).json({ error: 'Employee record not found' });
+  const { start_date, contract_type, work_type } = req.body;
+  if (start_date    !== undefined) emp.start_date    = start_date;
+  if (contract_type !== undefined) emp.contract_type = contract_type;
+  if (work_type     !== undefined) emp.work_type     = work_type;
   saveDb();
   res.json(fmtUser(user));
 });

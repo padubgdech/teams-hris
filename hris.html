@@ -1917,32 +1917,98 @@
 
 </div>
 
+<!-- ══════════════════ EMPLOYMENT EDIT MODAL (Admin) ══════════════════ -->
+<div id="modal-employment-edit" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:28px 32px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:700;color:#1a1a1a">✏️ แก้ไขข้อมูลการจ้างงาน</div>
+      <button onclick="document.getElementById('modal-employment-edit').style.display='none'" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280">✕</button>
+    </div>
+    <input type="hidden" id="ee-user-id">
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">วันที่เริ่มงาน</label>
+      <input id="ee-start-date" type="date" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#e5e7eb'">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ประเภทสัญญา</label>
+        <select id="ee-contract-type" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit;background:#fff" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#e5e7eb'">
+          <option value="">— เลือก —</option>
+          <option value="Full-time">Full-time</option>
+          <option value="Part-time">Part-time</option>
+          <option value="Contract">Contract</option>
+          <option value="Freelance">Freelance</option>
+          <option value="Intern">Intern</option>
+          <option value="Probation">Probation</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">รูปแบบงาน</label>
+        <select id="ee-work-type" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit;background:#fff" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#e5e7eb'">
+          <option value="">— เลือก —</option>
+          <option value="Office">Office</option>
+          <option value="Remote">Remote</option>
+          <option value="Hybrid">Hybrid</option>
+          <option value="Field">Field</option>
+        </select>
+      </div>
+    </div>
+    <div id="ee-error" style="display:none;background:#fee2e2;border-radius:8px;padding:10px 14px;font-size:13px;color:#b91c1c;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('modal-employment-edit').style.display='none'" style="flex:1;background:#f3f4f6;color:#374151;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">ยกเลิก</button>
+      <button id="ee-save-btn" onclick="saveEmploymentEdit()" style="flex:2;background:#059669;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ PROFILE COMPLETE MODAL ══════════════════ -->
 <div id="modal-profile-complete" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:20px;padding:36px 40px;width:480px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.3)">
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:40px;margin-bottom:10px">👤</div>
-      <div style="font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:6px">กรุณาเติมข้อมูลโปรไฟล์</div>
-      <div style="font-size:13px;color:#6b7280;line-height:1.5">กรุณากรอกข้อมูลให้ครบถ้วนก่อนเข้าใช้งานระบบ<br>ไม่สามารถปิดหน้าต่างนี้ได้จนกว่าจะบันทึกข้อมูล</div>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:36px;margin-bottom:8px">👤</div>
+      <div style="font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:4px">กรุณาเติมข้อมูลโปรไฟล์</div>
+      <div style="font-size:12px;color:#6b7280">กรอกข้อมูลให้ครบก่อนเข้าใช้งาน — ไม่สามารถปิดได้จนกว่าจะบันทึก</div>
     </div>
-    <div style="margin-bottom:14px">
-      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">ชื่อ-นามสกุล (ภาษาไทย) <span style="color:#ef4444">*</span></label>
-      <input id="pc-name" type="text" placeholder="เช่น สมชาย ใจดี" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    <!-- Required fields -->
+    <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">ข้อมูลสำคัญ <span style="color:#ef4444">*</span> จำเป็นต้องกรอก</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ชื่อ-นามสกุล <span style="color:#ef4444">*</span></label>
+        <input id="pc-name" type="text" placeholder="สมชาย ใจดี" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">เบอร์โทรศัพท์</label>
+        <input id="pc-phone" type="tel" placeholder="0xx-xxx-xxxx" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+      </div>
     </div>
-    <div style="margin-bottom:14px">
-      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">แผนก <span style="color:#ef4444">*</span></label>
-      <input id="pc-department" type="text" placeholder="เช่น ฝ่ายไอที, ฝ่ายบัญชี, ฝ่ายขาย" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">แผนก <span style="color:#ef4444">*</span></label>
+        <input id="pc-department" type="text" placeholder="ฝ่ายไอที, บัญชี..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ตำแหน่ง <span style="color:#ef4444">*</span></label>
+        <input id="pc-position" type="text" placeholder="Developer, บัญชี..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+      </div>
     </div>
-    <div style="margin-bottom:14px">
-      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">ตำแหน่งงาน <span style="color:#ef4444">*</span></label>
-      <input id="pc-position" type="text" placeholder="เช่น Software Developer, บัญชี" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    <!-- Optional fields -->
+    <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">ข้อมูลส่วนตัว (ไม่บังคับ)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">วันเกิด</label>
+        <input id="pc-dob" type="date" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">สัญชาติ</label>
+        <input id="pc-nationality" type="text" placeholder="ไทย, อเมริกัน..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+      </div>
     </div>
-    <div style="margin-bottom:22px">
-      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">เบอร์โทรศัพท์</label>
-      <input id="pc-phone" type="tel" placeholder="0xx-xxx-xxxx (ไม่จำเป็น)" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">เลขบัตรประชาชน</label>
+      <input id="pc-idcard" type="text" placeholder="x-xxxx-xxxxx-xx-x" maxlength="17" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
     </div>
-    <div id="pc-error" style="display:none;background:#fee2e2;border-radius:8px;padding:10px 14px;font-size:13px;color:#b91c1c;margin-bottom:14px"></div>
-    <button id="pc-save-btn" onclick="saveProfileComplete()" style="width:100%;background:#10b981;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+    <div id="pc-error" style="display:none;background:#fee2e2;border-radius:8px;padding:10px 14px;font-size:13px;color:#b91c1c;margin-bottom:12px"></div>
+    <button id="pc-save-btn" onclick="saveProfileComplete()" style="width:100%;background:#10b981;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
       💾 บันทึกข้อมูล
     </button>
   </div>
@@ -2038,23 +2104,29 @@ function checkProfileComplete() {
 function showProfileCompleteModal() {
   const modal = document.getElementById('modal-profile-complete');
   if (!modal) return;
-  const nameEl  = document.getElementById('pc-name');
-  const deptEl  = document.getElementById('pc-department');
-  const posEl   = document.getElementById('pc-position');
-  const phoneEl = document.getElementById('pc-phone');
-  if (nameEl  && currentUser.name)       nameEl.value  = currentUser.name;
-  if (deptEl  && currentUser.department) deptEl.value  = currentUser.department;
-  if (posEl   && currentUser.position)   posEl.value   = currentUser.position;
-  if (phoneEl && currentUser.phone)      phoneEl.value = currentUser.phone;
+  const u = currentUser;
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('pc-name',        u.name);
+  set('pc-department',  u.department);
+  set('pc-position',    u.position);
+  set('pc-phone',       u.phone);
+  set('pc-dob',         u.dob);
+  set('pc-nationality', u.nationality);
+  set('pc-idcard',      u.id_card);
   modal.style.display = 'flex';
+  const nameEl = document.getElementById('pc-name');
   if (nameEl) setTimeout(() => nameEl.focus(), 100);
 }
 
 async function saveProfileComplete() {
-  const name  = (document.getElementById('pc-name')        || {}).value?.trim();
-  const dept  = (document.getElementById('pc-department')  || {}).value?.trim();
-  const pos   = (document.getElementById('pc-position')    || {}).value?.trim();
-  const phone = (document.getElementById('pc-phone')       || {}).value?.trim();
+  const g = id => (document.getElementById(id)||{}).value?.trim() || '';
+  const name        = g('pc-name');
+  const dept        = g('pc-department');
+  const pos         = g('pc-position');
+  const phone       = g('pc-phone');
+  const dob         = g('pc-dob');
+  const nationality = g('pc-nationality');
+  const id_card     = g('pc-idcard');
   const errEl = document.getElementById('pc-error');
   const btn   = document.getElementById('pc-save-btn');
 
@@ -2067,20 +2139,67 @@ async function saveProfileComplete() {
   btn.disabled = true;
   btn.textContent = 'กำลังบันทึก...';
 
-  const result = await apiCall('PUT', '/api/users/' + currentUser.id + '/profile', { name, department: dept, position: pos, phone });
+  const result = await apiCall('PUT', '/api/users/' + currentUser.id + '/profile', { name, department: dept, position: pos, phone, dob, nationality, id_card });
   if (result && !result.error) {
-    currentUser.name       = result.name       || name;
-    currentUser.department = result.department || dept;
-    currentUser.position   = result.position   || pos;
-    if (phone) currentUser.phone = result.phone || phone;
+    Object.assign(currentUser, { name: result.name||name, department: result.department||dept,
+      position: result.position||pos, phone: result.phone||phone,
+      dob: result.dob||dob, nationality: result.nationality||nationality, id_card: result.id_card||id_card });
     buildSidebar();
     document.getElementById('modal-profile-complete').style.display = 'none';
     showToast('บันทึกข้อมูลเรียบร้อยแล้ว ✓', 'success');
+    // Refresh myrecords page if currently viewing it
+    if (document.getElementById('view-myrecords')?.classList.contains('active')) renderMyRecords();
   } else {
     errEl.textContent = (result && result.error) || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
     errEl.style.display = 'block';
     btn.disabled = false;
     btn.textContent = '💾 บันทึกข้อมูล';
+  }
+}
+
+// ════════════ EMPLOYMENT EDIT (Admin) ════════════
+function showEmploymentEditModal(userId) {
+  const u = currentUser; // viewing own record — or find from employees list
+  document.getElementById('ee-user-id').value = userId || u.id;
+  const g = id => { const el=document.getElementById(id); if(el) el.value=''; };
+  g('ee-start-date'); g('ee-contract-type'); g('ee-work-type');
+  // Pre-fill from currentUser (when viewing own record)
+  if (u) {
+    const sd = document.getElementById('ee-start-date');
+    const ct = document.getElementById('ee-contract-type');
+    const wt = document.getElementById('ee-work-type');
+    if (sd) sd.value = u.start_date || '';
+    if (ct) ct.value = u.contract_type || '';
+    if (wt) wt.value = u.work_type || '';
+  }
+  document.getElementById('ee-error').style.display = 'none';
+  document.getElementById('modal-employment-edit').style.display = 'flex';
+}
+
+async function saveEmploymentEdit() {
+  const userId       = document.getElementById('ee-user-id').value;
+  const start_date   = document.getElementById('ee-start-date').value;
+  const contract_type= document.getElementById('ee-contract-type').value;
+  const work_type    = document.getElementById('ee-work-type').value;
+  const errEl = document.getElementById('ee-error');
+  const btn   = document.getElementById('ee-save-btn');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  const result = await apiCall('PUT', '/api/users/' + userId + '/employment', { start_date, contract_type, work_type });
+  btn.disabled = false; btn.textContent = '💾 บันทึก';
+  if (result && !result.error) {
+    // Update currentUser if it's the same person
+    if (currentUser && currentUser.id == userId) {
+      currentUser.start_date    = result.start_date    || start_date;
+      currentUser.contract_type = result.contract_type || contract_type;
+      currentUser.work_type     = result.work_type     || work_type;
+    }
+    document.getElementById('modal-employment-edit').style.display = 'none';
+    showToast('บันทึกข้อมูลการจ้างงานเรียบร้อย ✓', 'success');
+    renderMyRecords();
+  } else {
+    errEl.textContent = (result && result.error) || 'เกิดข้อผิดพลาด';
+    errEl.style.display = 'block';
   }
 }
 
@@ -4706,7 +4825,7 @@ async function renderMyRecords() {
   const piCard = document.getElementById('mr-pi-card');
   if (piCard) piCard.style.borderLeftColor = roleColor;
 
-  // Info row helper — แบบ 1: icon · label · value
+  // Info row helper
   function infoRow(label, value, icon) {
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-top:1px solid var(--border)">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--text-muted)" stroke-width="2" style="flex-shrink:0;margin-top:2px">${icon}</svg>
@@ -4715,6 +4834,19 @@ async function renderMyRecords() {
         <div style="font-size:13px;color:var(--text);font-weight:600">${value || '—'}</div>
       </div>
     </div>`;
+  }
+  // Edit button (user edits own personal info)
+  const piCard = document.getElementById('mr-pi-card');
+  if (piCard) {
+    const existingBtn = piCard.querySelector('.mr-edit-btn');
+    if (!existingBtn) {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'mr-edit-btn';
+      editBtn.innerHTML = '✏️ แก้ไขข้อมูล';
+      editBtn.style.cssText = 'float:right;background:none;border:1px solid var(--green);color:var(--green);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-top:-4px';
+      editBtn.onclick = () => showProfileCompleteModal();
+      piCard.querySelector('[style*="ข้อมูลส่วนตัว"]')?.before(editBtn) || piCard.prepend(editBtn);
+    }
   }
   const ICONS = {
     mail:'<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
@@ -4733,35 +4865,41 @@ async function renderMyRecords() {
 
   const piEl = document.getElementById('mr-personal-info');
   if (piEl) piEl.innerHTML = [
-    u.nameTH ? infoRow('ชื่อ-นามสกุล (ไทย)', u.nameTH, ICONS.id) : '',
-    u.nameEN ? infoRow('ชื่อ-นามสกุล (EN)', u.nameEN, ICONS.id) : '',
+    u.name_th ? infoRow('ชื่อ-นามสกุล (ไทย)', u.name_th, ICONS.id) : '',
+    u.name_en ? infoRow('ชื่อ-นามสกุล (EN)',   u.name_en, ICONS.id) : '',
     infoRow('อีเมล', u.email, ICONS.mail),
     infoRow('เบอร์โทรศัพท์', u.phone, ICONS.phone),
     infoRow('วันเกิด', u.dob ? new Date(u.dob).toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'}) : null, ICONS.cake),
     infoRow('สัญชาติ', u.nationality, ICONS.world),
-    infoRow('เลขบัตรประชาชน', u.idCard, ICONS.id),
-    (u.bankName||u.bankAccount) ? infoRow('ธนาคาร (เงินเดือน)', [u.bankName, u.bankAccount, u.bankHolder].filter(Boolean).join(' · '), ICONS.briefcase) : '',
+    infoRow('เลขบัตรประชาชน', u.id_card, ICONS.id),
+    (u.bank_name||u.bank_account) ? infoRow('ธนาคาร (เงินเดือน)', [u.bank_name, u.bank_account, u.bank_holder].filter(Boolean).join(' · '), ICONS.briefcase) : '',
   ].join('');
 
   const eiEl = document.getElementById('mr-employment-info');
   if (eiEl) {
     const roleLabel = {admin:'ผู้ดูแลระบบ', hr_manager:'ผู้จัดการ HR', hr_staff:'เจ้าหน้าที่ HR', employee:'พนักงาน'}[u.role] || u.role;
-    const startFmt = u.startDate ? new Date(u.startDate).toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'}) : null;
+    const startDate = u.start_date || '';
+    const startFmt  = startDate ? new Date(startDate).toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'}) : null;
     let yearsStr = '—';
-    if (u.startDate) {
-      const ms = Date.now() - new Date(u.startDate).getTime();
+    if (startDate) {
+      const ms  = Date.now() - new Date(startDate).getTime();
       const yrs = Math.floor(ms / (365.25*24*3600*1000));
       const mos = Math.floor((ms % (365.25*24*3600*1000)) / (30.44*24*3600*1000));
-      yearsStr = yrs > 0 ? `${yrs} ปี ${mos} เดือน` : `${mos} เดือน`;
+      yearsStr  = yrs > 0 ? `${yrs} ปี ${mos} เดือน` : `${mos} เดือน`;
     }
-    eiEl.innerHTML = [
-      infoRow('ตำแหน่ง', u.position, ICONS.briefcase),
-      infoRow('แผนก', u.dept, ICONS.building),
-      infoRow('บทบาทในระบบ', roleLabel, ICONS.key),
-      infoRow('ประเภทสัญญา', u.contractType, ICONS.file),
-      infoRow('รูปแบบงาน', u.workType, ICONS.clock),
-      infoRow('วันที่เริ่มงาน', startFmt, ICONS.calendar),
-      infoRow('อายุงาน', yearsStr, ICONS.star),
+    // Admin-edit button for employment fields
+    const isAdmin = currentUser && ['admin','hr_manager'].includes(currentUser.role);
+    const adminEditBtn = isAdmin
+      ? `<button onclick="showEmploymentEditModal('${u.id}')" style="float:right;background:none;border:1px solid #059669;color:#059669;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-top:-4px">✏️ แก้ไข (Admin)</button>`
+      : '';
+    eiEl.innerHTML = adminEditBtn + [
+      infoRow('ตำแหน่ง',      u.position,         ICONS.briefcase),
+      infoRow('แผนก',         u.department,        ICONS.building),
+      infoRow('บทบาทในระบบ', roleLabel,            ICONS.key),
+      infoRow('ประเภทสัญญา', u.contract_type,      ICONS.file),
+      infoRow('รูปแบบงาน',   u.work_type,          ICONS.clock),
+      infoRow('วันที่เริ่มงาน', startFmt,          ICONS.calendar),
+      infoRow('อายุงาน',     yearsStr,              ICONS.star),
     ].join('');
   }
 
