@@ -910,16 +910,12 @@
       </div>
       <div class="card">
         <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
-          <span class="card-title">Payroll List — June 2026</span>
+          <span class="card-title" id="payroll-list-title">Payroll List</span>
           <button class="btn btn-primary" style="font-size:12px;padding:7px 14px">ส่งออกสลิปเงินเดือน</button>
         </div>
         <table>
           <thead><tr><th>พนักงาน</th><th>เงินเดือน</th><th>เบี้ยเลี้ยง</th><th>โบนัส</th><th>หัก</th><th>รับสุทธิ</th><th></th></tr></thead>
-          <tbody>
-            <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="emp-avatar" style="background:#3B82F6">MT</div><div><div class="emp-name">Mia Torres</div><div class="emp-id">HR Officer</div></div></div></td><td>฿32,000</td><td>฿2,300</td><td>฿4,000</td><td>฿1,500</td><td style="font-weight:700;color:var(--green)">฿36,800</td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">สลิปเงินเดือน</button></td></tr>
-            <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="emp-avatar" style="background:#8B5CF6">JY</div><div><div class="emp-name">Jacob Young</div><div class="emp-id">Developer</div></div></div></td><td>฿55,000</td><td>฿3,500</td><td>฿6,000</td><td>฿2,000</td><td style="font-weight:700;color:var(--green)">฿62,500</td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">สลิปเงินเดือน</button></td></tr>
-            <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="emp-avatar" style="background:#F59E0B">AK</div><div><div class="emp-name">Ana Kim</div><div class="emp-id">Designer</div></div></div></td><td>฿42,000</td><td>฿2,800</td><td>฿5,000</td><td>฿1,800</td><td style="font-weight:700;color:var(--green)">฿48,000</td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">สลิปเงินเดือน</button></td></tr>
-          </tbody>
+          <tbody id="payroll-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -2093,6 +2089,7 @@ function nav(page) {
   if(page==='ot') renderOT();
   if(page==='myrecords') renderMyRecords();
   if(page==='checkin') { loadRetroRequests(); renderCheckinWeek(); }
+  if(page==='payroll') renderPayroll();
 }
 
 // ════════════ PROFILE COMPLETE POPUP ════════════
@@ -4207,6 +4204,71 @@ const otRequests = [
   {emp:'Jacob Young', init:'JY', color:'#8B5CF6', date:'2026-06-25', start:'18:00', end:'19:30', hours:'1h 30m', type:'Manager Requested', reason:'Deploy hotfix to production', status:'Pending', approver:'', note:''},
   {emp:'Ana Kim',     init:'AK', color:'#F59E0B', date:'2026-06-20', start:'18:00', end:'20:00', hours:'2h 00m', type:'Project Deadline', reason:'Design review before launch', status:'Rejected', approver:'Davis Levin', note:'Please plan better next time'},
 ];
+
+// ════════════ PAYROLL ════════════
+async function renderPayroll() {
+  const now = new Date();
+  const monthNamesTh = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+    'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const label = monthNamesTh[now.getMonth()] + ' ' + (now.getFullYear() + 543);
+  const titleEl = document.getElementById('payroll-list-title');
+  if (titleEl) titleEl.textContent = 'Payroll List — ' + label;
+
+  const tbody = document.getElementById('payroll-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px">กำลังโหลด...</td></tr>';
+
+  let empList = [];
+  if (useApi) {
+    const data = await apiCall('GET', '/api/users');
+    if (data && Array.isArray(data)) empList = data;
+  } else {
+    empList = USERS.filter(u => !u._demo);
+  }
+
+  if (!empList.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px">ไม่มีข้อมูลพนักงาน</td></tr>';
+    const sv = document.querySelectorAll('#view-payroll .stat-val');
+    sv.forEach(el => el.textContent = '฿0');
+    return;
+  }
+
+  const fmt = n => n ? '฿' + Number(n).toLocaleString() : '—';
+  const fmtK = n => n >= 1000 ? '฿' + Math.round(n/1000) + 'k' : (n ? '฿' + n : '฿0');
+
+  let totalNet = 0, totalBonus = 0, totalDeduct = 0;
+  tbody.innerHTML = empList.map(u => {
+    const salary    = Number(u.salary    || 0);
+    const allowance = Number(u.allowance || 0);
+    const bonus     = Number(u.bonus     || 0);
+    const deduction = Number(u.deduction || 0);
+    const net = salary + allowance + bonus - deduction;
+    totalNet   += net;
+    totalBonus += bonus;
+    totalDeduct += deduction;
+    const init  = u.init  || (u.name||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    const color = u.color || '#6B7280';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="emp-avatar" style="background:${color}">${init}</div>
+        <div><div class="emp-name">${u.name||'—'}</div><div class="emp-id">${u.position||u.role||'—'}</div></div>
+      </div></td>
+      <td>${fmt(salary)}</td>
+      <td>${fmt(allowance)}</td>
+      <td>${fmt(bonus)}</td>
+      <td>${fmt(deduction)}</td>
+      <td style="font-weight:700;color:${net?'var(--green)':'var(--text-muted)'}">${net ? '฿'+net.toLocaleString() : '—'}</td>
+      <td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">สลิปเงินเดือน</button></td>
+    </tr>`;
+  }).join('');
+
+  const avg = empList.length ? Math.round(totalNet / empList.length) : 0;
+  const sv = document.querySelectorAll('#view-payroll .stat-val');
+  if (sv[0]) sv[0].textContent = fmtK(totalNet);
+  if (sv[1]) sv[1].textContent = fmtK(avg);
+  if (sv[2]) sv[2].textContent = fmtK(totalBonus);
+  if (sv[3]) sv[3].textContent = fmtK(totalDeduct);
+}
 
 function renderOT() {
   const isManager = currentUser && ['admin','hr_manager','hr_staff'].includes(currentUser.role);
