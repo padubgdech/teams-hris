@@ -645,6 +645,25 @@
 
       <!-- Leave balance cards — top row (vertical style, white, connected to policy) -->
       <div style="font-size:11px;color:#6B7280;margin-bottom:6px;text-align:right;padding:0 4px">สิทธิ์วันลาของ: <strong id="leave-bal-owner" style="color:#374151">—</strong></div>
+
+      <!-- Probation countdown banner — shown only during probation -->
+      <div id="leave-probation-banner" style="display:none;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:12px 16px;margin-bottom:10px;align-items:center;gap:12px">
+        <span style="font-size:22px;flex-shrink:0">⏳</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:4px">
+            อยู่ในช่วงทดลองงาน — เหลืออีก <span id="prob-days-left">—</span> วัน
+            <span style="font-weight:400;color:#B45309">(ครบ <span id="prob-unlock-date">—</span>)</span>
+          </div>
+          <div style="font-size:11px;color:#B45309;margin-bottom:6px">ลาพักร้อนจะ unlock อัตโนมัติเมื่อผ่านการทดลองงาน — ลาป่วย/ลากิจใช้ได้ตามปกติ</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:6px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden">
+              <div id="prob-progress-bar" style="height:6px;background:#F59E0B;border-radius:3px;transition:width .6s ease;width:0%"></div>
+            </div>
+            <span id="prob-progress-label" style="font-size:11px;color:#92400E;white-space:nowrap;font-weight:600">0/119 วัน</span>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-4" style="margin-bottom:0;gap:0">
 
         <!-- ลาพักร้อน -->
@@ -711,15 +730,15 @@
       <!-- Leave Policy Cards — bottom row (flat top to connect with balance) -->
       <div class="grid grid-4" style="gap:0;margin-bottom:20px">
 
-        <div class="lp-card" style="background:#F0FDF4;border:1px solid #BBF7D0;border-top:none;border-right:none;border-radius:0 0 0 14px">
+        <div id="annual-lp-card" class="lp-card" style="background:#F0FDF4;border:1px solid #BBF7D0;border-top:none;border-right:none;border-radius:0 0 0 14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
             <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:38px;height:38px;border-radius:12px;background:#D1FAE5;display:flex;align-items:center;justify-content:center;font-size:18px">🏖️</div>
-              <div><div style="font-size:13px;font-weight:800;color:#065F46">ลาพักร้อน</div><div style="font-size:11px;color:#059669;font-weight:600">Annual Leave</div></div>
+              <div id="annual-lp-icon" style="width:38px;height:38px;border-radius:12px;background:#D1FAE5;display:flex;align-items:center;justify-content:center;font-size:18px">🏖️</div>
+              <div><div id="annual-lp-name" style="font-size:13px;font-weight:800;color:#065F46">ลาพักร้อน</div><div id="annual-lp-eng" style="font-size:11px;color:#059669;font-weight:600">Annual Leave</div></div>
             </div>
-            <div style="background:#059669;color:#fff;border-radius:10px;padding:4px 10px;font-size:12px;font-weight:800">6 วัน/ปี</div>
+            <div id="annual-lp-badge" style="background:#059669;color:#fff;border-radius:10px;padding:4px 10px;font-size:12px;font-weight:800">6 วัน/ปี</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:7px">
+          <div id="annual-lp-bullets" style="display:flex;flex-direction:column;gap:7px">
             <div class="lp-item" style="color:#374151"><span style="color:#059669">●</span><span><strong style="color:#059669">โปรเรท</strong> ตามเดือนที่เข้าทำงานในปีแรก</span></div>
             <div class="lp-item" style="color:#374151"><span style="color:#059669">●</span><span>6 วัน/ปี — <strong>ใช้ภายในปีปฏิทิน</strong> (ม.ค.–ธ.ค.)</span></div>
             <div class="lp-item" style="color:#374151"><span style="color:#059669">●</span><span>ส่งใบลาล่วงหน้า <strong>อย่างน้อย 3 วัน</strong></span></div>
@@ -2826,6 +2845,33 @@ function applyAnnualProbationStyle(daysLeft, quota) {
     barFill.style.width = Math.round((Math.max(0,119-daysLeft)/119)*100)+'%';
     barFill.style.background = '#F59E0B';
   }
+
+  // Style annual leave policy card as locked
+  const lpCard = document.getElementById('annual-lp-card');
+  if (lpCard) {
+    lpCard.style.background = '#F9FAFB';
+    lpCard.style.border = '1px dashed #D1D5DB';
+    lpCard.style.borderTop = 'none';
+    lpCard.style.borderRight = 'none';
+  }
+  const lpIcon = document.getElementById('annual-lp-icon');
+  if (lpIcon) lpIcon.style.background = '#F3F4F6';
+  const lpName = document.getElementById('annual-lp-name');
+  if (lpName) lpName.style.color = '#6B7280';
+  const lpEng = document.getElementById('annual-lp-eng');
+  if (lpEng) lpEng.style.color = '#9CA3AF';
+  const lpBadge = document.getElementById('annual-lp-badge');
+  if (lpBadge) { lpBadge.style.background = '#9CA3AF'; lpBadge.textContent = '🔒 ล็อค'; }
+  const lpBullets = document.getElementById('annual-lp-bullets');
+  if (lpBullets) lpBullets.innerHTML = `
+    <div class="lp-item" style="color:#6B7280"><span style="color:#9CA3AF">●</span><span>อยู่ระหว่างทดลองงาน 119 วัน</span></div>
+    <div class="lp-item" style="color:#6B7280"><span style="color:#9CA3AF">●</span><span>ครบ <strong style="color:#374151" id="lp-unlock-date-text">—</strong> จึงใช้สิทธิ์ได้</span></div>
+    <div class="lp-item" style="color:#6B7280"><span style="color:#F59E0B">●</span><span>หลังผ่านโปร: ได้ <strong style="color:#374151">${quota} วัน</strong> (โปรเรท ม.ค.–ธ.ค.)</span></div>
+    <div class="lp-item" style="color:#6B7280"><span style="color:#9CA3AF">●</span><span>6 วัน/ปี ในปีถัดไป</span></div>`;
+  // fill unlock date inside bullets
+  const probBanner = document.getElementById('prob-unlock-date');
+  const lpDateEl = document.getElementById('lp-unlock-date-text');
+  if (lpDateEl && probBanner) lpDateEl.textContent = probBanner.textContent;
 }
 
 function removeAnnualProbationStyle() {
@@ -2852,6 +2898,29 @@ function removeAnnualProbationStyle() {
   if (usedEl) usedEl.textContent = 'ใช้แล้ว 0 วัน';
   const barFill = document.getElementById('bar-annual');
   if (barFill) barFill.style.background = '#059669';
+
+  // Restore annual leave policy card
+  const lpCard = document.getElementById('annual-lp-card');
+  if (lpCard) {
+    lpCard.style.background = '#F0FDF4';
+    lpCard.style.border = '1px solid #BBF7D0';
+    lpCard.style.borderTop = 'none';
+    lpCard.style.borderRight = 'none';
+  }
+  const lpIcon = document.getElementById('annual-lp-icon');
+  if (lpIcon) lpIcon.style.background = '#D1FAE5';
+  const lpName = document.getElementById('annual-lp-name');
+  if (lpName) lpName.style.color = '#065F46';
+  const lpEng = document.getElementById('annual-lp-eng');
+  if (lpEng) lpEng.style.color = '#059669';
+  const lpBadge = document.getElementById('annual-lp-badge');
+  if (lpBadge) { lpBadge.style.background = '#059669'; lpBadge.textContent = '6 วัน/ปี'; }
+  const lpBullets = document.getElementById('annual-lp-bullets');
+  if (lpBullets) lpBullets.innerHTML = `
+    <div class="lp-item" style="color:#374151"><span style="color:#059669">●</span><span><strong style="color:#059669">โปรเรท</strong> ตามเดือนที่เข้าทำงานในปีแรก</span></div>
+    <div class="lp-item" style="color:#374151"><span style="color:#059669">●</span><span>6 วัน/ปี — <strong>ใช้ภายในปีปฏิทิน</strong> (ม.ค.–ธ.ค.)</span></div>
+    <div class="lp-item" style="color:#374151"><span style="color:#059669">●</span><span>ส่งใบลาล่วงหน้า <strong>อย่างน้อย 3 วัน</strong></span></div>
+    <div class="lp-item" style="color:#374151"><span style="color:#059669">●</span><span>สะสมสูงสุด <strong>12 วัน</strong></span></div>`;
 }
 
 // ── Open leave modal with probation check ─────────────────────────────
@@ -2928,8 +2997,28 @@ function updateLeaveBalances() {
     if (ringEl) ringEl.setAttribute('stroke-dashoffset', 188.5 * (1 - Math.max(0, rem/total)));
   };
   if (probInfo.inProbation) {
+    // Show probation banner
+    const banner = document.getElementById('leave-probation-banner');
+    if (banner) {
+      banner.style.display = 'flex';
+      const daysElapsed = Math.max(0, 119 - probInfo.daysLeft);
+      const pct = Math.round((daysElapsed / 119) * 100);
+      const ud = probInfo.unlockDate;
+      const monthsTh = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      const dateStr = ud ? (ud.getDate() + ' ' + monthsTh[ud.getMonth()] + ' ' + (ud.getFullYear()+543)) : '—';
+      const el1 = document.getElementById('prob-days-left');
+      const el2 = document.getElementById('prob-unlock-date');
+      const el3 = document.getElementById('prob-progress-bar');
+      const el4 = document.getElementById('prob-progress-label');
+      if (el1) el1.textContent = probInfo.daysLeft;
+      if (el2) el2.textContent = dateStr;
+      if (el3) el3.style.width = pct + '%';
+      if (el4) el4.textContent = daysElapsed + '/119 วัน';
+    }
     applyAnnualProbationStyle(probInfo.daysLeft, annualQuota);
   } else {
+    const banner = document.getElementById('leave-probation-banner');
+    if (banner) banner.style.display = 'none';
     removeAnnualProbationStyle();
     setRing('annual', usedAnnual, annualQuota);
   }
