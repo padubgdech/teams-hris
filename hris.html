@@ -2093,9 +2093,32 @@ function nav(page) {
 }
 
 // ════════════ PROFILE COMPLETE POPUP ════════════
+function _profileCacheKey(email) { return 'hris_profile_' + (email||'').toLowerCase(); }
+
 function checkProfileComplete() {
   if (!currentUser || !useApi) return true;
-  return !!(currentUser.department && currentUser.position);
+  if (currentUser.department && currentUser.position) return true;
+  // Check localStorage cache (survives Railway redeployments)
+  try {
+    const cached = JSON.parse(localStorage.getItem(_profileCacheKey(currentUser.email)) || 'null');
+    if (cached && cached.department && cached.position) return true;
+  } catch(e) {}
+  return false;
+}
+
+// Auto-restore cached profile to API after Railway DB reset
+async function restoreProfileFromCache() {
+  if (!currentUser || !useApi) return;
+  if (currentUser.department && currentUser.position) return; // already in DB
+  try {
+    const cached = JSON.parse(localStorage.getItem(_profileCacheKey(currentUser.email)) || 'null');
+    if (!cached || !cached.department || !cached.position) return;
+    const result = await apiCall('PUT', '/api/users/' + currentUser.id + '/profile', cached);
+    if (result && !result.error) {
+      Object.assign(currentUser, result);
+      console.log('[HRIS] Profile restored from cache');
+    }
+  } catch(e) {}
 }
 
 function showProfileCompleteModal() {
@@ -2141,6 +2164,12 @@ async function saveProfileComplete() {
     Object.assign(currentUser, { name: result.name||name, department: result.department||dept,
       position: result.position||pos, phone: result.phone||phone,
       dob: result.dob||dob, nationality: result.nationality||nationality, id_card: result.id_card||id_card });
+    // Cache profile so it survives Railway DB resets
+    try {
+      localStorage.setItem(_profileCacheKey(currentUser.email), JSON.stringify(
+        { name, department: dept, position: pos, phone, dob, nationality, id_card }
+      ));
+    } catch(e) {}
     buildSidebar();
     document.getElementById('modal-profile-complete').style.display = 'none';
     showToast('บันทึกข้อมูลเรียบร้อยแล้ว ✓', 'success');
@@ -5230,6 +5259,7 @@ async function handleGoogleCredential(response) {
     const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
     currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
     try { localStorage.setItem('hris_session', JSON.stringify({email: currentUser.email, pass:'', token: apiToken, google: true})); } catch(e){}
+    await restoreProfileFromCache(); // re-sync profile if DB was reset
     document.getElementById('login-screen').classList.add('hidden');
     buildSidebar();
     applyLang();
@@ -5697,6 +5727,7 @@ window.addEventListener('load', async ()=>{
           currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
           loadUserAttHistory(sess.email);
           loadUserInbox(sess.email);
+          await restoreProfileFromCache(); // re-sync profile if DB was reset
           document.getElementById('login-screen').classList.add('hidden');
           buildSidebar(); applyLang();
           const startPage = (lastPage && currentUser.permissions.includes(lastPage)) ? lastPage : (currentUser.permissions[0] || 'checkin');
