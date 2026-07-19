@@ -232,7 +232,9 @@ app.post('/api/auth/forgot-password', (req, res) => {
 });
 
 app.get('/api/auth/me', auth, (req, res) => {
-  const user = store.users.find(u => u.id === req.user.id);
+  // Fallback to email lookup — handles stale token id after DB reset
+  const user = store.users.find(u => u.id === req.user.id)
+            || store.users.find(u => u.email === req.user.email);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(fmtUser(user));
 });
@@ -508,7 +510,9 @@ app.get('/api/users', auth, requireRole('admin','hr_manager'), (req, res) => {
 app.put('/api/users/:id/profile', auth, (req, res) => {
   if (req.user.id != req.params.id && req.user.role !== 'admin')
     return res.status(403).json({ error: 'Forbidden' });
-  const user = store.users.find(u => u.id == req.params.id);
+  // Find by id; fallback to email (handles stale token after DB reset)
+  let user = store.users.find(u => u.id == req.params.id);
+  if (!user) user = store.users.find(u => u.email === req.user.email);
   if (!user) return res.status(404).json({ error: 'Not found' });
   const { name, department, position, phone, dob, nationality, id_card } = req.body;
   if (name)                    user.name        = name;
