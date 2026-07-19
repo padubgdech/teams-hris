@@ -130,7 +130,7 @@ function fmtUser(u) {
     bank_name:u.bank_name||'', bank_account:u.bank_account||'', bank_holder:u.bank_holder||'',
     // From employee record (admin-managed)
     emp_id: emp ? emp.emp_id : '',
-    start_date: emp ? (emp.start_date||emp.join_date||'') : '',
+    start_date: emp ? (emp.start_date||'') : '',
     contract_type: emp ? (emp.contract_type||'') : '',
     work_type: emp ? (emp.work_type||emp.work_model||'') : '',
   };
