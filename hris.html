@@ -5146,7 +5146,7 @@ function _initGSI() {
     container.innerHTML = '';
     window.google.accounts.id.renderButton(container, {
       type: 'standard', theme: 'outline', size: 'large',
-      text: 'signin_with', shape: 'rectangular',
+      text: 'signin_with', shape: 'rectangular', width: 340,
     });
   }
 }
@@ -5669,6 +5669,8 @@ window.addEventListener('load', async ()=>{
     document.body.appendChild(ind);
     setTimeout(()=>ind.remove(),3000);
   }
+  // Re-render Google button now that login screen visibility is final
+  if (typeof _initGSI === 'function') _initGSI();
 });
 </script>
 <!-- Notification Popup -->
