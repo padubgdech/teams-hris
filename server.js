@@ -60,10 +60,10 @@ function genId(table) {
 //  ROLE DEFAULTS
 // ══════════════════════════════════════
 const ROLE_DEFAULTS = {
-  admin:      ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment','permissions'],
-  hr_manager: ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment'],
-  hr_staff:   ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave'],
-  employee:   ['checkin','ot','inbox','calendar','leave'],
+  admin:      ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment','permissions','myrecords'],
+  hr_manager: ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','payroll','recruitment','myrecords'],
+  hr_staff:   ['dashboard','checkin','ot','inbox','calendar','employees','attendance','leave','myrecords'],
+  employee:   ['checkin','ot','inbox','calendar','leave','myrecords'],
 };
 
 function seedHolidays() {
