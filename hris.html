@@ -1957,6 +1957,92 @@
   </div>
 </div>
 
+<!-- ══════════════════ ADMIN EDIT EMPLOYEE MODAL ══════════════════ -->
+<div id="modal-admin-edit-emp" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;overflow-y:auto;padding:20px 0">
+  <div style="background:#fff;border-radius:20px;padding:32px 36px;width:540px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="aee-avatar" class="emp-avatar" style="width:40px;height:40px;font-size:14px;background:#6B7280">?</div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#1a1a1a">แก้ไขข้อมูลพนักงาน</div>
+          <div id="aee-email" style="font-size:12px;color:#6b7280"></div>
+        </div>
+      </div>
+      <button onclick="document.getElementById('modal-admin-edit-emp').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;line-height:1">✕</button>
+    </div>
+    <input type="hidden" id="aee-user-id">
+
+    <!-- ข้อมูลส่วนตัว -->
+    <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">ข้อมูลส่วนตัว</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ชื่อ-นามสกุล <span style="color:#ef4444">*</span></label>
+        <input id="aee-name" type="text" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">เบอร์โทรศัพท์</label>
+        <input id="aee-phone" type="tel" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">แผนก <span style="color:#ef4444">*</span></label>
+        <input id="aee-department" type="text" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ตำแหน่ง <span style="color:#ef4444">*</span></label>
+        <input id="aee-position" type="text" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit">
+      </div>
+    </div>
+
+    <!-- ข้อมูลการจ้างงาน (Admin) -->
+    <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">ข้อมูลการจ้างงาน</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">วันที่เริ่มงาน</label>
+        <input id="aee-start-date" type="date" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:12px;box-sizing:border-box;font-family:inherit">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ประเภทสัญญา</label>
+        <select id="aee-contract-type" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit;background:#fff">
+          <option value="">— เลือก —</option>
+          <option value="Full-time">Full-time</option>
+          <option value="Part-time">Part-time</option>
+          <option value="Contract">Contract</option>
+          <option value="Intern">Intern</option>
+          <option value="Freelance">Freelance</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">รูปแบบงาน</label>
+        <select id="aee-work-type" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit;background:#fff">
+          <option value="">— เลือก —</option>
+          <option value="Office">Office</option>
+          <option value="Remote">Remote</option>
+          <option value="Hybrid">Hybrid</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- บทบาท -->
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">บทบาทในระบบ</label>
+      <select id="aee-role" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit;background:#fff">
+        <option value="employee">พนักงาน</option>
+        <option value="hr_staff">HR Staff</option>
+        <option value="hr_manager">HR Manager</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+
+    <div id="aee-error" style="display:none;background:#fee2e2;border-radius:8px;padding:10px 14px;font-size:13px;color:#b91c1c;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('modal-admin-edit-emp').style.display='none'" style="flex:1;background:#f3f4f6;color:#374151;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">ยกเลิก</button>
+      <button id="aee-save-btn" onclick="saveAdminEditEmp()" style="flex:2;background:#10b981;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ PROFILE COMPLETE MODAL ══════════════════ -->
 <div id="modal-profile-complete" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:20px;padding:36px 40px;width:480px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.3)">
@@ -2189,6 +2275,70 @@ async function saveProfileComplete() {
   }
 }
 
+// ════════════ ADMIN EDIT EMPLOYEE (from Employees page) ════════════
+function openEditEmpModal(userId) {
+  // Find user from cached API data
+  const u = _apiUserData.find(u => u.id == userId) || {};
+  const empRec = _apiEmpData.find(e => e.user_id == userId) || {};
+
+  document.getElementById('aee-user-id').value = userId;
+  document.getElementById('aee-name').value = u.name || '';
+  document.getElementById('aee-phone').value = u.phone || '';
+  document.getElementById('aee-department').value = u.department || empRec.department || '';
+  document.getElementById('aee-position').value = u.position || empRec.position || '';
+  document.getElementById('aee-start-date').value = u.start_date || empRec.start_date || '';
+  document.getElementById('aee-contract-type').value = u.contract_type || empRec.contract_type || '';
+  document.getElementById('aee-work-type').value = u.work_type || empRec.work_type || empRec.work_model || '';
+  document.getElementById('aee-role').value = u.role || 'employee';
+
+  const avatarEl = document.getElementById('aee-avatar');
+  avatarEl.textContent = u.init || (u.name||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  avatarEl.style.background = u.color || '#6B7280';
+  document.getElementById('aee-email').textContent = u.email || '';
+  document.getElementById('aee-error').style.display = 'none';
+  const btn = document.getElementById('aee-save-btn');
+  btn.disabled = false; btn.textContent = '💾 บันทึก';
+  document.getElementById('modal-admin-edit-emp').style.display = 'flex';
+}
+
+async function saveAdminEditEmp() {
+  const userId = document.getElementById('aee-user-id').value;
+  const name   = document.getElementById('aee-name').value.trim();
+  const dept   = document.getElementById('aee-department').value.trim();
+  const pos    = document.getElementById('aee-position').value.trim();
+  const phone  = document.getElementById('aee-phone').value.trim();
+  const startDate    = document.getElementById('aee-start-date').value;
+  const contractType = document.getElementById('aee-contract-type').value;
+  const workType     = document.getElementById('aee-work-type').value;
+  const role         = document.getElementById('aee-role').value;
+  const errEl = document.getElementById('aee-error');
+  const btn   = document.getElementById('aee-save-btn');
+
+  if (!name || !dept || !pos) {
+    errEl.textContent = 'กรุณากรอกชื่อ, แผนก, และตำแหน่ง';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+  const [profileRes, empRes, permRes] = await Promise.all([
+    apiCall('PUT', '/api/users/' + userId + '/profile', { name, department: dept, position: pos, phone }),
+    apiCall('PUT', '/api/users/' + userId + '/employment', { start_date: startDate, contract_type: contractType, work_type: workType }),
+    role ? apiCall('PUT', '/api/users/' + userId + '/permissions', { role }) : Promise.resolve(null),
+  ]);
+
+  if ((profileRes && profileRes.error) || (empRes && empRes.error)) {
+    errEl.textContent = profileRes?.error || empRes?.error || 'เกิดข้อผิดพลาด';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = '💾 บันทึก';
+    return;
+  }
+  // Refresh employee list
+  await loadEmployeesFromApi();
+  document.getElementById('modal-admin-edit-emp').style.display = 'none';
+  showToast('บันทึกข้อมูลพนักงานเรียบร้อย ✓', 'success');
+}
+
 // ════════════ EMPLOYMENT EDIT (Admin) ════════════
 function showEmploymentEditModal(userId) {
   const u = currentUser; // viewing own record — or find from employees list
@@ -2307,6 +2457,7 @@ async function dashApproveLeave(id, status, btn) {
 
 // ════════════ EMPLOYEES ════════════
 function renderEmployees(list) {
+  const isAdmin = currentUser && ['admin','hr_manager','hr_staff'].includes(currentUser.role);
   const tbody = document.getElementById('emp-tbody');
   tbody.innerHTML = list.map(e => `
     <tr>
@@ -2314,11 +2465,13 @@ function renderEmployees(list) {
         <div class="emp-avatar" style="background:${e.color}">${e.initials}</div>
         <div><div class="emp-name">${e.name}</div><div class="emp-id">${e.id}</div></div>
       </div></td>
-      <td>${e.dept}</td>
-      <td>${e.pos}</td>
-      <td>${e.joined}</td>
+      <td>${e.dept||'—'}</td>
+      <td>${e.pos||'—'}</td>
+      <td>${e.joined||'—'}</td>
       <td><span class="badge ${e.status==='Active'?'badge-green':e.status==='On Leave'?'badge-orange':'badge-gray'}">${e.status==='Active'?'ทำงานอยู่':e.status==='On Leave'?'กำลังลา':'ไม่ทำงาน'}</span></td>
-      <td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td>
+      <td style="white-space:nowrap">
+        ${isAdmin && e._uid ? `<button class="btn btn-primary" style="font-size:11px;padding:5px 12px" onclick="openEditEmpModal(${e._uid})">✏️ แก้ไข</button>` : `<button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button>`}
+      </td>
     </tr>`).join('');
 }
 function filterEmps(q) {
@@ -5623,12 +5776,26 @@ submitOTRequest = async function(){
 };
 
 // ── EMPLOYEES override ──────────────────────────────
+let _apiEmpData = []; // full API employee records (includes user_id)
+let _apiUserData = []; // full user records for edit modal
+
 async function loadEmployeesFromApi(){
   if(!useApi) return;
-  const data=await apiCall('GET','/api/employees'); if(!data||data.error) return;
-  const mapped=data.map(e=>({id:e.emp_id,name:e.name,dept:e.department,pos:e.position,joined:e.join_date,status:e.status,color:e.color,initials:e.init}));
-  employees.splice(0,employees.length,...mapped);
-  renderEmployees(employees);
+  const [empData, userData] = await Promise.all([
+    apiCall('GET','/api/employees'),
+    apiCall('GET','/api/users'),
+  ]);
+  if(empData && !empData.error) {
+    _apiEmpData = empData;
+    const mapped = empData.map(e => ({
+      id: e.emp_id, _uid: e.user_id, name: e.name,
+      dept: e.department, pos: e.position, joined: e.join_date||'',
+      status: e.status, color: e.color||'#6B7280', initials: e.init||'?'
+    }));
+    employees.splice(0, employees.length, ...mapped);
+    renderEmployees(employees);
+  }
+  if(userData && !userData.error) _apiUserData = userData;
 }
 
 // ── INBOX override ──────────────────────────────────
