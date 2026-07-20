@@ -11,6 +11,7 @@ const cors      = require('cors');
 const path      = require('path');
 const fs        = require('fs');
 const { OAuth2Client } = require('google-auth-library');
+const { Pool }  = require('pg');
 
 const PORT             = process.env.PORT || 3001;
 const JWT_SECRET       = process.env.JWT_SECRET || 'teams-hris-secret-change-me';
@@ -21,6 +22,11 @@ const STORE_FILE       = path.join(DATA_DIR, 'hris.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// PostgreSQL pool — connects only when DATABASE_URL env var is set (Railway addon)
+const pgPool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+  : null;
+
 // ══════════════════════════════════════
 //  PURE-JS DATA STORE
 // ══════════════════════════════════════
@@ -30,20 +36,41 @@ let store = {
   appointments: [], holidays: [], _seq: {}
 };
 
-function loadStore() {
+const STORE_KEYS = ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq'];
+
+async function loadStore() {
+  if (pgPool) {
+    try {
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)`);
+      const r = await pgPool.query("SELECT value FROM kv WHERE key='store'");
+      if (r.rows.length) {
+        const d = JSON.parse(r.rows[0].value);
+        STORE_KEYS.forEach(k => { if (d[k] !== undefined) store[k] = d[k]; });
+        console.log('Store loaded from PostgreSQL ✓');
+        return;
+      }
+    } catch(e) { console.error('PG load error:', e.message); }
+  }
+  // Fallback: file (local dev)
   if (fs.existsSync(STORE_FILE)) {
     try {
       const d = JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'));
-      ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq'].forEach(k => {
-        if (d[k] !== undefined) store[k] = d[k];
-      });
-      console.log('Store loaded:', STORE_FILE);
+      STORE_KEYS.forEach(k => { if (d[k] !== undefined) store[k] = d[k]; });
+      console.log('Store loaded from file:', STORE_FILE);
     } catch(e) { console.error('Load error:', e.message); }
   }
 }
 
 function saveDb() {
-  try { fs.writeFileSync(STORE_FILE, JSON.stringify(store)); }
+  const json = JSON.stringify(store);
+  if (pgPool) {
+    pgPool.query(
+      "INSERT INTO kv(key,value) VALUES('store',$1) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
+      [json]
+    ).catch(e => console.error('PG save error:', e.message));
+    return;
+  }
+  try { fs.writeFileSync(STORE_FILE, json); }
   catch(e) { console.error('Save error:', e.message); }
 }
 
@@ -606,8 +633,6 @@ app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toIS
 // ══════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════
-loadStore();
-seedHolidays();
 
 // ── Seed default admin if no users exist (survives Railway restarts) ──────────
 function seedAdmin() {
@@ -638,11 +663,14 @@ function seedAdmin() {
   saveDb();
   console.log('  Default admin seeded:', SEED_EMAIL);
 }
-seedAdmin();
-
-app.listen(PORT, () => {
-  console.log('');
-  console.log('  Teams HRIS Backend Running (JSON store)');
-  console.log('  http://localhost:' + PORT);
-  console.log('');
-});
+(async () => {
+  await loadStore();
+  seedHolidays();
+  seedAdmin();
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('  Teams HRIS Backend Running' + (pgPool ? ' (PostgreSQL)' : ' (file store)'));
+    console.log('  http://localhost:' + PORT);
+    console.log('');
+  });
+})();
