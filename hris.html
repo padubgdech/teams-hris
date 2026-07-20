@@ -2205,6 +2205,38 @@ function nav(page) {
 
 // ════════════ PROFILE COMPLETE POPUP ════════════
 function _profileCacheKey(email) { return 'hris_profile_' + (email||'').toLowerCase(); }
+function _empCacheKey(email)     { return 'hris_emp_'     + (email||'').toLowerCase(); }
+
+// Save employment fields to localStorage after receiving them from API
+function saveEmploymentToCache(user) {
+  if (!user || !user.email) return;
+  try {
+    const cached = { start_date: user.start_date||'', contract_type: user.contract_type||'', work_type: user.work_type||'' };
+    if (cached.start_date || cached.contract_type || cached.work_type) {
+      localStorage.setItem(_empCacheKey(user.email), JSON.stringify(cached));
+    }
+  } catch(e) {}
+}
+
+// Auto-restore start_date / employment fields via profile API after DB reset
+async function restoreEmploymentFromCache() {
+  if (!currentUser || !useApi) return;
+  if (currentUser.start_date) { saveEmploymentToCache(currentUser); return; } // already in DB, update cache
+  try {
+    const cached = JSON.parse(localStorage.getItem(_empCacheKey(currentUser.email)) || 'null');
+    if (!cached || !cached.start_date) return;
+    // Send via profile endpoint (which now accepts start_date for self-restore)
+    const result = await apiCall('PUT', '/api/users/' + currentUser.id + '/profile', {
+      start_date: cached.start_date,
+      contract_type: cached.contract_type || '',
+      work_type: cached.work_type || ''
+    });
+    if (result && !result.error) {
+      Object.assign(currentUser, result);
+      console.log('[HRIS] Employment data restored from cache:', cached.start_date);
+    }
+  } catch(e) {}
+}
 
 function checkProfileComplete() {
   if (!currentUser || !useApi) return true;
@@ -2354,6 +2386,13 @@ async function saveAdminEditEmp() {
   }
   // Refresh employee list
   await loadEmployeesFromApi();
+  // If admin edited their own record, update currentUser + refresh employment cache
+  if (currentUser && currentUser.id == userId && empRes && !empRes.error) {
+    currentUser.start_date    = empRes.start_date    || startDate;
+    currentUser.contract_type = empRes.contract_type || contractType;
+    currentUser.work_type     = empRes.work_type     || workType;
+    saveEmploymentToCache(currentUser);
+  }
   document.getElementById('modal-admin-edit-emp').style.display = 'none';
   showToast('บันทึกข้อมูลพนักงานเรียบร้อย ✓', 'success');
 }
@@ -2394,6 +2433,7 @@ async function saveEmploymentEdit() {
       currentUser.start_date    = result.start_date    || start_date;
       currentUser.contract_type = result.contract_type || contract_type;
       currentUser.work_type     = result.work_type     || work_type;
+      saveEmploymentToCache(currentUser); // persist so it survives Railway DB resets
     }
     document.getElementById('modal-employment-edit').style.display = 'none';
     showToast('บันทึกข้อมูลการจ้างงานเรียบร้อย ✓', 'success');
@@ -5507,7 +5547,9 @@ async function handleGoogleCredential(response) {
     const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
     currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
     try { localStorage.setItem('hris_session', JSON.stringify({email: currentUser.email, pass:'', token: apiToken, google: true})); } catch(e){}
-    await restoreProfileFromCache(); // re-sync profile if DB was reset
+    await restoreProfileFromCache();    // re-sync profile if DB was reset
+    await restoreEmploymentFromCache(); // re-sync start_date if DB was reset
+    saveEmploymentToCache(currentUser); // keep employment cache fresh
     document.getElementById('login-screen').classList.add('hidden');
     buildSidebar();
     applyLang();
@@ -5989,7 +6031,9 @@ window.addEventListener('load', async ()=>{
           currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
           loadUserAttHistory(sess.email);
           loadUserInbox(sess.email);
-          await restoreProfileFromCache(); // re-sync profile if DB was reset
+          await restoreProfileFromCache();    // re-sync profile if DB was reset
+          await restoreEmploymentFromCache(); // re-sync start_date if DB was reset
+          saveEmploymentToCache(currentUser); // keep employment cache fresh
           document.getElementById('login-screen').classList.add('hidden');
           buildSidebar(); applyLang();
           const startPage = (lastPage && currentUser.permissions.includes(lastPage)) ? lastPage : (currentUser.permissions[0] || 'checkin');

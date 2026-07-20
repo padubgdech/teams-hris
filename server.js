@@ -514,7 +514,7 @@ app.put('/api/users/:id/profile', auth, (req, res) => {
   let user = store.users.find(u => u.id == req.params.id);
   if (!user) user = store.users.find(u => u.email === req.user.email);
   if (!user) return res.status(404).json({ error: 'Not found' });
-  const { name, department, position, phone, dob, nationality, id_card } = req.body;
+  const { name, department, position, phone, dob, nationality, id_card, start_date, contract_type, work_type } = req.body;
   if (name)                    user.name        = name;
   if (department !== undefined) user.department = department;
   if (position   !== undefined) user.position   = position;
@@ -529,13 +529,17 @@ app.put('/api/users/:id/profile', auth, (req, res) => {
       ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
       : (parts[0].slice(0,2)).toUpperCase();
   }
-  // Sync employee record too
+  // Sync employee record too (including employment fields from cache restore)
   const emp = store.employees.find(e => e.user_id === user.id);
   if (emp) {
-    if (name)        { emp.name = name; emp.init = user.init; }
-    if (department !== undefined) emp.department = department;
-    if (position   !== undefined) emp.position   = position;
-    if (phone      !== undefined) emp.phone       = phone;
+    if (name)                    { emp.name = name; emp.init = user.init; }
+    if (department !== undefined) emp.department   = department;
+    if (position   !== undefined) emp.position     = position;
+    if (phone      !== undefined) emp.phone        = phone;
+    // Allow self-restore of employment fields from local cache after DB reset
+    if (start_date    !== undefined && start_date    !== '') emp.start_date    = start_date;
+    if (contract_type !== undefined && contract_type !== '') emp.contract_type = contract_type;
+    if (work_type     !== undefined && work_type     !== '') emp.work_type     = work_type;
   }
   saveDb();
   res.json(fmtUser(user));
