@@ -2794,7 +2794,7 @@ const LEAVE_QUOTA = { Annual:6, Sick:30, Casual:3 };
 function isProbation(user) {
   const u = user || currentUser;
   if (!u) return { inProbation:false, daysLeft:0, unlockDate:null };
-  const startStr = u.startDate || u.joined;
+  const startStr = u.start_date || u.startDate || u.joined;
   if (!startStr) return { inProbation:false, daysLeft:0, unlockDate:null };
   const start = new Date(startStr);
   if (isNaN(start.getTime())) return { inProbation:false, daysLeft:0, unlockDate:null };
@@ -2958,7 +2958,7 @@ function openLeaveModal() {
 function calcAnnualQuota(empName) {
   // Pro-rate: if joined this year → quota = ceil(remainingMonths/12 * 6), else full 6
   const emp = (typeof employees !== 'undefined' ? employees : []).find(e => e.name === empName);
-  const joinedStr = emp?.joined || currentUser?.startDate;
+  const joinedStr = emp?.joined || currentUser?.start_date || currentUser?.startDate;
   if (!joinedStr) return LEAVE_QUOTA.Annual;
   const joined = new Date(joinedStr);
   const curYear = new Date().getFullYear();
