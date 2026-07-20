@@ -656,7 +656,7 @@ app.put('/api/cal-notes', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toISOString(), mode:'json-store' }));
+app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toISOString(), mode: pgPool ? 'postgresql' : 'json-store' }));
 
 // ══════════════════════════════════════
 //  BOOT
