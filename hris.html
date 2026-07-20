@@ -5831,6 +5831,32 @@ submitLeave = async function(){
   } else showToast(result?.error||'Failed to submit','error');
 };
 
+// ── Comp request override (API mode) ────────────────
+const _submitCompRequest = submitCompRequest;
+submitCompRequest = async function() {
+  if (!useApi) { _submitCompRequest(); return; }
+  const workDate = document.getElementById('cr-work-date').value;
+  const days     = parseInt(document.getElementById('cr-days').value) || 1;
+  const reason   = document.getElementById('cr-reason').value.trim();
+  if (!workDate) { showToast('กรุณาระบุวันที่ทำงานในวันหยุด', 'error'); return; }
+  if (!reason)   { showToast('กรุณาระบุเหตุผล', 'error'); return; }
+  const result = await apiCall('POST', '/api/leave', {
+    type: 'Comp',
+    from_date: workDate,
+    to_date:   workDate,
+    days,
+    reason: reason
+  });
+  if (result && result.id) {
+    closeModal('modal-comp-request');
+    showToast('ยื่นคำขอวันลาชดเชยแล้ว — รอการอนุมัติจากผู้จัดการ', 'success');
+    showNotifPopup('คำขอวันลาชดเชย ⚖️', `${currentUser?.name} ขอ Comp ${days} วัน (${workDate})`, 'leave');
+    await renderLeave();
+  } else {
+    showToast(result?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+  }
+};
+
 // ── OT overrides ────────────────────────────────────
 const _renderOT = renderOT;
 renderOT = async function(){
