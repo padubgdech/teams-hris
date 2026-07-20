@@ -2500,7 +2500,7 @@ async function renderDashboard() {
           <div class="emp-avatar" style="background:${r.emp_color||'#6B7280'};width:32px;height:32px;font-size:11px;flex-shrink:0">${r.emp_init||'?'}</div>
           <div class="flex-1">
             <div style="font-size:13px;font-weight:600">${r.emp_name||'—'}</div>
-            <div style="font-size:11px;color:var(--text-muted)">${r.type} · ${r.days} วัน</div>
+            <div style="margin-top:3px;display:flex;align-items:center;gap:6px">${leaveTypeBadge(r.type)}<span style="font-size:11px;color:var(--text-muted)">${r.days} วัน</span></div>
           </div>
           <div style="display:flex;gap:4px">
             <button onclick="dashApproveLeave(${r.id},'Approved',this)" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
@@ -2753,6 +2753,18 @@ function leaveTab(tab) {
   });
   renderLeave();
 }
+function leaveTypeBadge(type) {
+  const map = {
+    'Annual':       { label:'ลาพักร้อน',         icon:'🏖️', bg:'#dcfce7', color:'#166534' },
+    'Sick':         { label:'ลาป่วย',             icon:'🤒',  bg:'#fef9c3', color:'#854d0e' },
+    'Casual':       { label:'ลากิจ',              icon:'💼',  bg:'#dbeafe', color:'#1e40af' },
+    'Compensatory': { label:'ลาชดเชย',            icon:'⚖️',  bg:'#ede9fe', color:'#6b21a8' },
+    'Comp':         { label:'ขอเพิ่มวันลาชดเชย', icon:'📅',  bg:'#fef3c7', color:'#92400e' },
+  };
+  const m = map[type] || { label: type||'—', icon:'📋', bg:'#f3f4f6', color:'#374151' };
+  return `<span style="display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:500;background:${m.bg};color:${m.color};white-space:nowrap"><span style="font-size:12px">${m.icon}</span>${m.label}</span>`;
+}
+
 function renderLeave() {
   const tbody = document.getElementById('leave-tbody');
   if (!tbody) return;
@@ -2781,7 +2793,7 @@ function renderLeave() {
     const empColor = r.color || r.empColor || '#6B7280';
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px"><div class="emp-avatar" style="background:${empColor};width:28px;height:28px;font-size:10px">${empInit}</div>${empName}</div></td>
-      <td><span class="badge ${r.type==='Compensatory'?'badge-purple':'badge-blue'}">${{Annual:'ลาพักร้อน',Sick:'ลาป่วย',Casual:'ลากิจ',Compensatory:'⚖️ ลาชดเชย'}[r.type]||r.type||'—'}</span></td>
+      <td>${leaveTypeBadge(r.type)}</td>
       <td>${r.from||'—'}</td>
       <td>${r.to||'—'}</td>
       <td style="font-weight:700">${r.days||0} วัน</td>
@@ -5443,7 +5455,7 @@ function renderMrLeaveTable(rows) {
   const tb = document.getElementById('mr-leave-tbody');
   if (!rows || !rows.length) { tb.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">ไม่มีข้อมูล</td></tr>`; return; }
   tb.innerHTML = rows.map((r,i) => `<tr>
-    <td>${r.type}</td>
+    <td>${leaveTypeBadge(r.type)}</td>
     <td>${r.from} – ${r.to||r.from}</td>
     <td>${r.days}d</td>
     <td><span class="badge badge-${r.status==='Approved'?'green':r.status==='Pending'?'orange':'red'}">${r.status==='Approved'?'อนุมัติ':r.status==='Pending'?'รออนุมัติ':'ปฏิเสธ'}</span></td>
