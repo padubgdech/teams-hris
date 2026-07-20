@@ -3479,6 +3479,22 @@ function renderHolidayList() {
 }
 const calNotes = {}; // dateStr -> note text
 
+async function loadCalNotesFromApi() {
+  if (!useApi) return;
+  try {
+    const data = await apiCall('GET', '/api/cal-notes');
+    if (data && typeof data === 'object' && !data.error) {
+      Object.keys(calNotes).forEach(k => delete calNotes[k]);
+      Object.assign(calNotes, data);
+      try { localStorage.setItem('hris_cal_notes', JSON.stringify(calNotes)); } catch(e) {}
+    }
+  } catch(e) {}
+}
+function saveCalNotesToApi() {
+  if (!useApi) return;
+  apiCall('PUT', '/api/cal-notes', calNotes).catch(()=>{});
+}
+
 function selectDay(d, dateStr) {
   state.selectedDay = d;
   if (!dateStr) dateStr = `${state.calYear}-${String(state.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -3520,6 +3536,7 @@ function saveDayNote() {
   if (note) calNotes[dateStr] = note;
   else delete calNotes[dateStr];
   try { localStorage.setItem('hris_cal_notes', JSON.stringify(calNotes)); } catch(e){}
+  saveCalNotesToApi();
   closeModal('modal-day-detail');
   renderCalendar();
   showToast('บันทึก Note แล้ว','success');
@@ -3831,7 +3848,10 @@ const ROLE_COLORS = {admin:'#6366F1',hr_manager:'#00C896',hr_staff:'#3B82F6',emp
 
 // ════════════ DEPARTMENT MANAGEMENT ════════════
 const DEFAULT_DEPTS = ['Human Resources','Engineering','Design','Sales','Marketing','Finance','Operations','IT & Operations','Technology'];
+let _deptsCache = null; // loaded from API on login; falls back to localStorage
+
 function getDepts() {
+  if (_deptsCache) return _deptsCache;
   try {
     const saved = localStorage.getItem('hris_departments');
     if (saved) { const p = JSON.parse(saved); if (Array.isArray(p) && p.length) return p; }
@@ -3839,7 +3859,19 @@ function getDepts() {
   return [...DEFAULT_DEPTS];
 }
 function saveDepts(list) {
+  _deptsCache = list;
   try { localStorage.setItem('hris_departments', JSON.stringify(list)); } catch(e) {}
+  if (useApi) apiCall('PUT', '/api/departments', list).catch(()=>{});
+}
+async function loadDeptsFromApi() {
+  if (!useApi) return;
+  try {
+    const data = await apiCall('GET', '/api/departments');
+    if (Array.isArray(data) && data.length) {
+      _deptsCache = data;
+      try { localStorage.setItem('hris_departments', JSON.stringify(data)); } catch(e) {}
+    }
+  } catch(e) {}
 }
 function populateDeptSelect(selectId) {
   const el = document.getElementById(selectId);
@@ -5597,6 +5629,7 @@ async function handleGoogleCredential(response) {
     await restoreProfileFromCache();    // re-sync profile if DB was reset
     await restoreEmploymentFromCache(); // re-sync start_date if DB was reset
     saveEmploymentToCache(currentUser); // keep employment cache fresh
+    await Promise.all([loadDeptsFromApi(), loadCalNotesFromApi()]);
     document.getElementById('login-screen').classList.add('hidden');
     buildSidebar();
     applyLang();
@@ -5700,6 +5733,7 @@ doSignUp = async function() {
     const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
     currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
     try { localStorage.setItem('hris_session', JSON.stringify({email, pass, token: result.token})); } catch(e){}
+    await Promise.all([loadDeptsFromApi(), loadCalNotesFromApi()]);
     document.getElementById('login-screen').classList.add('hidden');
     buildSidebar();
     applyLang();
@@ -6109,6 +6143,7 @@ window.addEventListener('load', async ()=>{
           await restoreProfileFromCache();    // re-sync profile if DB was reset
           await restoreEmploymentFromCache(); // re-sync start_date if DB was reset
           saveEmploymentToCache(currentUser); // keep employment cache fresh
+          await Promise.all([loadDeptsFromApi(), loadCalNotesFromApi()]);
           document.getElementById('login-screen').classList.add('hidden');
           buildSidebar(); applyLang();
           startNavBadgePolling();

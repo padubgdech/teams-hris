@@ -30,13 +30,17 @@ const pgPool = process.env.DATABASE_URL
 // ══════════════════════════════════════
 //  PURE-JS DATA STORE
 // ══════════════════════════════════════
+const DEFAULT_DEPTS = ['Human Resources','Engineering','Design','Sales','Marketing','Finance','Operations','IT & Operations','Technology'];
+
 let store = {
   users: [], employees: [], attendance: [],
   leave_requests: [], ot_requests: [], inbox: [],
-  appointments: [], holidays: [], _seq: {}
+  appointments: [], holidays: [], _seq: {},
+  departments: [],      // admin-managed department list
+  cal_notes: {}         // { userId: { "YYYY-MM-DD": "note text" } }
 };
 
-const STORE_KEYS = ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq'];
+const STORE_KEYS = ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq','departments','cal_notes'];
 
 async function loadStore() {
   if (pgPool) {
@@ -626,6 +630,30 @@ app.post('/api/holidays', auth, requireRole('admin','hr_manager'), (req, res) =>
 app.delete('/api/holidays/:date', auth, requireRole('admin'), (req, res) => {
   store.holidays = store.holidays.filter(h => h.date !== req.params.date);
   saveDb(); res.json({ ok: true });
+});
+
+// ── Departments ──────────────────────────────────────────────────────────────
+app.get('/api/departments', auth, (req, res) => {
+  const depts = store.departments && store.departments.length ? store.departments : DEFAULT_DEPTS;
+  res.json(depts);
+});
+app.put('/api/departments', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const list = req.body;
+  if (!Array.isArray(list)) return res.status(400).json({ error: 'Expected array' });
+  store.departments = list;
+  saveDb();
+  res.json({ ok: true });
+});
+
+// ── Calendar notes (per user) ─────────────────────────────────────────────────
+app.get('/api/cal-notes', auth, (req, res) => {
+  res.json(store.cal_notes[req.user.id] || {});
+});
+app.put('/api/cal-notes', auth, (req, res) => {
+  if (typeof req.body !== 'object' || Array.isArray(req.body)) return res.status(400).json({ error: 'Expected object' });
+  store.cal_notes[req.user.id] = req.body;
+  saveDb();
+  res.json({ ok: true });
 });
 
 app.get('/api/health', (_, res) => res.json({ status:'ok', time: new Date().toISOString(), mode:'json-store' }));
