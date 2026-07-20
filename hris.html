@@ -50,8 +50,9 @@
   .nav-item.active svg { stroke: #fff; }
   .nav-item svg { width: 17px; height: 17px; stroke: #6B7280; stroke-width: 1.8; fill: none; flex-shrink: 0; }
   .nav-item.active svg { stroke: #fff; }
-  .nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 10px; border-radius: 99px; padding: 1px 6px; font-weight: 700; }
-  .nav-item.active .nav-badge { background: rgba(255,255,255,.3); }
+  .nav-badge { margin-left:auto; background:rgba(239,68,68,.13); color:#DC2626; border:1px solid rgba(239,68,68,.25); font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; }
+  .nav-item.active .nav-badge { background:rgba(255,255,255,.22); color:#fff; border-color:rgba(255,255,255,.3); }
+  .nav-total-badge { background:rgba(239,68,68,.13); color:#DC2626; border:1px solid rgba(239,68,68,.25); font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; margin-left:auto; }
   /* Leave table tabs — segmented control */
   .ltab-group { display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg-alt,#F3F4F6); margin-top:20px; margin-bottom:12px; }
   .ltab { background:transparent; border:none; border-right:1px solid var(--border); padding:8px 18px; font-size:13px; font-weight:600; color:var(--text-muted); cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:6px; }
@@ -404,6 +405,7 @@
       <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
     </div>
     <span class="logo-text">Teams</span>
+    <span class="nav-total-badge" id="nav-total-badge"></span>
   </div>
 
   <div id="nav-container"></div>
@@ -4071,11 +4073,12 @@ function buildSidebar() {
     const visible = sec.items.filter(i => perms.includes(i.id));
     if(!visible.length) return;
     html += `<div class="nav-section"><div class="nav-label">${t(sec.labelKey)}</div>`;
+    const BADGE_IDS = ['leave','ot','inbox'];
     visible.forEach(item => {
-      html += `<div class="nav-item" id="nav-${item.id}" onclick="nav('${item.id}')"
+      html += `<div class="nav-item" id="nav-${item.id}" onclick="nav('${item.id}')">
         <svg viewBox="0 0 24 24">${item.icon}</svg>
         ${t(item.labelKey)}
-        ${item.badge ? `<span class="nav-badge">${item.badge}</span>` : ''}
+        ${BADGE_IDS.includes(item.id) ? `<span class="nav-badge" id="nav-badge-${item.id}"></span>` : ''}
       </div>`;
     });
     html += `</div>`;
@@ -4135,6 +4138,50 @@ function buildSidebar() {
         </div>
       </div>`);
   }
+}
+
+// ════════════ NAV BADGES ════════════
+let _navBadgeTimer = null;
+
+function _setNavBadge(id, count) {
+  const el = document.getElementById('nav-badge-' + id);
+  if (!el) return;
+  if (count > 0) { el.textContent = count > 99 ? '99+' : count; el.style.display = 'inline-block'; }
+  else el.style.display = 'none';
+}
+
+function _setNavTotal(count) {
+  const el = document.getElementById('nav-total-badge');
+  if (!el) return;
+  if (count > 0) { el.textContent = count > 99 ? '99+' : count; el.style.display = 'inline-block'; }
+  else el.style.display = 'none';
+}
+
+async function updateNavBadges() {
+  if (!useApi || !currentUser) return;
+  const isManager = ['admin','hr_manager','hr_staff'].includes(currentUser.role);
+  try {
+    const [leaveData, otData, inboxData] = await Promise.all([
+      isManager ? apiCall('GET', '/api/leave?scope=pending') : Promise.resolve([]),
+      isManager ? apiCall('GET', '/api/ot?scope=pending')    : Promise.resolve([]),
+      apiCall('GET', '/api/inbox'),
+    ]);
+    const leaveCount = (Array.isArray(leaveData) && !leaveData.error) ? leaveData.length : 0;
+    const otCount    = (Array.isArray(otData)    && !otData.error)    ? otData.length    : 0;
+    const inboxCount = (Array.isArray(inboxData) && !inboxData.error) ? inboxData.filter(m => !m.is_read).length : 0;
+    _setNavBadge('leave', leaveCount);
+    _setNavBadge('ot',    otCount);
+    _setNavBadge('inbox', inboxCount);
+    _setNavTotal(leaveCount + otCount + inboxCount);
+    // Also sync leave pending tab badge
+    updateLeavePendingBadge(leaveCount);
+  } catch(e) {}
+}
+
+function startNavBadgePolling() {
+  updateNavBadges();
+  if (_navBadgeTimer) clearInterval(_navBadgeTimer);
+  _navBadgeTimer = setInterval(updateNavBadges, 60000); // refresh every 60s
 }
 
 // ════════════ LOGIN / LOGOUT ════════════
@@ -5557,6 +5604,7 @@ async function handleGoogleCredential(response) {
     const dg = document.getElementById('dash-greeting');
     if(dg) dg.textContent = t(h<12?'good_morning':h<18?'good_afternoon':'good_evening') + ', ' + currentUser.name.split(' ')[0] + ' 👋';
     nav(currentUser.permissions[0] || 'checkin');
+    startNavBadgePolling();
     loadTodayCheckin();
     if (!checkProfileComplete()) showProfileCompleteModal();
   } catch(err) {
@@ -5659,6 +5707,7 @@ doSignUp = async function() {
     const dg = document.getElementById('dash-greeting');
     if(dg) dg.textContent = t(h<12?'good_morning':h<18?'good_afternoon':'good_evening') + ', ' + currentUser.name.split(' ')[0] + ' 👋';
     nav(currentUser.permissions[0] || 'checkin');
+    startNavBadgePolling();
     loadTodayCheckin();
     showToast('✓ สร้างบัญชีและเข้าสู่ระบบสำเร็จ!', 'success');
   } else {
@@ -6062,6 +6111,7 @@ window.addEventListener('load', async ()=>{
           saveEmploymentToCache(currentUser); // keep employment cache fresh
           document.getElementById('login-screen').classList.add('hidden');
           buildSidebar(); applyLang();
+          startNavBadgePolling();
           const startPage = (lastPage && currentUser.permissions.includes(lastPage)) ? lastPage : (currentUser.permissions[0] || 'checkin');
           nav(startPage);
           loadTodayCheckin();
