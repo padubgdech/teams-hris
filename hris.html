@@ -5885,7 +5885,7 @@ renderLeave = async function() {
   tbody.innerHTML = data.map((r,i)=>`
     <tr data-id="${r.id}">
       <td><div style="display:flex;align-items:center;gap:8px"><div class="emp-avatar" style="background:${r.emp_color||'#6B7280'};width:28px;height:28px;font-size:10px">${r.emp_init||'?'}</div>${r.emp_name||'—'}</div></td>
-      <td><span class="badge badge-blue">${r.type}</span></td>
+      <td>${leaveTypeBadge(r.type)}</td>
       <td>${r.from_date}</td><td>${r.to_date}</td>
       <td style="font-weight:700">${r.days} วัน</td>
       <td style="color:var(--text-muted);font-size:12px">${r.reason||'—'}</td>
