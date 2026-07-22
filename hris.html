@@ -5875,6 +5875,15 @@ renderLeave = async function() {
     reason:r.reason||'—', status:r.status
   }));
   updateLeaveBalances();
+  // Recalculate comp balance from approved records every render
+  { const myN = currentUser?.name||'';
+    let cSrc;
+    if(!isManager){ cSrc = data; }
+    else if(scope==='team'){ cSrc = data.filter(r=>r.emp_name===myN); }
+    else { cSrc = await apiCall('GET','/api/leave'); } // pending scope → fetch own records
+    _compTotal = (cSrc||[]).filter(r=>r.type==='Comp'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
+    _compUsed  = (cSrc||[]).filter(r=>r.type==='Compensatory'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
+    _updateCompRing(); }
   const sc = {Approved:'badge-green',Pending:'badge-orange',Rejected:'badge-red',Cancelled:'badge-red'};
   const stTh = {Approved:'อนุมัติ', Pending:'รออนุมัติ', Rejected:'ปฏิเสธ', Cancelled:'ยกเลิกแล้ว'};
   // store for modal
@@ -5913,7 +5922,7 @@ async function approveLeaveApi(id,status){
       _compTotal += (+record.days || 1);   // Comp request → add days
       _updateCompRing();
     } else if(record.type==='Compensatory') {
-      _compTotal = Math.max(0, _compTotal - (+record.days || 1)); // Taking comp → deduct
+      _compUsed += (+record.days || 1); // Taking comp → increase used
       _updateCompRing();
     }
   }
