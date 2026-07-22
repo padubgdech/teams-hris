@@ -5907,10 +5907,15 @@ async function approveLeaveApi(id,status){
   const record = (window._leaveTableData||[]).find(r=>r.apiId===id);
   await apiCall('PUT','/api/leave/'+id+'/status',{status});
   showToast(status==='Approved'?'อนุมัติวันลาแล้ว':'ปฏิเสธวันลาแล้ว', status==='Approved'?'success':'error');
-  // If approving a Comp request, add days to compensatory balance
-  if(status==='Approved' && record && record.type==='Comp') {
-    _compTotal += (+record.days || 1);
-    _updateCompRing();
+  // Update compensatory balance on approve
+  if(status==='Approved' && record) {
+    if(record.type==='Comp') {
+      _compTotal += (+record.days || 1);   // Comp request → add days
+      _updateCompRing();
+    } else if(record.type==='Compensatory') {
+      _compTotal = Math.max(0, _compTotal - (+record.days || 1)); // Taking comp → deduct
+      _updateCompRing();
+    }
   }
   await renderLeave();
   if(document.getElementById('view-calendar')?.classList.contains('active')) renderCalendar();
@@ -5922,6 +5927,8 @@ submitLeave = async function(){
   const type  = state.selectedLeaveType||'Annual';
   const from  = document.getElementById('leave-from').value;
   const to    = document.getElementById('leave-to').value;
+  if(!from || !to) { showToast('กรุณาเลือกวันที่','error'); return; }
+  if(new Date(to) < new Date(from)) { showToast('วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น','error'); return; }
   const reason= document.getElementById('leave-reason')?.value||'Personal';
   const days  = Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1);
   const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,reason});
