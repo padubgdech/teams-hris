@@ -5903,8 +5903,15 @@ renderLeave = async function() {
 
 async function approveLeaveApi(id,status){
   if(!useApi) return;
+  // Look up the record before updating (to check type/days)
+  const record = (window._leaveTableData||[]).find(r=>r.apiId===id);
   await apiCall('PUT','/api/leave/'+id+'/status',{status});
   showToast(status==='Approved'?'อนุมัติวันลาแล้ว':'ปฏิเสธวันลาแล้ว', status==='Approved'?'success':'error');
+  // If approving a Comp request, add days to compensatory balance
+  if(status==='Approved' && record && record.type==='Comp') {
+    _compTotal += (+record.days || 1);
+    _updateCompRing();
+  }
   await renderLeave();
   if(document.getElementById('view-calendar')?.classList.contains('active')) renderCalendar();
 }
