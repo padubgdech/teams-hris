@@ -5931,6 +5931,17 @@ submitLeave = async function(){
   if(new Date(to) < new Date(from)) { showToast('วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น','error'); return; }
   const reason= document.getElementById('leave-reason')?.value||'Personal';
   const days  = Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1);
+  // Balance check
+  const myName = currentUser?.name||'';
+  const approved = leaveData.filter(r=>r.status==='Approved'&&(r.emp||r.empName||'')===myName);
+  const usedA = approved.filter(r=>r.type==='Annual').reduce((s,r)=>s+(+r.days||0),0);
+  const usedS = approved.filter(r=>r.type==='Sick').reduce((s,r)=>s+(+r.days||0),0);
+  const usedC = approved.filter(r=>r.type==='Casual').reduce((s,r)=>s+(+r.days||0),0);
+  const annualQ = calcAnnualQuota(myName);
+  if(type==='Annual' && usedA+days > annualQ){ showToast(`ลาพักร้อนเกินสิทธิ์ (เหลือ ${annualQ-usedA} วัน)`,'error'); return; }
+  if(type==='Sick' && usedS+days > LEAVE_QUOTA.Sick){ showToast(`ลาป่วยเกินสิทธิ์ (เหลือ ${LEAVE_QUOTA.Sick-usedS} วัน)`,'error'); return; }
+  if(type==='Casual' && usedC+days > LEAVE_QUOTA.Casual){ showToast(`ลากิจเกินสิทธิ์ (เหลือ ${LEAVE_QUOTA.Casual-usedC} วัน)`,'error'); return; }
+  if(type==='Compensatory' && days > _compTotal){ showToast(`วันลาชดเชยไม่พอ (เหลือ ${_compTotal} วัน)`,'error'); return; }
   const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,reason});
   if(result&&result.id){
     closeModal('modal-leave');
