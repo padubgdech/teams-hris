@@ -6011,45 +6011,45 @@ const _renderLeave = renderLeave;
 renderLeave = async function() {
   if(!useApi){_renderLeave();return;}
   const isManager = currentUser&&['admin','hr_manager','hr_staff'].includes(currentUser.role);
-  // Employee uses scope='my', manager uses scope='team' or 'pending'
-  const scope = isManager ? (leaveTableTab==='pending' ? 'pending' : 'team') : 'my';
-  const rawData = await apiCall('GET','/api/leave?scope='+scope);
-  // Client-side tab filter for employee (scope=my returns all statuses)
-  const data = (!isManager && leaveTableTab==='pending')  ? (rawData||[]).filter(r=>r.status==='Pending')
-             : (!isManager && leaveTableTab==='approved') ? (rawData||[]).filter(r=>r.status==='Approved')
-             : rawData;
-  // Pending badge: employee = own pending; manager = all pending
-  const allData = isManager ? await apiCall('GET','/api/leave?scope=pending') : data;
-  const pendingCount = isManager
-    ? ((allData&&!allData.error) ? allData.length : 0)
-    : ((data&&!data.error) ? data.filter(r=>r.status==='Pending').length : 0);
+  // Always fetch the FULL dataset for balance calculations
+  const fullScope = isManager ? 'team' : 'my';
+  const fullData  = await apiCall('GET','/api/leave?scope='+fullScope);
+  if(!fullData||fullData.error) return;
+
+  // Pending badge (count from full data)
+  const pendingCount = (fullData).filter(r=>r.status==='Pending').length;
   updateLeavePendingBadge(pendingCount);
-  const tbody     = document.getElementById('leave-tbody'); if(!tbody||!data||data.error) return;
-  // Sync leaveData so calendar can read live data
+
+  // Sync leaveData with ALL records (used by calendar & balance rings)
   leaveData.length = 0;
-  data.forEach(r => leaveData.push({
+  fullData.forEach(r => leaveData.push({
     emp:r.emp_name, init:r.emp_init, color:r.emp_color,
     type:r.type, from:r.from_date, to:r.to_date, days:r.days,
     reason:r.reason||'—', status:r.status
   }));
-  updateLeaveBalances();
-  // Recalculate comp balance from approved records every render
-  { const myN = currentUser?.name||'';
-    let cSrc;
-    if(!isManager){ cSrc = data; }
-    else if(scope==='team'){ cSrc = data.filter(r=>r.emp_name===myN); }
-    else { cSrc = await apiCall('GET','/api/leave'); } // pending scope → fetch own records
-    _compTotal = (cSrc||[]).filter(r=>r.type==='Comp'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
-    _compUsed  = (cSrc||[]).filter(r=>r.type==='Compensatory'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
-    _updateCompRing(); }
-  const sc = {Approved:'badge-green',Pending:'badge-orange',Rejected:'badge-red',Cancelled:'badge-red'};
-  const stTh = {Approved:'อนุมัติ', Pending:'รออนุมัติ', Rejected:'ปฏิเสธ', Cancelled:'ยกเลิกแล้ว'};
-  // store for modal
-  window._leaveTableData = data.map(r=>({
+  updateLeaveBalances(); // always computed from full data
+
+  // Comp balance from full data (current user only)
+  const myN = currentUser?.name||'';
+  const cSrc = isManager ? fullData.filter(r=>r.emp_name===myN) : fullData;
+  _compTotal = cSrc.filter(r=>r.type==='Comp'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
+  _compUsed  = cSrc.filter(r=>r.type==='Compensatory'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
+  _updateCompRing();
+
+  // Filter for table display based on selected tab
+  const displayData = leaveTableTab==='pending'  ? fullData.filter(r=>r.status==='Pending')
+                    : leaveTableTab==='approved' ? fullData.filter(r=>r.status==='Approved')
+                    : fullData;
+
+  const tbody = document.getElementById('leave-tbody'); if(!tbody) return;
+  const sc    = {Approved:'badge-green',Pending:'badge-orange',Rejected:'badge-red',Cancelled:'badge-red'};
+  const stTh  = {Approved:'อนุมัติ', Pending:'รออนุมัติ', Rejected:'ปฏิเสธ', Cancelled:'ยกเลิกแล้ว'};
+  window._leaveTableData = displayData.map(r=>({
     type:r.type, from:r.from_date, to:r.to_date, days:r.days, reason:r.reason||'—',
     status:r.status, empName:r.emp_name, empInit:r.emp_init, empColor:r.emp_color, apiId:r.id
   }));
-  tbody.innerHTML = data.map((r,i)=>`
+  const emptyMsg = leaveTableTab==='pending' ? 'ไม่มีคำขอรออนุมัติ' : leaveTableTab==='approved' ? 'ไม่มีรายการที่อนุมัติแล้ว' : 'ไม่มีคำขอวันลา';
+  tbody.innerHTML = displayData.map((r,i)=>`
     <tr data-id="${r.id}">
       <td><div style="display:flex;align-items:center;gap:8px"><div class="emp-avatar" style="background:${r.emp_color||'#6B7280'};width:28px;height:28px;font-size:10px">${r.emp_init||'?'}</div>${r.emp_name||'—'}</div></td>
       <td>${leaveTypeBadge(r.type)}</td>
@@ -6065,7 +6065,7 @@ renderLeave = async function() {
           <button onclick="approveLeaveApi(${r.id},'Rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>`:''}
         </div>
       </td>
-    </tr>`).join('')||`<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">${leaveTableTab==='pending'?'ไม่มีคำขอรออนุมัติ':leaveTableTab==='approved'?'ไม่มีรายการที่อนุมัติแล้ว':'ไม่มีคำขอวันลา'}</td></tr>`;
+    </tr>`).join('')||`<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">${emptyMsg}</td></tr>`;
 };
 
 async function approveLeaveApi(id,status){
