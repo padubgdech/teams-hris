@@ -1507,6 +1507,52 @@
   </div>
 </div>
 
+<!-- Employee Leave Admin Modal -->
+<div class="modal-overlay" id="modal-emp-leave-admin" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="document.getElementById('modal-emp-leave-admin').style.display='none'">✕</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div class="emp-avatar" id="ela-avatar" style="width:44px;height:44px;font-size:16px">?</div>
+      <div>
+        <div id="ela-name" style="font-size:16px;font-weight:800;color:#111827"></div>
+        <div id="ela-uid-label" style="font-size:11px;color:#6B7280"></div>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px">📊 สรุปวันลาปัจจุบัน</div>
+    <div id="ela-balance-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+      <div style="background:#F3F4F6;border-radius:10px;padding:16px;text-align:center;color:#6B7280">กำลังโหลด...</div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px">✏️ ปรับสิทธิ์วันลาพิเศษ (วันโบนัส)</div>
+    <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:8px 12px;font-size:11px;color:#9A3412;margin-bottom:12px">
+      ℹ️ ใส่จำนวนวันพิเศษที่ต้องการ<strong>เพิ่ม</strong>ให้พนักงานคนนี้ (นอกเหนือจากสิทธิ์ปกติ)
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="form-group" style="margin:0">
+        <label style="font-size:11px;font-weight:600">🏖️ ลาพักร้อน (วันพิเศษ)</label>
+        <input type="number" id="ela-annual-bonus" min="0" max="365" step="0.5" placeholder="0" style="margin-top:4px">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:11px;font-weight:600">🤒 ลาป่วย (วันพิเศษ)</label>
+        <input type="number" id="ela-sick-bonus" min="0" max="365" step="0.5" placeholder="0" style="margin-top:4px">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:11px;font-weight:600">💼 ลากิจ (วันพิเศษ)</label>
+        <input type="number" id="ela-casual-bonus" min="0" max="365" step="0.5" placeholder="0" style="margin-top:4px">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:11px;font-weight:600">⚖️ วันลาชดเชย (ปรับยอด)</label>
+        <input type="number" id="ela-comp-bonus" min="-999" max="999" step="0.5" placeholder="0" style="margin-top:4px">
+      </div>
+    </div>
+    <input type="hidden" id="ela-emp-record-id">
+    <div id="ela-error" style="color:#DC2626;font-size:12px;margin-bottom:8px;display:none"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="document.getElementById('modal-emp-leave-admin').style.display='none'">ปิด</button>
+      <button class="btn btn-primary" id="ela-save-btn" onclick="saveEmpQuota()">💾 บันทึกสิทธิ์</button>
+    </div>
+  </div>
+</div>
+
 <!-- Leave Request -->
 <div class="modal-overlay" id="modal-leave">
   <div class="modal">
@@ -1524,10 +1570,17 @@
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>วันที่เริ่มลา</label><input type="date" id="leave-from" value="2026-06-26"></div>
+      <div class="form-group"><label>วันที่เริ่มลา</label><input type="date" id="leave-from" value="2026-06-26" onchange="if(document.getElementById('leave-half-day')?.checked){document.getElementById('leave-to').value=this.value;}"></div>
       <div class="form-group"><label>วันที่สิ้นสุด</label><input type="date" id="leave-to" value="2026-06-26"></div>
     </div>
-    <div class="form-group"><label>เหตุผลการลา</label><textarea rows="3" placeholder="อธิบายเหตุผลการลาโดยย่อ..."></textarea></div>
+    <div style="display:flex;align-items:center;gap:10px;margin:-4px 0 10px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#374151;user-select:none">
+        <input type="checkbox" id="leave-half-day" onchange="toggleHalfDay(this)" style="width:16px;height:16px;accent-color:#6366F1;cursor:pointer">
+        🌗 ลาครึ่งวัน (0.5 วัน)
+      </label>
+      <span id="leave-days-preview" style="font-size:12px;color:#6366F1;font-weight:600"></span>
+    </div>
+    <div class="form-group"><label>เหตุผลการลา</label><textarea id="leave-reason" rows="3" placeholder="อธิบายเหตุผลการลาโดยย่อ..."></textarea></div>
     <div style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:#065F46;margin-bottom:16px">
       📋 <strong>วันลาคงเหลือ:</strong> ลาพักร้อน: 6 วัน &nbsp;|&nbsp; ลาป่วย: 30 วัน &nbsp;|&nbsp; ลากิจ: 3 วัน
     </div>
@@ -2398,6 +2451,99 @@ async function saveAdminEditEmp() {
   showToast('บันทึกข้อมูลพนักงานเรียบร้อย ✓', 'success');
 }
 
+// ════════════ EMPLOYEE LEAVE ADMIN ════════════
+async function openEmpLeaveAdmin(userId) {
+  const empRec  = _apiEmpData.find(e => e.user_id == userId) || {};
+  const userRec = _apiUserData.find(u => u.id == userId) || {};
+  const name    = userRec.name || empRec.name || '?';
+  const init    = userRec.init || empRec.init || name.substring(0,2).toUpperCase();
+  const color   = userRec.color || empRec.color || '#6B7280';
+
+  document.getElementById('ela-avatar').textContent  = init;
+  document.getElementById('ela-avatar').style.background = color;
+  document.getElementById('ela-name').textContent    = name;
+  document.getElementById('ela-uid-label').textContent = empRec.emp_id || '';
+  document.getElementById('ela-emp-record-id').value = empRec.id || '';
+  document.getElementById('ela-annual-bonus').value  = empRec.annual_bonus || 0;
+  document.getElementById('ela-sick-bonus').value    = empRec.sick_bonus   || 0;
+  document.getElementById('ela-casual-bonus').value  = empRec.casual_bonus || 0;
+  document.getElementById('ela-comp-bonus').value    = empRec.comp_bonus   || 0;
+  document.getElementById('ela-error').style.display = 'none';
+  document.getElementById('ela-balance-grid').innerHTML =
+    '<div style="background:#F3F4F6;border-radius:10px;padding:16px;text-align:center;color:#6B7280;grid-column:span 2">กำลังโหลด...</div>';
+  document.getElementById('modal-emp-leave-admin').style.display = 'flex';
+
+  // Fetch all leave to compute this employee's balance
+  const allLeave = await apiCall('GET', '/api/leave?scope=team');
+  const approved = (allLeave||[]).filter(r => r.user_id == userId && r.status === 'Approved');
+  const usedAnnual = approved.filter(r=>r.type==='Annual').reduce((s,r)=>s+(+r.days||0),0);
+  const usedSick   = approved.filter(r=>r.type==='Sick').reduce((s,r)=>s+(+r.days||0),0);
+  const usedCasual = approved.filter(r=>r.type==='Casual').reduce((s,r)=>s+(+r.days||0),0);
+  const compEarned = approved.filter(r=>r.type==='Comp').reduce((s,r)=>s+(+r.days||0),0);
+  const compUsed   = approved.filter(r=>r.type==='Compensatory').reduce((s,r)=>s+(+r.days||0),0);
+
+  const annualQ = calcAnnualQuota(name) + (empRec.annual_bonus||0);
+  const sickQ   = LEAVE_QUOTA.Sick + (empRec.sick_bonus||0);
+  const casualQ = LEAVE_QUOTA.Casual + (empRec.casual_bonus||0);
+  const compQ   = compEarned + (empRec.comp_bonus||0);
+
+  const balCard = (label, icon, used, quota, clr) => {
+    const rem = Math.max(0, quota - used);
+    const pct = quota > 0 ? Math.min(100, Math.round((used/quota)*100)) : 0;
+    return `<div style="background:#F9FAFB;border-radius:10px;padding:12px 14px;border:1px solid #E5E7EB">
+      <div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:6px">${icon} ${label}</div>
+      <div style="display:flex;align-items:baseline;gap:4px">
+        <span style="font-size:22px;font-weight:900;color:${clr}">${rem}</span>
+        <span style="font-size:10px;color:#9CA3AF">/ ${quota} วัน</span>
+      </div>
+      <div style="font-size:10px;color:#9CA3AF">ใช้แล้ว ${used} วัน</div>
+      <div style="height:3px;background:#E5E7EB;border-radius:99px;margin-top:6px;overflow:hidden">
+        <div style="height:100%;border-radius:99px;background:${clr};width:${pct}%"></div>
+      </div>
+    </div>`;
+  };
+  document.getElementById('ela-balance-grid').innerHTML =
+    balCard('ลาพักร้อน','🏖️', usedAnnual, annualQ, '#059669') +
+    balCard('ลาป่วย','🤒', usedSick, sickQ, '#DC2626') +
+    balCard('ลากิจ','💼', usedCasual, casualQ, '#2563EB') +
+    balCard('ลาชดเชย','⚖️', compUsed, compQ, '#7C3AED');
+}
+
+async function saveEmpQuota() {
+  const empRecId     = document.getElementById('ela-emp-record-id').value;
+  const annual_bonus = parseFloat(document.getElementById('ela-annual-bonus').value)||0;
+  const sick_bonus   = parseFloat(document.getElementById('ela-sick-bonus').value)||0;
+  const casual_bonus = parseFloat(document.getElementById('ela-casual-bonus').value)||0;
+  const comp_bonus   = parseFloat(document.getElementById('ela-comp-bonus').value)||0;
+  const errEl = document.getElementById('ela-error');
+  const btn   = document.getElementById('ela-save-btn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  const result = await apiCall('PUT', '/api/employees/'+empRecId+'/quota', { annual_bonus, sick_bonus, casual_bonus, comp_bonus });
+  if (result && result.ok) {
+    await loadEmployeesFromApi();
+    document.getElementById('modal-emp-leave-admin').style.display = 'none';
+    showToast('บันทึกสิทธิ์วันลาเรียบร้อย ✓', 'success');
+  } else {
+    errEl.textContent = result?.error || 'เกิดข้อผิดพลาด';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '💾 บันทึกสิทธิ์';
+}
+
+// ════════════ HALF-DAY LEAVE ════════════
+function toggleHalfDay(el) {
+  const toEl   = document.getElementById('leave-to');
+  const fromEl = document.getElementById('leave-from');
+  const dp     = document.getElementById('leave-days-preview');
+  if (el.checked) {
+    if (fromEl && toEl) { toEl.value = fromEl.value; toEl.disabled = true; }
+    if (dp) dp.textContent = '= 0.5 วัน';
+  } else {
+    if (toEl) toEl.disabled = false;
+    if (dp) dp.textContent = '';
+  }
+}
+
 // ════════════ EMPLOYMENT EDIT (Admin) ════════════
 function showEmploymentEditModal(userId) {
   const u = currentUser; // viewing own record — or find from employees list
@@ -2529,8 +2675,8 @@ function renderEmployees(list) {
       <td>${e.pos||'—'}</td>
       <td>${e.joined||'—'}</td>
       <td><span class="badge ${e.status==='Active'?'badge-green':e.status==='On Leave'?'badge-orange':'badge-gray'}">${e.status==='Active'?'ทำงานอยู่':e.status==='On Leave'?'กำลังลา':'ไม่ทำงาน'}</span></td>
-      <td style="white-space:nowrap">
-        ${isAdmin && e._uid ? `<button class="btn btn-primary" style="font-size:11px;padding:5px 12px" onclick="openEditEmpModal(${e._uid})">✏️ แก้ไข</button>` : `<button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button>`}
+      <td style="white-space:nowrap;display:flex;gap:6px;align-items:center;padding:10px 12px">
+        ${isAdmin && e._uid ? `<button class="btn btn-primary" style="font-size:11px;padding:5px 12px" onclick="openEditEmpModal(${e._uid})">✏️ แก้ไข</button><button class="btn" style="font-size:11px;padding:5px 12px;background:#EDE9FE;color:#7C3AED;border:none" onclick="openEmpLeaveAdmin(${e._uid})">📋 วันลา</button>` : `<button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button>`}
       </td>
     </tr>`).join('');
 }
@@ -2979,6 +3125,13 @@ function removeAnnualProbationStyle() {
 // ── Open leave modal with probation check ─────────────────────────────
 function openLeaveModal() {
   openModal('modal-leave');
+  // Reset half-day state
+  const hdCb = document.getElementById('leave-half-day');
+  const toEl = document.getElementById('leave-to');
+  if (hdCb) { hdCb.checked = false; }
+  if (toEl) toEl.disabled = false;
+  const dp = document.getElementById('leave-days-preview');
+  if (dp) dp.textContent = '';
   const probInfo = isProbation(currentUser);
   const chipAnnual = document.getElementById('chip-annual');
   const notice = document.getElementById('leave-modal-probation-notice');
@@ -5939,7 +6092,8 @@ submitLeave = async function(){
   if(!from || !to) { showToast('กรุณาเลือกวันที่','error'); return; }
   if(new Date(to) < new Date(from)) { showToast('วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น','error'); return; }
   const reason= document.getElementById('leave-reason')?.value||'Personal';
-  const days  = Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1);
+  const halfDay = document.getElementById('leave-half-day')?.checked;
+  const days  = halfDay ? 0.5 : Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1);
   // Balance check
   const myName = currentUser?.name||'';
   const approved = leaveData.filter(r=>r.status==='Approved'&&(r.emp||r.empName||'')===myName);
@@ -5947,9 +6101,14 @@ submitLeave = async function(){
   const usedS = approved.filter(r=>r.type==='Sick').reduce((s,r)=>s+(+r.days||0),0);
   const usedC = approved.filter(r=>r.type==='Casual').reduce((s,r)=>s+(+r.days||0),0);
   const annualQ = calcAnnualQuota(myName);
-  if(type==='Annual' && usedA+days > annualQ){ showToast(`ลาพักร้อนเกินสิทธิ์ (เหลือ ${annualQ-usedA} วัน)`,'error'); return; }
-  if(type==='Sick' && usedS+days > LEAVE_QUOTA.Sick){ showToast(`ลาป่วยเกินสิทธิ์ (เหลือ ${LEAVE_QUOTA.Sick-usedS} วัน)`,'error'); return; }
-  if(type==='Casual' && usedC+days > LEAVE_QUOTA.Casual){ showToast(`ลากิจเกินสิทธิ์ (เหลือ ${LEAVE_QUOTA.Casual-usedC} วัน)`,'error'); return; }
+  // Include per-employee bonus quota from employee record
+  const myEmpRec = _apiEmpData.find(e=>e.user_id===currentUser?.id)||{};
+  const effectiveAnnualQ  = annualQ + (myEmpRec.annual_bonus||0);
+  const effectiveSickQ    = LEAVE_QUOTA.Sick   + (myEmpRec.sick_bonus||0);
+  const effectiveCasualQ  = LEAVE_QUOTA.Casual + (myEmpRec.casual_bonus||0);
+  if(type==='Annual' && usedA+days > effectiveAnnualQ){ showToast(`ลาพักร้อนเกินสิทธิ์ (เหลือ ${effectiveAnnualQ-usedA} วัน)`,'error'); return; }
+  if(type==='Sick' && usedS+days > effectiveSickQ){ showToast(`ลาป่วยเกินสิทธิ์ (เหลือ ${effectiveSickQ-usedS} วัน)`,'error'); return; }
+  if(type==='Casual' && usedC+days > effectiveCasualQ){ showToast(`ลากิจเกินสิทธิ์ (เหลือ ${effectiveCasualQ-usedC} วัน)`,'error'); return; }
   if(type==='Compensatory' && days > _compTotal){ showToast(`วันลาชดเชยไม่พอ (เหลือ ${_compTotal} วัน)`,'error'); return; }
   const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,reason});
   if(result&&result.id){

@@ -295,6 +295,16 @@ app.put('/api/employees/:id', auth, requireRole('admin','hr_manager'), (req, res
   Object.assign(emp, { name, department, position, status, work_model, phone });
   saveDb(); res.json({ ok: true });
 });
+app.put('/api/employees/:id/quota', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const emp = store.employees.find(e => e.id == req.params.id);
+  if (!emp) return res.status(404).json({ error: 'Not found' });
+  const { annual_bonus, sick_bonus, casual_bonus, comp_bonus } = req.body;
+  if (annual_bonus !== undefined) emp.annual_bonus = +annual_bonus || 0;
+  if (sick_bonus   !== undefined) emp.sick_bonus   = +sick_bonus   || 0;
+  if (casual_bonus !== undefined) emp.casual_bonus = +casual_bonus || 0;
+  if (comp_bonus   !== undefined) emp.comp_bonus   = +comp_bonus   || 0;
+  saveDb(); res.json({ ok: true });
+});
 app.delete('/api/employees/:id', auth, requireRole('admin'), (req, res) => {
   store.employees = store.employees.filter(e => e.id != req.params.id);
   saveDb(); res.json({ ok: true });
