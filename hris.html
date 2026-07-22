@@ -800,6 +800,7 @@
       <!-- Leave table tabs — segmented control -->
       <div class="ltab-group">
         <button id="ltab-all" onclick="setLeaveTableTab('all')" class="ltab ltab-active">ทั้งหมด</button>
+        <button id="ltab-approved" onclick="setLeaveTableTab('approved')" class="ltab">✅ อนุมัติแล้ว</button>
         <button id="ltab-pending" onclick="setLeaveTableTab('pending')" class="ltab">
           รออนุมัติ <span id="ltab-pending-count" style="display:none;background:#EF4444;color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px;min-width:18px;text-align:center">0</span>
         </button>
@@ -2919,11 +2920,9 @@ function renderLeave() {
   let base = isManager ? leaveData : leaveData.filter(r => (r.emp||r.empName||'') === myName);
   // Tab filter
   let data;
-  if (leaveTableTab === 'pending') {
-    data = base.filter(r => r.status === 'Pending');
-  } else {
-    data = base;
-  }
+  if (leaveTableTab === 'pending')  { data = base.filter(r => r.status === 'Pending'); }
+  else if (leaveTableTab === 'approved') { data = base.filter(r => r.status === 'Approved'); }
+  else { data = base; }
   // Pending badge
   const pendingCount = base.filter(r => r.status === 'Pending').length;
   updateLeavePendingBadge(pendingCount);
@@ -2956,7 +2955,8 @@ function renderLeave() {
       </td>
     </tr>`;
   }).join('');
-  tbody.innerHTML = rows || `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">${leaveTableTab==='pending'?'ไม่มีคำขอรออนุมัติ':'ไม่มีรายการวันลา'}</td></tr>`;
+  const emptyMsg = leaveTableTab==='pending' ? 'ไม่มีคำขอรออนุมัติ' : leaveTableTab==='approved' ? 'ไม่มีรายการที่อนุมัติแล้ว' : 'ไม่มีรายการวันลา';
+  tbody.innerHTML = rows || `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">${emptyMsg}</td></tr>`;
 }
 function showLeaveTableStatus(i) {
   window._approvalStatusIdx = i;
@@ -3290,6 +3290,7 @@ let leaveTableTab = 'all';
 function setLeaveTableTab(tab) {
   leaveTableTab = tab;
   document.getElementById('ltab-all').classList.toggle('ltab-active', tab==='all');
+  document.getElementById('ltab-approved').classList.toggle('ltab-active', tab==='approved');
   document.getElementById('ltab-pending').classList.toggle('ltab-active', tab==='pending');
   renderLeave();
 }
@@ -6010,9 +6011,13 @@ const _renderLeave = renderLeave;
 renderLeave = async function() {
   if(!useApi){_renderLeave();return;}
   const isManager = currentUser&&['admin','hr_manager','hr_staff'].includes(currentUser.role);
-  // Employee uses scope='my', manager uses scope='team'
+  // Employee uses scope='my', manager uses scope='team' or 'pending'
   const scope = isManager ? (leaveTableTab==='pending' ? 'pending' : 'team') : 'my';
-  const data  = await apiCall('GET','/api/leave?scope='+scope);
+  const rawData = await apiCall('GET','/api/leave?scope='+scope);
+  // Client-side tab filter for employee (scope=my returns all statuses)
+  const data = (!isManager && leaveTableTab==='pending')  ? (rawData||[]).filter(r=>r.status==='Pending')
+             : (!isManager && leaveTableTab==='approved') ? (rawData||[]).filter(r=>r.status==='Approved')
+             : rawData;
   // Pending badge: employee = own pending; manager = all pending
   const allData = isManager ? await apiCall('GET','/api/leave?scope=pending') : data;
   const pendingCount = isManager
@@ -6060,7 +6065,7 @@ renderLeave = async function() {
           <button onclick="approveLeaveApi(${r.id},'Rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>`:''}
         </div>
       </td>
-    </tr>`).join('')||'<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">ไม่มีคำขอวันลา</td></tr>';
+    </tr>`).join('')||`<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">${leaveTableTab==='pending'?'ไม่มีคำขอรออนุมัติ':leaveTableTab==='approved'?'ไม่มีรายการที่อนุมัติแล้ว':'ไม่มีคำขอวันลา'}</td></tr>`;
 };
 
 async function approveLeaveApi(id,status){
