@@ -3485,8 +3485,8 @@ function submitLeave() {
     showToast('อยู่ในช่วงทดลองงาน — ยังไม่สามารถยื่นลาพักร้อนได้', 'error');
     return;
   }
-  const empName = currentUser?.name || 'Davis Levin';
-  const empInit = currentUser?.init || 'DL';
+  const empName = currentUser?.name || '';
+  const empInit = currentUser?.init || '?';
   const empColor = currentUser?.color || '#00C896';
   leaveData.push({emp:empName,init:empInit,color:empColor,type,from,to,days,reason:'Personal',status:'Pending'});
   saveLeaveData();
@@ -3934,7 +3934,7 @@ function openMsg(i) {
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
       <div class="emp-avatar" style="background:${m.color}">${m.init}</div>
-      <div><div style="font-size:13px;font-weight:600">${m.from}</div><div style="font-size:11px;color:var(--text-muted)">To: Davis Levin</div></div>
+      <div><div style="font-size:13px;font-weight:600">${m.from}</div><div style="font-size:11px;color:var(--text-muted)">To: ${currentUser?.name||'คุณ'}</div></div>
     </div>
     <div style="font-size:13px;line-height:1.8;white-space:pre-wrap;background:var(--bg);padding:16px;border-radius:10px;margin-bottom:20px">${m.body}</div>
     <div class="form-group"><label>ตอบกลับ</label><textarea rows="3" placeholder="พิมพ์ข้อความตอบกลับ..."></textarea></div>
@@ -4773,14 +4773,7 @@ function addAccount() {
 }
 
 // ════════════ OT DATA & FUNCTIONS ════════════
-const otRequests = [
-  {emp:'Davis Levin', init:'DL', color:'#00C896', date:'2026-06-25', start:'18:00', end:'20:30', hours:'2h 30m', type:'Project Deadline', reason:'Q2 report finalization', status:'Approved', approver:'Mia Torres', note:'Approved - good work'},
-  {emp:'Davis Levin', init:'DL', color:'#00C896', date:'2026-06-23', start:'19:00', end:'20:45', hours:'1h 45m', type:'Voluntary', reason:'Catch up on backlog', status:'Approved', approver:'Mia Torres', note:''},
-  {emp:'Davis Levin', init:'DL', color:'#00C896', date:'2026-06-26', start:'18:00', end:'20:00', hours:'2h 00m', type:'Project Deadline', reason:'Sprint deadline', status:'Pending', approver:'', note:''},
-  {emp:'Mia Torres',  init:'MT', color:'#3B82F6', date:'2026-06-24', start:'18:30', end:'21:00', hours:'2h 30m', type:'Emergency', reason:'System outage support', status:'Pending', approver:'', note:''},
-  {emp:'Jacob Young', init:'JY', color:'#8B5CF6', date:'2026-06-25', start:'18:00', end:'19:30', hours:'1h 30m', type:'Manager Requested', reason:'Deploy hotfix to production', status:'Pending', approver:'', note:''},
-  {emp:'Ana Kim',     init:'AK', color:'#F59E0B', date:'2026-06-20', start:'18:00', end:'20:00', hours:'2h 00m', type:'Project Deadline', reason:'Design review before launch', status:'Rejected', approver:'Davis Levin', note:'Please plan better next time'},
-];
+const otRequests = [];
 
 // ════════════ PAYROLL ════════════
 async function renderPayroll() {
