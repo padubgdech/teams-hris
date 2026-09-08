@@ -3162,7 +3162,9 @@ function openLeaveModal() {
 
 function calcAnnualQuota(empName) {
   // Pro-rate: if joined this year → quota = ceil(remainingMonths/12 * 6), else full 6
-  const emp = (typeof employees !== 'undefined' ? employees : []).find(e => e.name === empName);
+  const empList = typeof employees !== 'undefined' ? employees : [];
+  // Match by user_id (_uid) first to avoid same-name collisions, then fall back to name
+  const emp = empList.find(e => e._uid === currentUser?.id) || empList.find(e => e.name === empName);
   const joinedStr = emp?.joined || currentUser?.start_date || currentUser?.startDate;
   if (!joinedStr) return LEAVE_QUOTA.Annual;
   const joined = new Date(joinedStr);
@@ -3181,7 +3183,12 @@ function updateLeaveBalances() {
   if (!empName) return;
   const ownerEl = document.getElementById('leave-bal-owner');
   if (ownerEl) ownerEl.textContent = empName;
-  const approved = leaveData.filter(r => r.emp === empName && r.status === 'Approved');
+  // Filter by userId if available (prevents same-name collisions), else fall back to name
+  const currentUid = currentUser?.id;
+  const approved = leaveData.filter(r => {
+    const mine = (r.userId !== undefined) ? r.userId === currentUid : r.emp === empName;
+    return mine && r.status === 'Approved';
+  });
   const usedAnnual  = approved.filter(r=>r.type==='Annual').reduce((s,r)=>s+(+r.days||0),0);
   const usedSick    = approved.filter(r=>r.type==='Sick').reduce((s,r)=>s+(+r.days||0),0);
   const usedCasual  = approved.filter(r=>r.type==='Casual').reduce((s,r)=>s+(+r.days||0),0);
@@ -6033,6 +6040,7 @@ renderLeave = async function() {
   leaveData.length = 0;
   fullData.forEach(r => leaveData.push({
     emp:r.emp_name, init:r.emp_init, color:r.emp_color,
+    userId:r.user_id,
     type:r.type, from:r.from_date, to:r.to_date, days:r.days,
     reason:r.reason||'—', status:r.status
   }));
