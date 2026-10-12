@@ -1588,7 +1588,7 @@
         <span style="font-size:20px">📎</span>
         <span style="flex:1;min-width:0">
           <span id="leave-attach-name" style="display:block;font-size:13px;font-weight:600;color:#991B1B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">แตะเพื่อเลือกไฟล์หรือถ่ายรูป</span>
-          <span style="display:block;font-size:11px;color:var(--text-muted)">JPG, PNG หรือ PDF ไม่เกิน 5 MB</span>
+          <span style="display:block;font-size:11px;color:var(--text-muted)">รูปภาพ (ย่อขนาดอัตโนมัติ) หรือ PDF ไม่เกิน 5 MB</span>
         </span>
         <button type="button" id="leave-attach-clear" onclick="event.preventDefault();clearLeaveAttach()" style="display:none;background:none;border:none;color:#DC2626;font-size:16px;cursor:pointer">✕</button>
       </label>
@@ -3309,7 +3309,9 @@ function selectLeaveType(el, type) {
 function onLeaveAttachChange(input) {
   const f = input.files && input.files[0];
   if (!f) { clearLeaveAttach(); return; }
-  if (f.size > 5 * 1024 * 1024) { showToast('ไฟล์ใหญ่เกิน 5 MB', 'error'); clearLeaveAttach(); return; }
+  const isImg = /^image\//.test(f.type);
+  if (!isImg && f.size > 5 * 1024 * 1024) { showToast('ไฟล์ PDF ใหญ่เกิน 5 MB', 'error'); clearLeaveAttach(); return; }
+  if (isImg && f.size > 30 * 1024 * 1024) { showToast('รูปใหญ่เกิน 30 MB', 'error'); clearLeaveAttach(); return; }
   document.getElementById('leave-attach-name').textContent = f.name;
   document.getElementById('leave-attach-clear').style.display = 'block';
 }
@@ -3317,6 +3319,40 @@ function clearLeaveAttach() {
   const i = document.getElementById('leave-attach'); if (i) i.value = '';
   const n = document.getElementById('leave-attach-name'); if (n) n.textContent = 'แตะเพื่อเลือกไฟล์หรือถ่ายรูป';
   const c = document.getElementById('leave-attach-clear'); if (c) c.style.display = 'none';
+}
+// Compress images to ~200–300 KB (JPEG, max 1600px). PDFs pass through unchanged.
+async function prepareLeaveAttachment(file) {
+  const isImg = /^image\//.test(file.type);
+  if (!isImg) {
+    if (file.size > 5 * 1024 * 1024) throw new Error('ไฟล์ PDF ใหญ่เกิน 5 MB');
+    return { name: file.name, data: await readFileAsDataURL(file) };
+  }
+  let img;
+  try {
+    const url = URL.createObjectURL(file);
+    img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    // Browser can't decode (e.g. HEIC on Chrome) — send original if small enough
+    if (file.size > 5 * 1024 * 1024) throw new Error('ไฟล์รูปนี้ย่อไม่ได้และใหญ่เกิน 5 MB — กรุณาใช้ JPG/PNG');
+    return { name: file.name, data: await readFileAsDataURL(file) };
+  }
+  const TARGET = 300 * 1024;
+  let maxDim = 1600, quality = 0.8, dataUrl = '';
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); // flatten PNG transparency
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    dataUrl = c.toDataURL('image/jpeg', quality);
+    const bytes = Math.floor((dataUrl.length - dataUrl.indexOf(',') - 1) * 3 / 4);
+    if (bytes <= TARGET) break;
+    if (quality > 0.55) quality -= 0.1; else maxDim = Math.round(maxDim * 0.8);
+  }
+  const base = file.name.replace(/\.[^.]+$/, '') || 'medical-certificate';
+  return { name: base + '.jpg', data: dataUrl };
 }
 function readFileAsDataURL(file) {
   return new Promise((resolve, reject) => {
@@ -6183,9 +6219,8 @@ submitLeave = async function(){
   const attFile = type==='Sick' ? document.getElementById('leave-attach')?.files?.[0] : null;
   if(type==='Sick' && days >= 3 && !attFile){ showToast('ลาป่วย 3 วันขึ้นไป ต้องแนบใบรับรองแพทย์','error'); return; }
   if(attFile){
-    if(attFile.size > 5*1024*1024){ showToast('ไฟล์ใหญ่เกิน 5 MB','error'); return; }
-    try { attachment = { name: attFile.name, data: await readFileAsDataURL(attFile) }; }
-    catch(e){ showToast('อ่านไฟล์ไม่สำเร็จ','error'); return; }
+    try { attachment = await prepareLeaveAttachment(attFile); }
+    catch(e){ showToast(e?.message||'อ่านไฟล์ไม่สำเร็จ','error'); return; }
   }
   const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,reason,attachment});
   if(result&&result.id){
