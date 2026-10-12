@@ -133,7 +133,7 @@ function seedHolidays() {
 // ══════════════════════════════════════
 const app = express();
 app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'hris.html')));
 
@@ -435,16 +435,66 @@ app.get('/api/leave', auth, (req, res) => {
   });
   res.json([...result].sort((a,b) => b.created_at.localeCompare(a.created_at)));
 });
-app.post('/api/leave', auth, (req, res) => {
-  const { type, from_date, to_date, days, reason } = req.body;
+// ── Leave attachments (medical certificates) — stored separately from main store ──
+const ATT_ALLOWED = ['image/jpeg','image/png','image/webp','image/heic','application/pdf'];
+const ATT_MAX_BYTES = 5 * 1024 * 1024;
+async function saveAttachment(leaveId, att) {
+  const json = JSON.stringify(att);
+  if (pgPool) {
+    await pgPool.query(
+      "INSERT INTO kv(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
+      ['leave_att_' + leaveId, json]
+    );
+    return;
+  }
+  fs.writeFileSync(path.join(DATA_DIR, 'leave_att_' + leaveId + '.json'), json);
+}
+async function loadAttachment(leaveId) {
+  if (pgPool) {
+    const r = await pgPool.query("SELECT value FROM kv WHERE key=$1", ['leave_att_' + leaveId]);
+    return r.rows.length ? JSON.parse(r.rows[0].value) : null;
+  }
+  const f = path.join(DATA_DIR, 'leave_att_' + leaveId + '.json');
+  return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
+}
+
+app.post('/api/leave', auth, async (req, res) => {
+  const { type, from_date, to_date, days, reason, attachment } = req.body;
   if (!type || !from_date || !to_date) return res.status(400).json({ error: 'Missing fields' });
+  // Validate attachment if present
+  let att = null;
+  if (attachment && attachment.data) {
+    const m = /^data:([^;]+);base64,(.+)$/.exec(attachment.data);
+    if (!m) return res.status(400).json({ error: 'ไฟล์แนบไม่ถูกต้อง' });
+    const mime = m[1];
+    if (!ATT_ALLOWED.includes(mime)) return res.status(400).json({ error: 'รองรับเฉพาะรูปภาพ (JPG/PNG) หรือ PDF' });
+    const bytes = Math.floor(m[2].length * 3 / 4);
+    if (bytes > ATT_MAX_BYTES) return res.status(400).json({ error: 'ไฟล์ใหญ่เกิน 5 MB' });
+    att = { name: String(attachment.name || 'medical-certificate').slice(0, 120), type: mime, data: attachment.data };
+  }
   const row = {
     id: genId('leave_requests'), user_id: req.user.id, type, from_date, to_date,
     days: days||1, reason: reason||'', status:'Pending',
-    approved_by: null, note:'', created_at: new Date().toISOString()
+    approved_by: null, note:'', created_at: new Date().toISOString(),
+    has_attachment: !!att, attachment_name: att ? att.name : ''
   };
+  if (att) {
+    try { await saveAttachment(row.id, att); }
+    catch (e) { console.error('Attachment save error:', e.message); return res.status(500).json({ error: 'บันทึกไฟล์แนบไม่สำเร็จ' }); }
+  }
   store.leave_requests.push(row);
   saveDb(); res.status(201).json({ id: row.id });
+});
+app.get('/api/leave/:id/attachment', auth, async (req, res) => {
+  const row = store.leave_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  const isManager = ['admin','hr_manager','hr_staff'].includes(req.user.role);
+  if (!isManager && row.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const att = await loadAttachment(row.id);
+    if (!att) return res.status(404).json({ error: 'ไม่พบไฟล์แนบ' });
+    res.json(att);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.put('/api/leave/:id/status', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
   const row = store.leave_requests.find(r => r.id == req.params.id);

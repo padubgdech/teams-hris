@@ -1582,6 +1582,18 @@
       <span id="leave-days-preview" style="font-size:12px;color:#6366F1;font-weight:600"></span>
     </div>
     <div class="form-group"><label>เหตุผลการลา</label><textarea id="leave-reason" rows="3" placeholder="อธิบายเหตุผลการลาโดยย่อ..."></textarea></div>
+    <div class="form-group" id="leave-attach-group" style="display:none">
+      <label>🩺 ใบรับรองแพทย์ <span id="leave-attach-req" style="font-weight:400;color:var(--text-muted);font-size:12px">(ไม่บังคับ — บังคับเมื่อลา 3 วันขึ้นไป)</span></label>
+      <label for="leave-attach" style="display:flex;align-items:center;gap:10px;border:1.5px dashed #FCA5A5;background:#FEF2F2;border-radius:10px;padding:12px 14px;cursor:pointer">
+        <span style="font-size:20px">📎</span>
+        <span style="flex:1;min-width:0">
+          <span id="leave-attach-name" style="display:block;font-size:13px;font-weight:600;color:#991B1B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">แตะเพื่อเลือกไฟล์หรือถ่ายรูป</span>
+          <span style="display:block;font-size:11px;color:var(--text-muted)">JPG, PNG หรือ PDF ไม่เกิน 5 MB</span>
+        </span>
+        <button type="button" id="leave-attach-clear" onclick="event.preventDefault();clearLeaveAttach()" style="display:none;background:none;border:none;color:#DC2626;font-size:16px;cursor:pointer">✕</button>
+      </label>
+      <input type="file" id="leave-attach" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" style="display:none" onchange="onLeaveAttachChange(this)">
+    </div>
     <div style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:#065F46;margin-bottom:16px">
       📋 <strong>วันลาคงเหลือ:</strong> ลาพักร้อน: 6 วัน &nbsp;|&nbsp; ลาป่วย: 30 วัน &nbsp;|&nbsp; ลากิจ: 3 วัน
     </div>
@@ -3131,6 +3143,9 @@ function openLeaveModal() {
   if (toEl) toEl.disabled = false;
   const dp = document.getElementById('leave-days-preview');
   if (dp) dp.textContent = '';
+  clearLeaveAttach();
+  const ag = document.getElementById('leave-attach-group');
+  if (ag) ag.style.display = (state.selectedLeaveType === 'Sick') ? 'block' : 'none';
   const probInfo = isProbation(currentUser);
   const chipAnnual = document.getElementById('chip-annual');
   const notice = document.getElementById('leave-modal-probation-notice');
@@ -3286,6 +3301,41 @@ function selectLeaveType(el, type) {
   state.selectedLeaveType = type;
   el.closest('.chip-select').querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
   el.classList.add('selected');
+  const g = document.getElementById('leave-attach-group');
+  if (g) g.style.display = type === 'Sick' ? 'block' : 'none';
+  if (type !== 'Sick') clearLeaveAttach();
+}
+// ── Medical certificate attachment ──
+function onLeaveAttachChange(input) {
+  const f = input.files && input.files[0];
+  if (!f) { clearLeaveAttach(); return; }
+  if (f.size > 5 * 1024 * 1024) { showToast('ไฟล์ใหญ่เกิน 5 MB', 'error'); clearLeaveAttach(); return; }
+  document.getElementById('leave-attach-name').textContent = f.name;
+  document.getElementById('leave-attach-clear').style.display = 'block';
+}
+function clearLeaveAttach() {
+  const i = document.getElementById('leave-attach'); if (i) i.value = '';
+  const n = document.getElementById('leave-attach-name'); if (n) n.textContent = 'แตะเพื่อเลือกไฟล์หรือถ่ายรูป';
+  const c = document.getElementById('leave-attach-clear'); if (c) c.style.display = 'none';
+}
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+async function viewLeaveAttachment(id) {
+  const att = await apiCall('GET', '/api/leave/' + id + '/attachment');
+  if (!att || !att.data) { showToast(att?.error || 'เปิดไฟล์แนบไม่ได้', 'error'); return; }
+  const bin = atob(att.data.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: att.type }));
+  const w = window.open(url, '_blank');
+  if (!w) { const a = document.createElement('a'); a.href = url; a.download = att.name || 'medical-certificate'; a.click(); }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 // ── Leave table tab state ──
 let leaveTableTab = 'all';
@@ -6068,7 +6118,7 @@ renderLeave = async function() {
       <td>${leaveTypeBadge(r.type)}</td>
       <td>${r.from_date}</td><td>${r.to_date}</td>
       <td style="font-weight:700">${r.days} วัน</td>
-      <td style="color:var(--text-muted);font-size:12px">${r.reason||'—'}</td>
+      <td style="color:var(--text-muted);font-size:12px">${r.reason||'—'}${r.has_attachment?`<br><button onclick="viewLeaveAttachment(${r.id})" style="margin-top:4px;background:#FEF2F2;border:1px solid #FECACA;border-radius:99px;padding:2px 8px;cursor:pointer;color:#B91C1C;font-size:11px;font-weight:600">📎 ใบรับรองแพทย์</button>`:''}</td>
       <td><span class="badge ${sc[r.status]}">${stTh[r.status]||r.status}</span></td>
       <td>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
@@ -6128,7 +6178,16 @@ submitLeave = async function(){
   if(type==='Sick' && usedS+days > effectiveSickQ){ showToast(`ลาป่วยเกินสิทธิ์ (เหลือ ${effectiveSickQ-usedS} วัน)`,'error'); return; }
   if(type==='Casual' && usedC+days > effectiveCasualQ){ showToast(`ลากิจเกินสิทธิ์ (เหลือ ${effectiveCasualQ-usedC} วัน)`,'error'); return; }
   if(type==='Compensatory' && days > _compTotal){ showToast(`วันลาชดเชยไม่พอ (เหลือ ${_compTotal} วัน)`,'error'); return; }
-  const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,reason});
+  // Medical certificate (sick leave)
+  let attachment = null;
+  const attFile = type==='Sick' ? document.getElementById('leave-attach')?.files?.[0] : null;
+  if(type==='Sick' && days >= 3 && !attFile){ showToast('ลาป่วย 3 วันขึ้นไป ต้องแนบใบรับรองแพทย์','error'); return; }
+  if(attFile){
+    if(attFile.size > 5*1024*1024){ showToast('ไฟล์ใหญ่เกิน 5 MB','error'); return; }
+    try { attachment = { name: attFile.name, data: await readFileAsDataURL(attFile) }; }
+    catch(e){ showToast('อ่านไฟล์ไม่สำเร็จ','error'); return; }
+  }
+  const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,reason,attachment});
   if(result&&result.id){
     closeModal('modal-leave');
     renderLeave();
