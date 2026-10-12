@@ -3236,13 +3236,9 @@ function updateLeaveBalances() {
   }
   setRing('sick',   usedSick,   LEAVE_QUOTA.Sick);
   setRing('casual', usedCasual, LEAVE_QUOTA.Casual);
-  // persist demo leaveData
-  if (!useApi) { try { localStorage.setItem('hris_leave_data', JSON.stringify(leaveData)); } catch(e){} }
 }
 
-function saveLeaveData() {
-  if (!useApi) { try { localStorage.setItem('hris_leave_data', JSON.stringify(leaveData)); } catch(e){} }
-}
+function saveLeaveData() { /* no-op: leave data is stored in the database via API */ }
 
 function _execCancelLeave(idx) {
   // Core cancel — no confirm dialog, just do it
@@ -6334,17 +6330,18 @@ window.addEventListener('load', async ()=>{
     const savedNotes = localStorage.getItem('hris_cal_notes');
     if (savedNotes) Object.assign(calNotes, JSON.parse(savedNotes));
   } catch(e){}
-  // Restore leave data (demo mode)
+  // One-time purge of old demo/mockup caches — real data comes from the API only
   try {
-    const savedLeave = localStorage.getItem('hris_leave_data');
-    if (savedLeave) {
-      const parsed = JSON.parse(savedLeave);
-      if (Array.isArray(parsed) && parsed.length) {
-        leaveData.length = 0;
-        parsed.forEach(r => leaveData.push(r));
-      }
+    if (!localStorage.getItem('hris_clean_v2')) {
+      Object.keys(localStorage).forEach(k => {
+        if (k === 'hris_leave_data' || k === 'hris_local_users' ||
+            k.startsWith('hris_att_') || k.startsWith('hris_inbox_')) localStorage.removeItem(k);
+      });
+      localStorage.setItem('hris_clean_v2', '1');
     }
+    localStorage.removeItem('hris_leave_data');
   } catch(e){}
+  leaveData.length = 0;
   // ── Restore registered users (signed-up accounts persist across reload) ──
   loadLocalUsers();
 
