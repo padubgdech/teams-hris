@@ -4847,7 +4847,7 @@ function renderPermTable(list) {
       </div></td>
       <td style="font-size:12px;color:var(--text-muted)">${u.email}</td>
       <td><span class="badge" style="background:${ROLE_COLORS[u.role]}20;color:${ROLE_COLORS[u.role]}">${ROLE_LABELS[u.role]||u.role}</span></td>
-      <td><div style="display:flex;flex-wrap:wrap;gap:4px">${u.permissions.slice(0,4).map(p=>`<span class="badge badge-gray" style="font-size:10px">${p}</span>`).join('')}${u.permissions.length>4?`<span class="badge badge-gray" style="font-size:10px">+${u.permissions.length-4}</span>`:''}</div></td>
+      <td><div style="display:flex;flex-wrap:wrap;gap:4px">${(u.permissions||[]).slice(0,4).map(p=>`<span class="badge badge-gray" style="font-size:10px">${p}</span>`).join('')}${(u.permissions||[]).length>4?`<span class="badge badge-gray" style="font-size:10px">+${(u.permissions||[]).length-4}</span>`:''}</div></td>
       <td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="openEditPerm('${u.email}')">Edit</button></td>
     </tr>`).join('');
 }

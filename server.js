@@ -214,10 +214,16 @@ function requireRole(...roles) {
     next();
   };
 }
+// Saved page permissions, falling back to the role defaults when missing or corrupt
+function permsOf(u) {
+  let p = u.permissions;
+  if (typeof p === 'string') { try { p = JSON.parse(p); } catch { p = null; } }
+  return Array.isArray(p) && p.length ? p : (ROLE_DEFAULTS[u.role] || ROLE_DEFAULTS.employee);
+}
 function fmtUser(u) {
   const emp = store.employees.find(e => e.user_id === u.id);
   return { id:u.id, name:u.name, email:u.email, role:u.role,
-    permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions,
+    permissions: permsOf(u),
     department:u.department||'', position:u.position||'', phone:u.phone||'',
     color:u.color||'#6B7280', init:u.init||'?',
     picture:u.picture||'', auth_provider:u.auth_provider||'local',
@@ -740,7 +746,7 @@ app.delete('/api/appointments/:id', auth, (req, res) => {
 app.get('/api/users', auth, requireRole('admin','hr_manager'), (req, res) => {
   res.json(store.users.map(u => ({
     id:u.id, name:u.name, email:u.email, role:u.role,
-    permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions,
+    permissions: permsOf(u),
     department:u.department||'', position:u.position||'',
     color:u.color||'#6B7280', init:u.init||'?', created_at:u.created_at
   })).sort((a,b) => (a.name||'').localeCompare(b.name||'')));
