@@ -78,6 +78,32 @@ function saveDb() {
   catch(e) { console.error('Save error:', e.message); }
 }
 
+// ── Time helpers — all business dates/times are Thailand time (server runs in UTC on Render) ──
+const TZ = 'Asia/Bangkok';
+function bkkToday() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+}
+function bkkNowHHMM() {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour:'2-digit', minute:'2-digit', hourCycle:'h23' }).format(new Date());
+}
+const RE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const RE_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const RE_EMAIL = /^[^\s@"'<>]+@[^\s@"'<>]+\.[^\s@"'<>]+$/;
+const isDate = s => typeof s === 'string' && RE_DATE.test(s) && !isNaN(new Date(s + 'T00:00:00Z'));
+const toMin  = s => +s.slice(0,2) * 60 + +s.slice(3,5);
+const fmtDur = m => Math.floor(m/60) + 'h ' + String(m%60).padStart(2,'0') + 'm';
+const MANAGER_ROLES = ['admin','hr_manager','hr_staff'];
+const isManagerRole = r => MANAGER_ROLES.includes(r);
+
+function notify(fromId, toId, subject, body) {
+  if (!toId) return;
+  store.inbox.push({ id: genId('inbox'), from_user: fromId, to_user: toId, subject, body: body||'', is_read: 0, created_at: new Date().toISOString() });
+}
+function nextEmpId() {
+  const nums = store.employees.map(e => parseInt(String(e.emp_id||'').replace(/\D/g,''), 10) || 0);
+  return 'EMP-' + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3,'0');
+}
+
 function genId(table) {
   const rows = store[table];
   if (!store._seq[table]) {
@@ -134,14 +160,53 @@ function seedHolidays() {
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(__dirname));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'hris.html')));
+app.use((err, req, res, next) => {
+  if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'ไฟล์ใหญ่เกินไป' });
+  if (err) return res.status(400).json({ error: 'Invalid request body' });
+  next();
+});
+// Strip characters that could inject HTML/JS into the UI (stored XSS). Binary/secret fields are left untouched.
+const RAW_KEYS = new Set(['password','currentPassword','newPassword','data','credential']);
+function sanitize(v, key) {
+  if (typeof v === 'string') return RAW_KEYS.has(key) ? v : v.replace(/[<>"`]/g, '');
+  if (Array.isArray(v)) return v.map(x => sanitize(x, key));
+  if (v && typeof v === 'object') { for (const k of Object.keys(v)) v[k] = sanitize(v[k], k); return v; }
+  return v;
+}
+app.use((req, res, next) => { if (req.body && typeof req.body === 'object') sanitize(req.body, ''); next(); });
+
+// Only the web app itself is public — never the server source, scripts or data files.
+const PUBLIC_FILES = { '/': 'hris.html', '/hris.html': 'hris.html', '/index.html': 'hris.html', '/config.js': 'config.js' };
+app.get(Object.keys(PUBLIC_FILES), (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, PUBLIC_FILES[req.path]));
+});
 
 function auth(req, res, next) {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: 'No token' });
-  try { req.user = jwt.verify(header.replace('Bearer ', ''), JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: 'Invalid token' }); }
+  let payload;
+  try { payload = jwt.verify(header.replace('Bearer ', ''), JWT_SECRET); }
+  catch { return res.status(401).json({ error: 'Invalid token' }); }
+  // Always use the CURRENT role from the database, so role changes/removals apply immediately
+  const u = store.users.find(x => x.id === payload.id) || store.users.find(x => x.email === payload.email);
+  if (!u) return res.status(401).json({ error: 'User no longer exists' });
+  req.user = { id: u.id, email: u.email, role: u.role };
+  next();
+}
+// Simple in-memory login throttle: 10 failed attempts per email+IP per 15 minutes
+const loginFails = new Map();
+function loginKey(req, email) { return (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim() + '|' + email; }
+function tooManyFails(key) {
+  const e = loginFails.get(key);
+  if (!e) return false;
+  if (Date.now() - e.first > 15*60*1000) { loginFails.delete(key); return false; }
+  return e.count >= 10;
+}
+function recordFail(key) {
+  const e = loginFails.get(key);
+  if (!e || Date.now() - e.first > 15*60*1000) loginFails.set(key, { count: 1, first: Date.now() });
+  else e.count++;
 }
 function requireRole(...roles) {
   return (req, res, next) => {
@@ -171,18 +236,27 @@ function fmtUser(u) {
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-  const user = store.users.find(u => u.email === email.toLowerCase().trim());
-  if (!user || !bcrypt.compareSync(password, user.password))
+  const em = String(email).toLowerCase().trim();
+  const key = loginKey(req, em);
+  if (tooManyFails(key)) return res.status(429).json({ error: 'ลองเข้าสู่ระบบผิดหลายครั้งเกินไป กรุณารอ 15 นาที' });
+  const user = store.users.find(u => u.email === em);
+  if (!user || !user.password || !bcrypt.compareSync(String(password), user.password)) {
+    recordFail(key);
     return res.status(401).json({ error: 'Incorrect email or password' });
+  }
+  loginFails.delete(key);
   const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, JWT_SECRET, { expiresIn:'7d' });
   res.json({ token, user: fmtUser(user) });
 });
 
 app.post('/api/auth/register', (req, res) => {
-  const { firstName, lastName, email, password, department, position, phone } = req.body;
+  let { firstName, lastName, email, password, department, position, phone } = req.body;
+  firstName = String(firstName||'').trim(); lastName = String(lastName||'').trim();
+  email = String(email||'').toLowerCase().trim();
   if (!firstName || !lastName || !email || !password) return res.status(400).json({ error: 'Missing required fields' });
-  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
-  if (store.users.find(u => u.email === email.toLowerCase())) return res.status(409).json({ error: 'Email already registered' });
+  if (!RE_EMAIL.test(email)) return res.status(400).json({ error: 'รูปแบบอีเมลไม่ถูกต้อง' });
+  if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (store.users.find(u => u.email === email)) return res.status(409).json({ error: 'Email already registered' });
   const name   = firstName + ' ' + lastName;
   const init   = (firstName[0] + (lastName[0]||'')).toUpperCase();
   const colors = ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
@@ -198,11 +272,11 @@ app.post('/api/auth/register', (req, res) => {
     created_at: new Date().toISOString()
   };
   store.users.push(newUser);
-  const empId = 'EMP-' + String(store.employees.length + 1).padStart(3,'0');
+  const empId = nextEmpId();
   store.employees.push({
     id: genId('employees'), emp_id: empId, user_id: newUser.id,
-    name, email: email.toLowerCase(), department: department||'', position: position||'',
-    join_date: new Date().toISOString().split('T')[0], status:'Active', work_model:'Office',
+    name, email, department: department||'', position: position||'',
+    join_date: bkkToday(), status:'Active', work_model:'Office',
     phone: phone||'', color, init, created_at: new Date().toISOString()
   });
   saveDb();
@@ -233,11 +307,11 @@ app.post('/api/auth/google', async (req, res) => {
         picture: picture||'', created_at: new Date().toISOString()
       };
       store.users.push(newUser);
-      const empId = 'EMP-' + String(store.employees.length + 1).padStart(3,'0');
+      const empId = nextEmpId();
       store.employees.push({
         id: genId('employees'), emp_id: empId, user_id: newUser.id,
         name, email: email.toLowerCase(), department:'', position:'',
-        join_date: new Date().toISOString().split('T')[0], status:'Active', work_model:'Office',
+        join_date: bkkToday(), status:'Active', work_model:'Office',
         phone:'', color, init, created_at: new Date().toISOString()
       });
       saveDb();
@@ -254,12 +328,38 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+// Forgot password: never resets anything by itself — it notifies admins, who reset it from the Permissions page.
+// Always answers the same way so it can't be used to discover which emails exist.
 app.post('/api/auth/forgot-password', (req, res) => {
-  const user = store.users.find(u => u.email === (req.body.email||'').toLowerCase());
-  if (!user) return res.status(404).json({ error: 'Email not found' });
-  user.password = bcrypt.hashSync('newpass123', 10);
-  saveDb();
-  res.json({ message: 'Password reset to newpass123 (demo)' });
+  const em = String(req.body.email||'').toLowerCase().trim();
+  const user = store.users.find(u => u.email === em);
+  if (user) {
+    store.users.filter(u => u.role === 'admin').forEach(a => notify(user.id, a.id,
+      `🔑 คำขอรีเซ็ตรหัสผ่าน — ${user.name}`,
+      `${user.name} (${user.email}) ขอรีเซ็ตรหัสผ่าน\nไปที่หน้า "สิทธิ์การใช้งาน" → แก้ไขผู้ใช้ → รีเซ็ตรหัสผ่าน`));
+    saveDb();
+  }
+  res.json({ ok: true, message: 'ส่งคำขอถึงผู้ดูแลระบบแล้ว' });
+});
+// Change own password
+app.put('/api/auth/password', auth, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const user = store.users.find(u => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  if (!newPassword || String(newPassword).length < 8) return res.status(400).json({ error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร' });
+  if (user.password && !bcrypt.compareSync(String(currentPassword||''), user.password)) return res.status(400).json({ error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' });
+  user.password = bcrypt.hashSync(String(newPassword), 10);
+  saveDb(); res.json({ ok: true });
+});
+// Admin: reset another user's password to a random temporary one (shown once to the admin)
+app.put('/api/users/:id/password', auth, requireRole('admin'), (req, res) => {
+  const user = store.users.find(u => u.id == req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  const temp = require('crypto').randomBytes(6).toString('base64').replace(/[+/=]/g, '').slice(0, 8) + '9a';
+  user.password = bcrypt.hashSync(temp, 10);
+  for (const k of loginFails.keys()) if (k.endsWith('|' + user.email)) loginFails.delete(k); // unlock the account
+  notify(req.user.id, user.id, '🔑 รหัสผ่านของคุณถูกรีเซ็ต', 'ผู้ดูแลระบบได้รีเซ็ตรหัสผ่านของคุณ กรุณาเปลี่ยนรหัสผ่านหลังเข้าสู่ระบบ');
+  saveDb(); res.json({ ok: true, tempPassword: temp });
 });
 
 app.get('/api/auth/me', auth, (req, res) => {
@@ -276,11 +376,12 @@ app.get('/api/employees', auth, (req, res) => {
 });
 app.post('/api/employees', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
   const { name, email, department, position, join_date, work_model, phone, color, init } = req.body;
-  const empId = 'EMP-' + String(store.employees.length + 1).padStart(3,'0');
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'กรุณาระบุชื่อพนักงาน' });
+  const empId = nextEmpId();
   const emp = {
     id: genId('employees'), emp_id: empId, user_id: null,
     name, email: email||'', department: department||'', position: position||'',
-    join_date: join_date||new Date().toISOString().split('T')[0], status:'Active',
+    join_date: join_date||bkkToday(), status:'Active',
     work_model: work_model||'Office', phone: phone||'',
     color: color||'#6B7280', init: init||'?', created_at: new Date().toISOString()
   };
@@ -321,12 +422,12 @@ app.get('/api/attendance', auth, (req, res) => {
   res.json([...rows].sort((a,b) => b.date.localeCompare(a.date)));
 });
 app.get('/api/attendance/today', auth, (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = bkkToday();
   res.json(store.attendance.find(a => a.user_id === req.user.id && a.date === today) || null);
 });
 app.post('/api/attendance/checkin', auth, (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
-  const now   = new Date().toLocaleTimeString('en-GB', { hour12:false, hour:'2-digit', minute:'2-digit' });
+  const today = bkkToday();
+  const now   = bkkNowHHMM();
   const { location, note } = req.body;
   const existing = store.attendance.find(a => a.user_id === req.user.id && a.date === today);
   if (existing && existing.check_in) return res.status(409).json({ error: 'Already checked in today' });
@@ -344,15 +445,14 @@ app.post('/api/attendance/checkin', auth, (req, res) => {
   saveDb(); res.json({ check_in: now, date: today });
 });
 app.post('/api/attendance/checkout', auth, (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
-  const now   = new Date().toLocaleTimeString('en-GB', { hour12:false, hour:'2-digit', minute:'2-digit' });
+  const today = bkkToday();
+  const now   = bkkNowHHMM();
   const row   = store.attendance.find(a => a.user_id === req.user.id && a.date === today);
   if (!row || !row.check_in) return res.status(400).json({ error: 'Not checked in yet' });
-  const [ih, im] = row.check_in.split(':').map(Number);
-  const [oh, om] = now.split(':').map(Number);
-  const mins = (oh*60+om) - (ih*60+im);
+  if (row.check_out) return res.status(409).json({ error: 'Already checked out today' });
+  const mins = Math.max(0, toMin(now) - toMin(row.check_in));
   row.check_out   = now;
-  row.work_hours  = Math.floor(mins/60) + 'h ' + String(mins%60).padStart(2,'0') + 'm';
+  row.work_hours  = fmtDur(mins);
   saveDb(); res.json({ check_out: now, work_hours: row.work_hours });
 });
 
@@ -360,14 +460,15 @@ app.post('/api/attendance/checkout', auth, (req, res) => {
 app.post('/api/attendance/retroactive', auth, (req, res) => {
   const { date, check_in, check_out, location, reason } = req.body;
   if (!date || !check_in) return res.status(400).json({ error: 'Date and check-in time required' });
-  const today = new Date().toISOString().split('T')[0];
+  if (!isDate(date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
+  if (!RE_TIME.test(check_in) || (check_out && !RE_TIME.test(check_out))) return res.status(400).json({ error: 'รูปแบบเวลาไม่ถูกต้อง (HH:MM)' });
+  const today = bkkToday();
   if (date >= today) return res.status(400).json({ error: 'Can only submit retroactive for past dates' });
   let workHours = null;
-  if (check_in && check_out) {
-    const [ih,im] = check_in.split(':').map(Number);
-    const [oh,om] = check_out.split(':').map(Number);
-    const mins = (oh*60+om) - (ih*60+im);
-    if (mins > 0) workHours = Math.floor(mins/60) + 'h ' + String(mins%60).padStart(2,'0') + 'm';
+  if (check_out) {
+    const mins = toMin(check_out) - toMin(check_in);
+    if (mins <= 0) return res.status(400).json({ error: 'เวลาออกต้องหลังเวลาเข้า' });
+    workHours = fmtDur(mins);
   }
   if (store.attendance.find(a => a.user_id === req.user.id && a.date === date))
     return res.status(409).json({ error: 'Attendance record already exists for this date' });
@@ -435,6 +536,8 @@ app.get('/api/leave', auth, (req, res) => {
   });
   res.json([...result].sort((a,b) => b.created_at.localeCompare(a.created_at)));
 });
+const LEAVE_TYPES = ['Annual','Sick','Casual','Compensatory','Comp'];
+const LEAVE_TH = { Annual:'ลาพักร้อน', Sick:'ลาป่วย', Casual:'ลากิจ', Compensatory:'ลาชดเชย', Comp:'ขอวันลาชดเชย' };
 // ── Leave attachments (medical certificates) — stored separately from main store ──
 const ATT_ALLOWED = ['image/jpeg','image/png','image/webp','image/heic','application/pdf'];
 const ATT_MAX_BYTES = 5 * 1024 * 1024;
@@ -461,6 +564,18 @@ async function loadAttachment(leaveId) {
 app.post('/api/leave', auth, async (req, res) => {
   const { type, from_date, to_date, days, reason, attachment } = req.body;
   if (!type || !from_date || !to_date) return res.status(400).json({ error: 'Missing fields' });
+  if (!LEAVE_TYPES.includes(type)) return res.status(400).json({ error: 'ประเภทการลาไม่ถูกต้อง' });
+  if (!isDate(from_date) || !isDate(to_date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
+  if (to_date < from_date) return res.status(400).json({ error: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' });
+  const nDays = days === undefined ? 1 : Number(days);
+  const span = Math.round((new Date(to_date) - new Date(from_date)) / 864e5) + 1;
+  if (!isFinite(nDays) || nDays < 0.5 || nDays > span || nDays > 365) return res.status(400).json({ error: 'จำนวนวันลาไม่ถูกต้อง' });
+  // 'Comp' rows record OT-holiday work that EARNS comp days — they aren't time off, so skip the overlap rule
+  if (type !== 'Comp') {
+    const clash = store.leave_requests.find(r => r.user_id === req.user.id && r.type !== 'Comp'
+      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date);
+    if (clash) return res.status(409).json({ error: `มีคำขอลาช่วง ${clash.from_date} – ${clash.to_date} อยู่แล้ว` });
+  }
   // Validate attachment if present
   let att = null;
   if (attachment && attachment.data) {
@@ -474,7 +589,7 @@ app.post('/api/leave', auth, async (req, res) => {
   }
   const row = {
     id: genId('leave_requests'), user_id: req.user.id, type, from_date, to_date,
-    days: days||1, reason: reason||'', status:'Pending',
+    days: nDays, reason: reason||'', status:'Pending',
     approved_by: null, note:'', created_at: new Date().toISOString(),
     has_attachment: !!att, attachment_name: att ? att.name : ''
   };
@@ -500,7 +615,31 @@ app.put('/api/leave/:id/status', auth, requireRole('admin','hr_manager','hr_staf
   const row = store.leave_requests.find(r => r.id == req.params.id);
   if (!row) return res.status(404).json({ error: 'Not found' });
   const { status, note } = req.body;
-  row.status = status; row.approved_by = req.user.id; row.note = note||'';
+  if (!['Approved','Rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  if (row.status === 'Cancelled') return res.status(409).json({ error: 'คำขอนี้ถูกยกเลิกแล้ว' });
+  row.status = status; row.approved_by = req.user.id; row.note = note||''; row.decided_at = new Date().toISOString();
+  const ok = status === 'Approved';
+  notify(req.user.id, row.user_id,
+    `${ok?'✅':'❌'} คำขอ${LEAVE_TH[row.type]||'ลา'} ${row.from_date}${row.to_date!==row.from_date?' – '+row.to_date:''} — ${ok?'อนุมัติ':'ไม่อนุมัติ'}`,
+    `${(store.users.find(u=>u.id===req.user.id)||{}).name||''} ${ok?'อนุมัติ':'ไม่อนุมัติ'}คำขอของคุณ (${row.days} วัน)${note?'\nหมายเหตุ: '+note:''}`);
+  saveDb(); res.json({ ok: true });
+});
+// Cancel a leave request — owner (pending, or approved leave that hasn't started) or a manager
+app.put('/api/leave/:id/cancel', auth, (req, res) => {
+  const row = store.leave_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  const mgr = isManagerRole(req.user.role);
+  if (row.user_id !== req.user.id && !mgr) return res.status(403).json({ error: 'Forbidden' });
+  if (row.status === 'Cancelled' || row.status === 'Rejected') return res.status(409).json({ error: 'คำขอนี้ปิดไปแล้ว' });
+  if (!mgr && row.status === 'Approved' && row.from_date <= bkkToday())
+    return res.status(409).json({ error: 'วันลาเริ่มไปแล้ว — กรุณาติดต่อ HR เพื่อยกเลิก' });
+  const wasApproved = row.status === 'Approved';
+  row.status = 'Cancelled'; row.cancelled_by = req.user.id; row.cancelled_at = new Date().toISOString();
+  if (wasApproved && row.user_id === req.user.id) {
+    const me = store.users.find(u => u.id === req.user.id) || {};
+    store.users.filter(u => isManagerRole(u.role) && u.id !== req.user.id).forEach(m =>
+      notify(req.user.id, m.id, `↩️ ยกเลิก${LEAVE_TH[row.type]||'ลา'} — ${me.name||''}`, `${me.name||''} ยกเลิกวันลาที่อนุมัติแล้ว ${row.from_date} – ${row.to_date}`));
+  }
   saveDb(); res.json({ ok: true });
 });
 
@@ -523,6 +662,9 @@ app.get('/api/ot', auth, (req, res) => {
 app.post('/api/ot', auth, (req, res) => {
   const { date, start_time, end_time, hours, type, reason } = req.body;
   if (!date || !start_time || !end_time || !reason) return res.status(400).json({ error: 'Missing fields' });
+  if (!isDate(date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
+  if (!RE_TIME.test(start_time) || !RE_TIME.test(end_time)) return res.status(400).json({ error: 'รูปแบบเวลาไม่ถูกต้อง (HH:MM)' });
+  if (toMin(end_time) <= toMin(start_time)) return res.status(400).json({ error: 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม' });
   const row = {
     id: genId('ot_requests'), user_id: req.user.id, date, start_time, end_time,
     hours: hours||'', type: type||'Voluntary', reason,
@@ -535,7 +677,11 @@ app.put('/api/ot/:id/status', auth, requireRole('admin','hr_manager','hr_staff')
   const row = store.ot_requests.find(r => r.id == req.params.id);
   if (!row) return res.status(404).json({ error: 'Not found' });
   const { status, note } = req.body;
+  if (!['Approved','Rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
   row.status = status; row.approved_by = req.user.id; row.note = note||'';
+  const ok = status === 'Approved';
+  notify(req.user.id, row.user_id, `${ok?'✅':'❌'} คำขอ OT ${row.date} — ${ok?'อนุมัติ':'ไม่อนุมัติ'}`,
+    `${row.start_time}–${row.end_time}${note?'\nหมายเหตุ: '+note:''}`);
   saveDb(); res.json({ ok: true });
 });
 
@@ -552,8 +698,9 @@ app.get('/api/inbox', auth, (req, res) => {
 app.post('/api/inbox', auth, (req, res) => {
   const { to_user, subject, body } = req.body;
   if (!subject) return res.status(400).json({ error: 'Subject required' });
+  if (!to_user || !store.users.find(u => u.id == to_user)) return res.status(400).json({ error: 'กรุณาเลือกผู้รับ' });
   const row = {
-    id: genId('inbox'), from_user: req.user.id, to_user: to_user||null,
+    id: genId('inbox'), from_user: req.user.id, to_user: Number(to_user),
     subject, body: body||'', is_read: 0, created_at: new Date().toISOString()
   };
   store.inbox.push(row);
@@ -627,10 +774,12 @@ app.put('/api/users/:id/profile', auth, (req, res) => {
     if (department !== undefined) emp.department   = department;
     if (position   !== undefined) emp.position     = position;
     if (phone      !== undefined) emp.phone        = phone;
-    // Allow self-restore of employment fields from local cache after DB reset
-    if (start_date    !== undefined && start_date    !== '') emp.start_date    = start_date;
-    if (contract_type !== undefined && contract_type !== '') emp.contract_type = contract_type;
-    if (work_type     !== undefined && work_type     !== '') emp.work_type     = work_type;
+    // Employment fields drive leave quota & probation — only admin / HR manager may set them
+    if (['admin','hr_manager'].includes(req.user.role)) {
+      if (start_date    !== undefined && start_date    !== '') emp.start_date    = start_date;
+      if (contract_type !== undefined && contract_type !== '') emp.contract_type = contract_type;
+      if (work_type     !== undefined && work_type     !== '') emp.work_type     = work_type;
+    }
   }
   saveDb();
   res.json(fmtUser(user));
@@ -654,19 +803,29 @@ app.put('/api/users/:id/permissions', auth, requireRole('admin'), (req, res) => 
   const user = store.users.find(u => u.id == req.params.id);
   if (!user) return res.status(404).json({ error: 'Not found' });
   const { role, permissions } = req.body;
+  if (!ROLE_DEFAULTS[role]) return res.status(400).json({ error: 'Invalid role' });
+  if (!Array.isArray(permissions) || permissions.some(p => typeof p !== 'string')) return res.status(400).json({ error: 'Invalid permissions' });
+  if (user.role === 'admin' && role !== 'admin' && store.users.filter(u => u.role === 'admin').length <= 1)
+    return res.status(400).json({ error: 'ต้องมีผู้ดูแลระบบ (Admin) อย่างน้อย 1 คน' });
   user.role = role; user.permissions = JSON.stringify(permissions);
   saveDb(); res.json({ ok: true });
+});
+// Approver list for request forms — available to every signed-in user (names & roles only)
+app.get('/api/approvers', auth, (req, res) => {
+  let list = store.users.filter(u => isManagerRole(u.role) && u.id !== req.user.id);
+  if (!list.length) list = store.users.filter(u => isManagerRole(u.role)); // sole manager may self-approve
+  res.json(list.map(u => ({ id: u.id, name: u.name, role: u.role })).sort((a,b) => (a.name||'').localeCompare(b.name||'')));
 });
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
 app.get('/api/stats', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = bkkToday();
   res.json({
     totalEmployees: store.employees.length,
     presentToday:   store.attendance.filter(a => a.date === today && a.check_in).length,
     pendingLeave:   store.leave_requests.filter(r => r.status === 'Pending').length,
     pendingOT:      store.ot_requests.filter(r => r.status === 'Pending').length,
-    onLeaveToday:   store.leave_requests.filter(r => r.status === 'Approved' && r.start_date <= today && r.end_date >= today).length,
+    onLeaveToday:   new Set(store.leave_requests.filter(r => r.status === 'Approved' && r.type !== 'Comp' && r.from_date <= today && r.to_date >= today).map(r => r.user_id)).size,
   });
 });
 
@@ -744,7 +903,7 @@ function seedAdmin() {
   store.employees.push({
     id: genId('employees'), emp_id: 'EMP001', user_id: admin.id,
     name: SEED_NAME, email: SEED_EMAIL, department: 'Management',
-    position: 'System Admin', join_date: new Date().toISOString().split('T')[0],
+    position: 'System Admin', join_date: bkkToday(),
     status: 'Active', work_model: 'Office', phone: '', color: '#10B981', init,
     created_at: new Date().toISOString(),
   });

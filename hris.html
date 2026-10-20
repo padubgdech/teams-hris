@@ -619,7 +619,7 @@
         <div class="card flex-1">
           <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
             <span class="card-title" data-i18n="attendance_history">ประวัติการลงเวลา</span>
-            <input type="month" style="width:auto" value="2026-06">
+            <input type="month" style="width:auto" data-thismonth="1">
           </div>
           <table>
             <thead><tr><th data-i18n="date">วันที่</th><th data-i18n="check_in">เวลาเข้า</th><th data-i18n="check_out">เวลาออก</th><th data-i18n="work_hours">ชั่วโมงทำงาน</th><th data-i18n="status">สถานะ</th></tr></thead>
@@ -925,10 +925,10 @@
     <div class="view" id="view-payroll">
       <div class="page-title" data-i18n="payroll">เงินเดือน</div>
       <div class="grid grid-4" style="margin-bottom:20px">
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div><div class="stat-val">฿352k</div><div class="stat-label">เงินเดือนรวม</div></div></div></div>
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="stat-val">฿15k</div><div class="stat-label">เงินเดือนเฉลี่ย</div></div></div></div>
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="stat-val">฿4.8k</div><div class="stat-label">โบนัส</div></div></div></div>
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><div><div class="stat-val">฿6.5k</div><div class="stat-label">หักเงิน</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">เงินเดือนรวม</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">เงินเดือนเฉลี่ย</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">โบนัส</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">หักเงิน</div></div></div></div>
       </div>
       <div class="card">
         <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
@@ -968,9 +968,9 @@
     <div class="view" id="view-recruitment">
       <div class="page-title">Recruitment</div>
       <div class="grid grid-3" style="margin-bottom:20px">
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div><div class="stat-val">42</div><div class="stat-label">Open Positions</div></div></div></div>
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="stat-val">146</div><div class="stat-label">Applicants</div></div></div></div>
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="stat-val">18</div><div class="stat-label">Hired This Month</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div><div class="stat-val">0</div><div class="stat-label">Open Positions</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="stat-val">0</div><div class="stat-label">Applicants</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="stat-val">0</div><div class="stat-label">Hired This Month</div></div></div></div>
       </div>
       <div class="card">
         <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
@@ -979,12 +979,7 @@
         </div>
         <table>
           <thead><tr><th>ตำแหน่ง</th><th>แผนก</th><th>ผู้สมัคร</th><th>ลงประกาศ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-          <tbody>
-            <tr><td style="font-weight:600">Senior Frontend Dev</td><td>Engineering</td><td>24</td><td>15 มิ.ย. 2569</td><td><span class="badge badge-green">เปิดรับ</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
-            <tr><td style="font-weight:600">UX Designer</td><td>Design</td><td>18</td><td>10 มิ.ย. 2569</td><td><span class="badge badge-green">เปิดรับ</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
-            <tr><td style="font-weight:600">Sales Manager</td><td>Sales</td><td>31</td><td>05 มิ.ย. 2569</td><td><span class="badge badge-orange">รอรีวิว</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
-            <tr><td style="font-weight:600">HR Specialist</td><td>Human Resources</td><td>12</td><td>20 มิ.ย. 2569</td><td><span class="badge badge-green">เปิดรับ</span></td><td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button></td></tr>
-          </tbody>
+          <tbody><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px">ยังไม่มีตำแหน่งงานที่เปิดรับ</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1383,7 +1378,7 @@
       <div class="form-group"><label>เบอร์โทรศัพท์</label><input type="tel" placeholder="081-234-5678"></div>
       <div class="form-group"><label>แผนก</label><select><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
       <div class="form-group"><label>ตำแหน่ง</label><input type="text" placeholder="นักพัฒนาซอฟต์แวร์"></div>
-      <div class="form-group"><label>วันที่เริ่มงาน</label><input type="date" value="2026-06-26"></div>
+      <div class="form-group"><label>วันที่เริ่มงาน</label><input type="date" data-today="1"></div>
       <div class="form-group"><label>ประเภทการจ้างงาน</label><select><option>พนักงานประจำ</option><option>พนักงานพาร์ทไทม์</option><option>สัญญาจ้าง</option></select></div>
     </div>
     <div class="form-group"><label>รูปแบบการทำงาน</label>
@@ -1571,8 +1566,8 @@
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>วันที่เริ่มลา</label><input type="date" id="leave-from" value="2026-06-26" onchange="if(document.getElementById('leave-half-day')?.checked){document.getElementById('leave-to').value=this.value;}"></div>
-      <div class="form-group"><label>วันที่สิ้นสุด</label><input type="date" id="leave-to" value="2026-06-26"></div>
+      <div class="form-group"><label>วันที่เริ่มลา</label><input type="date" id="leave-from" data-today="1" onchange="if(document.getElementById('leave-half-day')?.checked){document.getElementById('leave-to').value=this.value;}"></div>
+      <div class="form-group"><label>วันที่สิ้นสุด</label><input type="date" id="leave-to" data-today="1"></div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin:-4px 0 10px">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#374151;user-select:none">
@@ -1594,8 +1589,8 @@
       </label>
       <input type="file" id="leave-attach" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" style="display:none" onchange="onLeaveAttachChange(this)">
     </div>
-    <div style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:#065F46;margin-bottom:16px">
-      📋 <strong>วันลาคงเหลือ:</strong> ลาพักร้อน: 6 วัน &nbsp;|&nbsp; ลาป่วย: 30 วัน &nbsp;|&nbsp; ลากิจ: 3 วัน
+    <div id="leave-modal-balance" data-live="1" style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:#065F46;margin-bottom:16px">
+      📋 <strong>วันลาคงเหลือ:</strong> กำลังคำนวณ…
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-outline" onclick="closeModal('modal-leave')">ยกเลิก</button>
@@ -1611,7 +1606,7 @@
     <div class="modal-title">นัดหมายใหม่</div>
     <div class="form-group"><label>หัวเรื่อง</label><input type="text" id="appt-title" placeholder="ประชุม / สัมภาษณ์ / รีวิว..."></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>วันที่</label><input type="date" id="appt-date" value="2026-06-26"></div>
+      <div class="form-group"><label>วันที่</label><input type="date" id="appt-date" data-today="1"></div>
       <div class="form-group"><label>ประเภท</label>
         <select id="appt-type">
           <option value="meeting">ประชุม</option>
@@ -1647,7 +1642,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
       <div class="form-group" style="grid-column:1/-1">
         <label>วันที่ทำ OT</label>
-        <input type="date" id="ot-date" value="2026-06-26">
+        <input type="date" id="ot-date" data-today="1">
       </div>
       <div class="form-group">
         <label>เวลาเริ่ม</label>
@@ -1722,6 +1717,7 @@
       ⚠ การเปลี่ยนสิทธิ์จะมีผลเมื่อเข้าสู่ระบบครั้งถัดไป
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="adminResetPassword()" style="margin-right:auto;color:#B45309;border-color:#FCD34D">🔑 รีเซ็ตรหัสผ่าน</button>
       <button class="btn btn-outline" onclick="closeModal('modal-edit-perm')">ยกเลิก</button>
       <button class="btn btn-primary" onclick="savePermissions()">บันทึกการเปลี่ยนแปลง</button>
     </div>
@@ -3134,8 +3130,34 @@ function removeAnnualProbationStyle() {
 }
 
 // ── Open leave modal with probation check ─────────────────────────────
+function localISODate(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+// Leave days the current user has left, per type (uses user_id so same-name users don't mix)
+function myLeaveRemaining() {
+  const uid = currentUser?.id, nm = currentUser?.name;
+  const mine = leaveData.filter(r => (r.userId !== undefined ? r.userId === uid : r.emp === nm) && r.status === 'Approved');
+  const used = t => mine.filter(r => r.type === t).reduce((s, r) => s + (+r.days || 0), 0);
+  const rec = (typeof _apiEmpData !== 'undefined' ? _apiEmpData : []).find(e => e.user_id === uid) || {};
+  return {
+    Annual: calcAnnualQuota(nm) + (rec.annual_bonus || 0) - used('Annual'),
+    Sick:   LEAVE_QUOTA.Sick   + (rec.sick_bonus   || 0) - used('Sick'),
+    Casual: LEAVE_QUOTA.Casual + (rec.casual_bonus || 0) - used('Casual'),
+  };
+}
+function leaveModalPostOpen() {
+  const today = localISODate();
+  const f = document.getElementById('leave-from'), t = document.getElementById('leave-to');
+  if (f && (!f.value || f.value < today)) f.value = today;
+  if (t && (!t.value || t.value < f.value)) t.value = f.value;
+  const ag = document.getElementById('leave-attach-group');
+  if (ag) ag.style.display = (state.selectedLeaveType === 'Sick') ? 'block' : 'none';
+  const b = document.getElementById('leave-modal-balance');
+  if (b) { const r = myLeaveRemaining(); b.innerHTML = `📋 <strong>วันลาคงเหลือ:</strong> ลาพักร้อน: ${r.Annual} วัน &nbsp;|&nbsp; ลาป่วย: ${r.Sick} วัน &nbsp;|&nbsp; ลากิจ: ${r.Casual} วัน`; }
+}
 function openLeaveModal() {
   openModal('modal-leave');
+  setTimeout(leaveModalPostOpen, 0);
   // Reset half-day state
   const hdCb = document.getElementById('leave-half-day');
   const toEl = document.getElementById('leave-to');
@@ -4035,16 +4057,22 @@ function openMsg(i) {
 }
 
 // ════════════ MODALS ════════════
-function openModal(id) { document.getElementById(id).classList.add('open'); }
+function fillTodayDefaults(root) {
+  const d = new Date(), today = localISODate(d), month = today.slice(0, 7);
+  (root || document).querySelectorAll('input[data-today]').forEach(el => { if (!el.value) el.value = today; });
+  (root || document).querySelectorAll('input[data-thismonth]').forEach(el => { if (!el.value) el.value = month; });
+}
+document.addEventListener('DOMContentLoaded', () => fillTodayDefaults());
+function openModal(id) { const m = document.getElementById(id); fillTodayDefaults(m); m.classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 async function openOTModal() {
   openModal('modal-ot-request');
   // Load approvers from API
   try {
-    const users = await apiCall('GET','/api/users');
+    const users = await apiCall('GET','/api/approvers');
     const sel = document.getElementById('ot-approver');
-    const approvers = (users||[]).filter(u => ['admin','hr_manager','hr_staff'].includes(u.role));
+    const approvers = (Array.isArray(users) ? users : []).filter(u => ['admin','hr_manager','hr_staff'].includes(u.role));
     if (approvers.length > 0) {
       sel.innerHTML = approvers.map(u => `<option value="${u.id}">${u.name} — ${u.role==='admin'?'Admin':u.role==='hr_manager'?'HR Manager':'HR Staff'}</option>`).join('');
     } else {
@@ -4114,6 +4142,14 @@ const ROLE_DEFAULTS = {
   employee:   ['checkin','ot','inbox','calendar','leave','myrecords'],
 };
 const ROLE_LABELS = {admin:'Admin',hr_manager:'HR Manager',hr_staff:'HR Staff',employee:'Employee'};
+// Pages a user may open. Admins always get every page; everyone else gets exactly what the admin
+// granted on the Permissions page (falling back to role defaults only if nothing was ever saved).
+function effectivePerms(u) {
+  const defs = ROLE_DEFAULTS[u && u.role] || [];
+  const saved = Array.isArray(u && u.permissions) ? u.permissions : [];
+  if (u && u.role === 'admin') return [...new Set([...saved, ...defs])];
+  return saved.length ? saved : defs;
+}
 const ROLE_COLORS = {admin:'#6366F1',hr_manager:'#00C896',hr_staff:'#3B82F6',employee:'#F59E0B'};
 
 // ════════════ DEPARTMENT MANAGEMENT ════════════
@@ -4431,6 +4467,10 @@ function buildSidebar() {
           <div class="pd-item" onclick="closeProfileDropdown();nav('checkin')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             เช็กอิน / เช็กเอาต์
+          </div>
+          <div class="pd-item" onclick="closeProfileDropdown();changeMyPassword()">
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            เปลี่ยนรหัสผ่าน
           </div>
           <div class="pd-divider"></div>
           <div class="pd-item pd-logout" onclick="closeProfileDropdown();if(confirm('ออกจากระบบ?'))doLogout()">
@@ -5887,7 +5927,7 @@ async function handleGoogleCredential(response) {
     apiToken = data.token;
     currentUser = data.user;
     const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
-    currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
+    currentUser.permissions = effectivePerms(currentUser);
     try { localStorage.setItem('hris_session', JSON.stringify({email: currentUser.email, pass:'', token: apiToken, google: true})); } catch(e){}
     await restoreProfileFromCache();    // re-sync profile if DB was reset
     await restoreEmploymentFromCache(); // re-sync start_date if DB was reset
@@ -5950,7 +5990,7 @@ doLogin = async function() {
     currentUser = Object.assign({}, localProfile, result.user);
     // Ensure permissions always include ROLE_DEFAULTS for this role (API DB may be missing new entries)
     const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
-    currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
+    currentUser.permissions = effectivePerms(currentUser);
     err.style.display = 'none';
     document.getElementById('login-screen').classList.add('hidden');
     buildSidebar();
@@ -5958,7 +5998,7 @@ doLogin = async function() {
     const h = new Date().getHours();
     const dg = document.getElementById('dash-greeting');
     if(dg) dg.textContent = t(h<12?'good_morning':h<18?'good_afternoon':'good_evening') + ', ' + result.user.name.split(' ')[0] + ' 👋';
-    try { localStorage.setItem('hris_session', JSON.stringify({email, pass, token: result.token})); } catch(e){}
+    try { localStorage.setItem('hris_session', JSON.stringify({email, token: result.token})); } catch(e){}
     nav(result.user.permissions[0] || 'checkin');
     loadTodayCheckin();
     if (!checkProfileComplete()) showProfileCompleteModal();
@@ -5994,8 +6034,8 @@ doSignUp = async function() {
     apiToken = result.token;
     currentUser = result.user;
     const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
-    currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
-    try { localStorage.setItem('hris_session', JSON.stringify({email, pass, token: result.token})); } catch(e){}
+    currentUser.permissions = effectivePerms(currentUser);
+    try { localStorage.setItem('hris_session', JSON.stringify({email, token: result.token})); } catch(e){}
     await Promise.all([loadDeptsFromApi(), loadCalNotesFromApi()]);
     document.getElementById('login-screen').classList.add('hidden');
     buildSidebar();
@@ -6130,7 +6170,7 @@ renderLeave = async function() {
 
   // Comp balance from full data (current user only)
   const myN = currentUser?.name||'';
-  const cSrc = isManager ? fullData.filter(r=>r.emp_name===myN) : fullData;
+  const cSrc = isManager ? fullData.filter(r=>r.user_id===currentUser?.id) : fullData;
   _compTotal = cSrc.filter(r=>r.type==='Comp'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
   _compUsed  = cSrc.filter(r=>r.type==='Compensatory'&&r.status==='Approved').reduce((s,r)=>s+(+r.days||0),0);
   _updateCompRing();
@@ -6162,11 +6202,37 @@ renderLeave = async function() {
           ${r.status==='Pending'&&isManager?`
           <button onclick="approveLeaveApi(${r.id},'Approved')" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
           <button onclick="approveLeaveApi(${r.id},'Rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>`:''}
+          ${r.user_id===currentUser?.id && (r.status==='Pending' || (r.status==='Approved' && r.from_date > localISODate()))?`
+          <button onclick="cancelLeaveApi(${r.id})" style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:99px;padding:4px 10px;cursor:pointer;color:#92400E;font-size:11px;font-weight:700">ยกเลิก</button>`:''}
         </div>
       </td>
     </tr>`).join('')||`<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">${emptyMsg}</td></tr>`;
 };
 
+async function changeMyPassword(){
+  if(!useApi){ showToast('ต้องเชื่อมต่อเซิร์ฟเวอร์','error'); return; }
+  const cur = currentUser?.auth_provider==='google' && !currentUser?.has_password ? '' : prompt('รหัสผ่านปัจจุบัน:');
+  if(cur===null) return;
+  const nw = prompt('รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร):'); if(!nw) return;
+  if(nw.length<8){ showToast('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร','error'); return; }
+  if(prompt('ยืนยันรหัสผ่านใหม่อีกครั้ง:')!==nw){ showToast('รหัสผ่านไม่ตรงกัน','error'); return; }
+  const r = await apiCall('PUT','/api/auth/password',{currentPassword:cur,newPassword:nw});
+  if(r&&r.ok) showToast('เปลี่ยนรหัสผ่านเรียบร้อย','success'); else showToast((r&&r.error)||'เปลี่ยนรหัสผ่านไม่สำเร็จ','error');
+}
+async function adminResetPassword(){
+  const u = USERS.find(x=>x.email===editingUserEmail);
+  if(!u||!u._id){ showToast('ไม่พบผู้ใช้','error'); return; }
+  if(!confirm('รีเซ็ตรหัสผ่านของ '+u.name+' ใช่หรือไม่?')) return;
+  const r = await apiCall('PUT','/api/users/'+u._id+'/password',{});
+  if(r&&r.tempPassword) prompt('รหัสผ่านชั่วคราวของ '+u.name+' (คัดลอกแล้วส่งให้ผู้ใช้ — จะแสดงครั้งเดียว):', r.tempPassword);
+  else showToast((r&&r.error)||'รีเซ็ตไม่สำเร็จ','error');
+}
+async function cancelLeaveApi(id){
+  if(!confirm('ยืนยันยกเลิกคำขอลานี้?')) return;
+  const r = await apiCall('PUT','/api/leave/'+id+'/cancel',{});
+  if(r && r.ok){ showToast('ยกเลิกคำขอลาแล้ว','success'); await renderLeave(); }
+  else showToast((r&&r.error)||'ยกเลิกไม่สำเร็จ','error');
+}
 async function approveLeaveApi(id,status){
   if(!useApi) return;
   // Look up the record before updating (to check type/days)
@@ -6200,7 +6266,7 @@ submitLeave = async function(){
   const days  = halfDay ? 0.5 : Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1);
   // Balance check
   const myName = currentUser?.name||'';
-  const approved = leaveData.filter(r=>r.status==='Approved'&&(r.emp||r.empName||'')===myName);
+  const approved = leaveData.filter(r=>r.status==='Approved'&&(r.userId!==undefined ? r.userId===currentUser?.id : (r.emp||r.empName||'')===myName));
   const usedA = approved.filter(r=>r.type==='Annual').reduce((s,r)=>s+(+r.days||0),0);
   const usedS = approved.filter(r=>r.type==='Sick').reduce((s,r)=>s+(+r.days||0),0);
   const usedC = approved.filter(r=>r.type==='Casual').reduce((s,r)=>s+(+r.days||0),0);
@@ -6454,7 +6520,7 @@ window.addEventListener('load', async ()=>{
           const localProfile = USERS.find(u => u.email === sess.email) || {};
           currentUser = Object.assign({}, localProfile, me);
           const roleDefaults = ROLE_DEFAULTS[currentUser.role] || [];
-          currentUser.permissions = [...new Set([...(currentUser.permissions||[]), ...roleDefaults])];
+          currentUser.permissions = effectivePerms(currentUser);
           loadUserAttHistory(sess.email);
           loadUserInbox(sess.email);
           await restoreProfileFromCache();    // re-sync profile if DB was reset
