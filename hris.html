@@ -1372,20 +1372,20 @@
     <button class="modal-close" onclick="closeModal('modal-add-emp')">✕</button>
     <div class="modal-title">เพิ่มพนักงานใหม่</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>ชื่อ</label><input type="text" placeholder="สมชาย"></div>
-      <div class="form-group"><label>นามสกุล</label><input type="text" placeholder="ใจดี"></div>
-      <div class="form-group"><label>อีเมล</label><input type="email" placeholder="somchai@company.com"></div>
-      <div class="form-group"><label>เบอร์โทรศัพท์</label><input type="tel" placeholder="081-234-5678"></div>
-      <div class="form-group"><label>แผนก</label><select><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
-      <div class="form-group"><label>ตำแหน่ง</label><input type="text" placeholder="นักพัฒนาซอฟต์แวร์"></div>
-      <div class="form-group"><label>วันที่เริ่มงาน</label><input type="date" data-today="1"></div>
-      <div class="form-group"><label>ประเภทการจ้างงาน</label><select><option>พนักงานประจำ</option><option>พนักงานพาร์ทไทม์</option><option>สัญญาจ้าง</option></select></div>
+      <div class="form-group"><label>ชื่อ</label><input type="text" id="ae-first" placeholder="สมชาย"></div>
+      <div class="form-group"><label>นามสกุล</label><input type="text" id="ae-last" placeholder="ใจดี"></div>
+      <div class="form-group"><label>อีเมล</label><input type="email" id="ae-email" placeholder="somchai@company.com"></div>
+      <div class="form-group"><label>เบอร์โทรศัพท์</label><input type="tel" id="ae-phone" placeholder="081-234-5678"></div>
+      <div class="form-group"><label>แผนก</label><select id="ae-dept"><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
+      <div class="form-group"><label>ตำแหน่ง</label><input type="text" id="ae-pos" placeholder="นักพัฒนาซอฟต์แวร์"></div>
+      <div class="form-group"><label>วันที่เริ่มงาน</label><input type="date" id="ae-start" data-today="1"></div>
+      <div class="form-group"><label>ประเภทการจ้างงาน</label><select id="ae-contract"><option value="Permanent">พนักงานประจำ</option><option value="Part-time">พนักงานพาร์ทไทม์</option><option value="Contract">สัญญาจ้าง</option></select></div>
     </div>
     <div class="form-group"><label>รูปแบบการทำงาน</label>
-      <div class="chip-select">
-        <div class="chip selected" onclick="selectChip(this)">ออฟฟิศ</div>
-        <div class="chip" onclick="selectChip(this)">ทางไกล</div>
-        <div class="chip" onclick="selectChip(this)">ไฮบริด</div>
+      <div class="chip-select" id="ae-work">
+        <div class="chip selected" data-v="Office" onclick="selectChip(this)">ออฟฟิศ</div>
+        <div class="chip" data-v="Remote" onclick="selectChip(this)">ทางไกล</div>
+        <div class="chip" data-v="Hybrid" onclick="selectChip(this)">ไฮบริด</div>
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
@@ -1742,7 +1742,7 @@
         </select>
       </div>
     </div>
-    <div class="form-group"><label>แผนก</label><select><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
+    <div class="form-group"><label>แผนก</label><select id="new-acc-dept"><option>Human Resources</option><option>Engineering</option><option>Design</option><option>Sales</option><option>Marketing</option><option>Finance</option></select></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
       <button class="btn btn-outline" onclick="closeModal('modal-add-account')">ยกเลิก</button>
       <button class="btn btn-primary" onclick="addAccount()">สร้างบัญชี</button>
@@ -2665,7 +2665,9 @@ async function renderDashboard() {
 }
 async function dashApproveLeave(id, status, btn) {
   btn.closest('.event-item').style.opacity = '0.5';
-  await apiCall('PUT', `/api/leave/${id}/status`, { status });
+  const res = await apiCall('PUT', `/api/leave/${id}/status`, { status });
+  if (!res || !res.ok) { btn.closest('.event-item').style.opacity = '1'; showToast((res&&res.error)||'บันทึกไม่สำเร็จ','error'); return; }
+  showToast(status==='Approved'?'อนุมัติวันลาแล้ว':'ไม่อนุมัติวันลาแล้ว','success');
   renderDashboard();
 }
 
@@ -4100,7 +4102,8 @@ function showToast(msg, type='') {
 
 // ════════════ CHART ════════════
 function initChart() {
-  const ctx = document.getElementById('perfChart').getContext('2d');
+  if (typeof Chart === 'undefined') return; // chart library blocked/offline — skip the chart, keep the page working
+  const cv = document.getElementById('perfChart'); const ctx = cv && cv.getContext && cv.getContext('2d'); if (!ctx) return;
   new Chart(ctx, {
     type: 'line',
     data: {
@@ -6237,8 +6240,9 @@ async function approveLeaveApi(id,status){
   if(!useApi) return;
   // Look up the record before updating (to check type/days)
   const record = (window._leaveTableData||[]).find(r=>r.apiId===id);
-  await apiCall('PUT','/api/leave/'+id+'/status',{status});
-  showToast(status==='Approved'?'อนุมัติวันลาแล้ว':'ปฏิเสธวันลาแล้ว', status==='Approved'?'success':'error');
+  const res = await apiCall('PUT','/api/leave/'+id+'/status',{status});
+  if(!res || !res.ok){ showToast((res&&res.error)||'บันทึกไม่สำเร็จ','error'); return; }
+  showToast(status==='Approved'?'อนุมัติวันลาแล้ว':'ปฏิเสธวันลาแล้ว', 'success');
   // Update compensatory balance on approve
   if(status==='Approved' && record) {
     if(record.type==='Comp') {
@@ -6371,8 +6375,9 @@ renderOT = async function(){
 async function approveOTApi(id,noteIdx,decision){
   if(!useApi) return;
   const note=document.getElementById('ot-note-'+noteIdx)?.value||'';
-  await apiCall('PUT','/api/ot/'+id+'/status',{status:decision,note});
-  showToast('OT '+(decision==='Approved'?'approved':'rejected'),decision==='Approved'?'success':'error');
+  const res = await apiCall('PUT','/api/ot/'+id+'/status',{status:decision,note});
+  if(!res || !res.ok){ showToast((res&&res.error)||'บันทึกไม่สำเร็จ','error'); return; }
+  showToast(decision==='Approved'?'อนุมัติ OT แล้ว':'ไม่อนุมัติ OT แล้ว', 'success');
   renderOT();
 }
 
@@ -6481,6 +6486,300 @@ nav = function(page){
   if(page==='inbox')      loadInboxFromApi();
   if(page==='calendar')   loadHolidaysForMonth(state.calYear, state.calMonth);
   if(page==='permissions') loadPermissionsFromApi();
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  LIVE-MODE WIRING — buttons that previously only changed the browser
+// ══════════════════════════════════════════════════════════════════
+const _escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function _showTempPassword(name, temp) {
+  if (temp) prompt('สร้างบัญชี ' + name + ' แล้ว — รหัสผ่านชั่วคราว (คัดลอกส่งให้ผู้ใช้ จะแสดงครั้งเดียว):', temp);
+}
+
+// ── Add employee: creates a real account + employee record on the server ──
+const _addEmployeeLocal = addEmployee;
+addEmployee = async function() {
+  if (!useApi) { _addEmployeeLocal(); return; }
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  const first = v('ae-first'), last = v('ae-last'), email = v('ae-email');
+  if (!first || !email) { showToast('กรุณากรอกชื่อและอีเมล', 'error'); return; }
+  const work = document.querySelector('#ae-work .chip.selected')?.dataset.v || 'Office';
+  const r = await apiCall('POST', '/api/users', { firstName: first, lastName: last, email, phone: v('ae-phone'),
+    department: v('ae-dept'), position: v('ae-pos'), start_date: v('ae-start'), contract_type: v('ae-contract'), work_type: work, role: 'employee' });
+  if (r && r.ok) {
+    closeModal('modal-add-emp');
+    ['ae-first','ae-last','ae-email','ae-phone','ae-pos'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    showToast('เพิ่มพนักงานแล้ว', 'success');
+    _showTempPassword(r.user.name, r.tempPassword);
+    await loadEmployeesFromApi();
+  } else showToast((r && r.error) || 'เพิ่มพนักงานไม่สำเร็จ', 'error');
+};
+
+// ── Add account (Permissions page) ──
+const _addAccountLocal = addAccount;
+addAccount = async function() {
+  if (!useApi) { _addAccountLocal(); return; }
+  const name = document.getElementById('new-acc-name').value.trim();
+  const email = document.getElementById('new-acc-email').value.trim();
+  const pass = document.getElementById('new-acc-pass').value;
+  const role = document.getElementById('new-acc-role').value;
+  const department = document.getElementById('new-acc-dept')?.value || '';
+  if (!name || !email) { showToast('กรุณากรอกชื่อและอีเมล', 'error'); return; }
+  const r = await apiCall('POST', '/api/users', { name, email, password: pass || undefined, role, department });
+  if (r && r.ok) {
+    closeModal('modal-add-account');
+    ['new-acc-name','new-acc-email','new-acc-pass'].forEach(id => document.getElementById(id).value = '');
+    showToast('สร้างบัญชีแล้ว', 'success');
+    _showTempPassword(r.user.name, r.tempPassword);
+    await loadPermissionsFromApi();
+  } else showToast((r && r.error) || 'สร้างบัญชีไม่สำเร็จ', 'error');
+};
+
+// ── Appointments: saved on the server and loaded into the calendar ──
+async function loadAppointmentsFromApi() {
+  if (!useApi) return;
+  const data = await apiCall('GET', '/api/appointments');
+  if (!Array.isArray(data)) return;
+  appointments.splice(0, appointments.length, ...data.map(a => ({ id: a.id, title: a.title, date: a.date, start: a.start_time || '', end: a.end_time || '', type: a.type || 'meeting', loc: a.location || '—' })));
+}
+const _addAppointmentLocal = addAppointment;
+addAppointment = async function() {
+  if (!useApi) { _addAppointmentLocal(); return; }
+  const g = id => document.getElementById(id)?.value || '';
+  const title = g('appt-title').trim();
+  if (!title) { showToast('กรุณาใส่หัวเรื่อง', 'error'); return; }
+  const r = await apiCall('POST', '/api/appointments', { title, date: g('appt-date'), start_time: g('appt-start'), end_time: g('appt-end'),
+    type: g('appt-type'), location: g('appt-loc'), participants: g('appt-participants'), notes: g('appt-notes') });
+  if (r && r.id) {
+    closeModal('modal-appt'); document.getElementById('appt-title').value = '';
+    await loadAppointmentsFromApi(); renderCalendar(); showToast('สร้างนัดหมายแล้ว', 'success');
+  } else showToast((r && r.error) || 'สร้างนัดหมายไม่สำเร็จ', 'error');
+};
+async function deleteAppointmentApi(id) {
+  if (!confirm('ลบนัดหมายนี้?')) return;
+  await apiCall('DELETE', '/api/appointments/' + id);
+  await loadAppointmentsFromApi(); renderCalendar(); showToast('ลบนัดหมายแล้ว', 'success');
+}
+const _renderDayEventsLocal = renderDayEvents;
+renderDayEvents = function(d) {
+  _renderDayEventsLocal(d);
+  if (!useApi) return;
+  const dateStr = `${state.calYear}-${String(state.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const items = document.querySelectorAll('#cal-day-events .event-item');
+  appointments.filter(a => a.date === dateStr).forEach((a, i) => {
+    if (items[i] && a.id && !items[i].querySelector('.appt-del')) items[i].insertAdjacentHTML('beforeend',
+      `<button class="appt-del" title="ลบ" onclick="deleteAppointmentApi(${a.id})" style="background:none;border:none;color:#DC2626;cursor:pointer;font-size:14px;margin-left:6px">✕</button>`);
+  });
+};
+
+// ── Cancel leave from the status modal / old table → server ──
+const _cancelLeaveFromModalLocal = cancelLeaveFromModal;
+cancelLeaveFromModal = function() {
+  if (!useApi) { _cancelLeaveFromModalLocal(); return; }
+  const r = (window._leaveTableData || [])[window._approvalStatusIdx];
+  if (!r || !r.apiId) return;
+  closeModal('modal-approval-status');
+  cancelLeaveApi(r.apiId);
+};
+const _requestCancelLeaveLocal = requestCancelLeave;
+requestCancelLeave = function(idx) {
+  if (!useApi) { _requestCancelLeaveLocal(idx); return; }
+  const r = (window._leaveTableData || [])[idx];
+  if (r && r.apiId) cancelLeaveApi(r.apiId);
+};
+
+// ── Inbox: open message, reply and forward ──
+let _inboxCache = [], _directory = null;
+async function getDirectory() { if (!_directory) { const d = await apiCall('GET', '/api/directory'); _directory = Array.isArray(d) ? d : []; } return _directory; }
+const _loadInboxFromApiOrig = loadInboxFromApi;
+loadInboxFromApi = async function() {
+  if (!useApi) return;
+  const data = await apiCall('GET', '/api/inbox');
+  _inboxCache = Array.isArray(data) ? data : [];
+  await _loadInboxFromApiOrig();
+};
+markReadApi = async function(id, el) {
+  if (!useApi) return;
+  const m = _inboxCache.find(x => x.id === id) || (await apiCall('GET', '/api/inbox') || []).find(x => x.id === id);
+  if (m && !m.is_read) {
+    await apiCall('PUT', '/api/inbox/' + id + '/read'); m.is_read = 1;
+    if (el) { el.querySelector('div[style*="border-radius:50%"]')?.remove(); el.classList.remove('unread'); }
+    const b = document.getElementById('inbox-unread-count'); if (b && +b.textContent > 0) b.textContent = +b.textContent - 1;
+  }
+  if (!m) return;
+  const dir = await getDirectory();
+  const canReply = m.from_user && m.from_user !== currentUser?.id && dir.some(u => u.id === m.from_user);
+  const box = document.getElementById('inbox-content'); if (!box) return;
+  box.innerHTML = `
+    <div class="card-header" style="margin-bottom:16px">
+      <h3 style="font-size:16px;font-weight:700">${_escH(m.subject)}</h3>
+      <span style="font-size:12px;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('th-TH')}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <div class="emp-avatar" style="background:${_escH(m.from_color||'#6B7280')}">${_escH(m.from_init||'SY')}</div>
+      <div><div style="font-size:13px;font-weight:600">${_escH(m.from_name||'ระบบ')}</div><div style="font-size:11px;color:var(--text-muted)">ถึง: ${_escH(currentUser?.name||'คุณ')}</div></div>
+    </div>
+    <div style="font-size:13px;line-height:1.8;white-space:pre-wrap;background:var(--bg);padding:16px;border-radius:10px;margin-bottom:20px">${_escH(m.body||'')}</div>
+    <div class="form-group"><label>${canReply?'ตอบกลับ / ส่งต่อ':'ส่งต่อ'}</label><textarea id="inbox-reply-text" rows="3" placeholder="พิมพ์ข้อความ..."></textarea></div>
+    <div class="form-group"><label>ส่งต่อถึง</label><select id="inbox-fwd-to"><option value="">— เลือกผู้รับ —</option>${dir.filter(u=>u.id!==currentUser?.id).map(u=>`<option value="${u.id}">${_escH(u.name)}${u.department?' — '+_escH(u.department):''}</option>`).join('')}</select></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="forwardInboxMsg(${m.id})">ส่งต่อ</button>
+      ${canReply?`<button class="btn btn-primary" onclick="replyInboxMsg(${m.id})">ตอบกลับ</button>`:''}
+    </div>`;
+};
+async function replyInboxMsg(id) {
+  const m = _inboxCache.find(x => x.id === id); const text = document.getElementById('inbox-reply-text')?.value.trim();
+  if (!m || !text) { showToast('กรุณาพิมพ์ข้อความ', 'error'); return; }
+  const subj = /^Re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject;
+  const r = await apiCall('POST', '/api/inbox', { to_user: m.from_user, subject: subj, body: text });
+  if (r && r.id) { showToast('ส่งข้อความตอบกลับแล้ว', 'success'); document.getElementById('inbox-reply-text').value = ''; }
+  else showToast((r && r.error) || 'ส่งไม่สำเร็จ', 'error');
+}
+async function forwardInboxMsg(id) {
+  const m = _inboxCache.find(x => x.id === id); const to = document.getElementById('inbox-fwd-to')?.value;
+  if (!m || !to) { showToast('กรุณาเลือกผู้รับ', 'error'); return; }
+  const note = document.getElementById('inbox-reply-text')?.value.trim();
+  const r = await apiCall('POST', '/api/inbox', { to_user: +to, subject: 'Fwd: ' + m.subject,
+    body: (note ? note + '\n\n' : '') + '---- ข้อความที่ส่งต่อ จาก ' + (m.from_name || 'ระบบ') + ' ----\n' + (m.body || '') });
+  if (r && r.id) { showToast('ส่งต่อข้อความแล้ว', 'success'); document.getElementById('inbox-reply-text').value = ''; }
+  else showToast((r && r.error) || 'ส่งไม่สำเร็จ', 'error');
+}
+
+// ── Approval chain: saved on the server (and enforced there) ──
+const _ROLE_RANK = { employee: 0, hr_staff: 1, hr_manager: 2, admin: 3 };
+canApprove = function(type) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin') return true;
+  return (_ROLE_RANK[currentUser.role] || 0) >= (_ROLE_RANK[approvalChain[type] || 'hr_manager'] || 2);
+};
+async function loadApprovalChainFromApi() {
+  if (!useApi) return;
+  const s = await apiCall('GET', '/api/settings');
+  if (s && s.approval_chain) {
+    Object.assign(approvalChain, s.approval_chain);
+    ['leave','ot','comp'].forEach(k => {
+      const sel = document.getElementById('chain-' + k); if (sel) sel.value = approvalChain[k];
+      const lb = document.getElementById('chain-' + k + '-label'); if (lb) lb.innerHTML = `ปัจจุบัน: <strong>${ROLE_LABELS[approvalChain[k]]||approvalChain[k]}</strong>`;
+    });
+  }
+}
+const _saveApprovalChainLocal = saveApprovalChain;
+saveApprovalChain = async function() {
+  _saveApprovalChainLocal();
+  if (!useApi) return;
+  const r = await apiCall('PUT', '/api/settings', { approval_chain: { ...approvalChain } });
+  if (r && r.ok) showToast('บันทึกลำดับการอนุมัติแล้ว', 'success'); else showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error');
+};
+
+// ── Comp-leave approval panel: fed from server leave data ──
+async function loadCompRequestsFromApi() {
+  if (!useApi) return;
+  const isManager = currentUser && ['admin','hr_manager','hr_staff'].includes(currentUser.role);
+  const data = await apiCall('GET', '/api/leave' + (isManager ? '?scope=team' : ''));
+  if (!Array.isArray(data)) return;
+  compRequests.splice(0, compRequests.length, ...data.filter(r => r.type === 'Comp' && r.status !== 'Cancelled').map(r => ({
+    apiId: r.id, emp: r.emp_name, init: r.emp_init, otDate: r.from_date, leaveDate: r.to_date, days: r.days, reason: r.reason || '—', status: r.status })));
+}
+const _openCompModalLocal = openCompModal;
+openCompModal = async function() { await loadCompRequestsFromApi(); _openCompModalLocal(); };
+function _compApiIdAt(i) {
+  const isManager = currentUser && ['admin','hr_manager','hr_staff'].includes(currentUser.role);
+  const visible = isManager ? compRequests : compRequests.filter(r => r.emp === currentUser?.name);
+  return visible[i] && visible[i].apiId;
+}
+const _approveCompLocal = approveComp, _rejectCompLocal = rejectComp;
+approveComp = async function(btn, rowId, i) {
+  if (!useApi) { _approveCompLocal(btn, rowId, i); return; }
+  const id = _compApiIdAt(i); if (!id) return;
+  const r = await apiCall('PUT', '/api/leave/' + id + '/status', { status: 'Approved' });
+  if (r && r.ok) { showToast('อนุมัติวันลาชดเชยแล้ว', 'success'); await openCompModal(); await renderLeave(); }
+  else showToast((r && r.error) || 'อนุมัติไม่สำเร็จ', 'error');
+};
+rejectComp = async function(btn, rowId, i) {
+  if (!useApi) { _rejectCompLocal(btn, rowId, i); return; }
+  const id = _compApiIdAt(i); if (!id) return;
+  const r = await apiCall('PUT', '/api/leave/' + id + '/status', { status: 'Rejected' });
+  if (r && r.ok) { showToast('ปฏิเสธวันลาชดเชยแล้ว', 'success'); await openCompModal(); await renderLeave(); }
+  else showToast((r && r.error) || 'ไม่สำเร็จ', 'error');
+};
+
+// ── Backup: in live mode the data lives in the database — export it from the server ──
+async function downloadServerBackup() {
+  try {
+    const r = await fetch(API_BASE + '/api/export', { headers: { Authorization: 'Bearer ' + apiToken } });
+    if (!r.ok) { showToast('ส่งออกข้อมูลไม่สำเร็จ (' + r.status + ')', 'error'); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'teams-hris-backup-' + localISODate() + '.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    try { localStorage.setItem('hris_last_server_backup', new Date().toISOString()); } catch(e) {}
+    showToast('ดาวน์โหลดสำเนาข้อมูลจากฐานข้อมูลแล้ว', 'success');
+    updateBackupUI();
+  } catch (e) { showToast('ส่งออกข้อมูลไม่สำเร็จ', 'error'); }
+}
+const _doBackupLocal = doBackup, _doExportBackupLocal = doExportBackup, _updateBackupUILocal = updateBackupUI;
+doBackup = function() { if (!useApi) return _doBackupLocal(); downloadServerBackup(); };
+doExportBackup = function() { if (!useApi) return _doExportBackupLocal(); downloadServerBackup(); };
+updateBackupUI = function() {
+  if (!useApi) return _updateBackupUILocal();
+  const card = document.getElementById('backup-card'); if (!card) return;
+  card.querySelectorAll('label.btn, button[onclick="doRestoreLastBackup()"]').forEach(el => el.style.display = 'none');
+  const last = (() => { try { return localStorage.getItem('hris_last_server_backup'); } catch(e) { return null; } })();
+  const l = document.getElementById('backup-last');
+  if (l) l.innerHTML = 'ข้อมูลทั้งหมดเก็บอยู่ในฐานข้อมูล (Neon) อัตโนมัติ — กดดาวน์โหลดเพื่อเก็บสำเนาไว้เอง' + (last ? `<br><span style="color:#059669;font-weight:600">✓ ดาวน์โหลดล่าสุด:</span> ${new Date(last).toLocaleString('th-TH')}` : '');
+  const hist = document.getElementById('backup-history'); if (hist) hist.innerHTML = '';
+};
+
+// ── Check-in: one server-driven state for the dashboard, attendance and check-in page buttons ──
+let _todayAtt = null;
+function applyCheckinUI(rec) {
+  _todayAtt = rec || null;
+  const inT = rec && rec.check_in, outT = rec && rec.check_out;
+  state.checkedIn = !!(inT && !outT);
+  const label = outT ? `เลิกงานแล้ว — ${inT}–${outT} (${rec.work_hours || ''})` : inT ? '✓ เข้างานเวลา ' + inT : 'ยังไม่ได้ลงเวลาวันนี้';
+  const txt = outT ? 'ลงเวลาครบแล้ววันนี้' : inT ? 'ลงเวลาออกงาน' : 'ลงเวลาเข้างาน';
+  ['dash-checkin-btn','att-btn','ci-btn'].forEach(id => {
+    const b = document.getElementById(id); if (!b) return;
+    b.textContent = txt; b.classList.toggle('checked-in', state.checkedIn); b.disabled = !!outT; b.style.opacity = outT ? '0.6' : '';
+  });
+  ['dash-status','att-status','ci-label'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = label; });
+  if (state.checkedIn) {
+    const [h, m] = inT.split(':').map(Number); const ci = new Date(); ci.setHours(h, m, 0, 0); state.checkInTime = ci.getTime();
+    if (!state.workTimer) state.workTimer = setInterval(updateWorkTime, 1000);
+  } else { clearInterval(state.workTimer); state.workTimer = null; state.checkInTime = null; }
+}
+loadTodayCheckin = async function() {
+  if (!useApi) return;
+  const data = await apiCall('GET', '/api/attendance/today');
+  applyCheckinUI(data && !data.error ? data : null);
+};
+let _ciBusy = false;
+toggleCheckin = async function() {
+  if (!useApi) { _toggleCheckin(); return; }
+  if (_ciBusy) return; _ciBusy = true;
+  try {
+    const cur = await apiCall('GET', '/api/attendance/today');
+    if (cur && cur.check_out) { applyCheckinUI(cur); showToast('วันนี้ลงเวลาออกไปแล้ว', 'error'); return; }
+    const goingIn = !(cur && cur.check_in);
+    const r = await apiCall('POST', goingIn ? '/api/attendance/checkin' : '/api/attendance/checkout', goingIn ? { location: 'Office' } : {});
+    if (!r || r.error) { showToast((r && r.error) || 'ลงเวลาไม่สำเร็จ', 'error'); return; }
+    showToast(goingIn ? 'ลงเวลาเข้างาน ' + r.check_in : 'ลงเวลาออกงาน — ทำงาน ' + r.work_hours, 'success');
+    await loadTodayCheckin();
+    try { loadAttHistory(); renderCheckinWeek(); } catch (e) {}
+  } finally { _ciBusy = false; }
+};
+const _toggleCheckinPageLocal = toggleCheckinPage, _quickCheckinLocal = quickCheckin;
+toggleCheckinPage = function() { if (!useApi) return _toggleCheckinPageLocal(); return toggleCheckin(); };
+quickCheckin = function() { if (!useApi) return _quickCheckinLocal(); return toggleCheckin(); };
+
+// Load the server-backed data each page needs
+const _navWired = nav;
+nav = function(page) {
+  _navWired(page);
+  if (!useApi || !currentUser) return;
+  if (page === 'calendar') loadAppointmentsFromApi().then(() => { try { renderCalendar(); } catch(e) {} });
+  if (page === 'leave') loadApprovalChainFromApi();
+  if (page === 'permissions') { loadApprovalChainFromApi(); updateBackupUI(); }
 };
 
 // ── Boot ────────────────────────────────────────────

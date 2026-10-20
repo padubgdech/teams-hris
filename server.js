@@ -37,10 +37,11 @@ let store = {
   leave_requests: [], ot_requests: [], inbox: [],
   appointments: [], holidays: [], _seq: {},
   departments: [],      // admin-managed department list
-  cal_notes: {}         // { userId: { "YYYY-MM-DD": "note text" } }
+  cal_notes: {},        // { userId: { "YYYY-MM-DD": "note text" } }
+  settings: {}          // { approval_chain: { leave, ot, comp } }
 };
 
-const STORE_KEYS = ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq','departments','cal_notes'];
+const STORE_KEYS = ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq','departments','cal_notes','settings'];
 
 async function loadStore() {
   if (pgPool) {
@@ -93,6 +94,11 @@ const isDate = s => typeof s === 'string' && RE_DATE.test(s) && !isNaN(new Date(
 const toMin  = s => +s.slice(0,2) * 60 + +s.slice(3,5);
 const fmtDur = m => Math.floor(m/60) + 'h ' + String(m%60).padStart(2,'0') + 'm';
 const MANAGER_ROLES = ['admin','hr_manager','hr_staff'];
+// Approval chain: minimum role needed to approve each request type (admin can always approve)
+const ROLE_RANK = { employee: 0, hr_staff: 1, hr_manager: 2, admin: 3 };
+const DEFAULT_CHAIN = { leave: 'hr_manager', ot: 'hr_manager', comp: 'admin' };
+function approvalChain() { return { ...DEFAULT_CHAIN, ...((store.settings || {}).approval_chain || {}) }; }
+function canDecide(role, type) { return (ROLE_RANK[role] || 0) >= (ROLE_RANK[approvalChain()[type]] || 2); }
 const isManagerRole = r => MANAGER_ROLES.includes(r);
 
 function notify(fromId, toId, subject, body) {
@@ -622,6 +628,8 @@ app.put('/api/leave/:id/status', auth, requireRole('admin','hr_manager','hr_staf
   if (!row) return res.status(404).json({ error: 'Not found' });
   const { status, note } = req.body;
   if (!['Approved','Rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  if (!canDecide(req.user.role, row.type === 'Comp' || row.type === 'Compensatory' ? 'comp' : 'leave'))
+    return res.status(403).json({ error: 'คุณไม่มีสิทธิ์อนุมัติคำขอประเภทนี้ (ตั้งค่าที่ลำดับการอนุมัติ)' });
   if (row.status === 'Cancelled') return res.status(409).json({ error: 'คำขอนี้ถูกยกเลิกแล้ว' });
   row.status = status; row.approved_by = req.user.id; row.note = note||''; row.decided_at = new Date().toISOString();
   const ok = status === 'Approved';
@@ -684,6 +692,7 @@ app.put('/api/ot/:id/status', auth, requireRole('admin','hr_manager','hr_staff')
   if (!row) return res.status(404).json({ error: 'Not found' });
   const { status, note } = req.body;
   if (!['Approved','Rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  if (!canDecide(req.user.role, 'ot')) return res.status(403).json({ error: 'คุณไม่มีสิทธิ์อนุมัติ OT (ตั้งค่าที่ลำดับการอนุมัติ)' });
   row.status = status; row.approved_by = req.user.id; row.note = note||'';
   const ok = status === 'Approved';
   notify(req.user.id, row.user_id, `${ok?'✅':'❌'} คำขอ OT ${row.date} — ${ok?'อนุมัติ':'ไม่อนุมัติ'}`,
@@ -816,6 +825,57 @@ app.put('/api/users/:id/permissions', auth, requireRole('admin'), (req, res) => 
   user.role = role; user.permissions = JSON.stringify(permissions);
   saveDb(); res.json({ ok: true });
 });
+// Admin / HR manager creates an account (user + employee record). Without a password, a temporary one is generated.
+app.post('/api/users', auth, requireRole('admin','hr_manager'), (req, res) => {
+  let { name, firstName, lastName, email, password, role, department, position, phone, start_date, contract_type, work_type } = req.body;
+  name = String(name || [firstName, lastName].filter(Boolean).join(' ')).trim();
+  email = String(email||'').toLowerCase().trim();
+  role = role || 'employee';
+  if (!name) return res.status(400).json({ error: 'กรุณาระบุชื่อ' });
+  if (!RE_EMAIL.test(email)) return res.status(400).json({ error: 'รูปแบบอีเมลไม่ถูกต้อง' });
+  if (!ROLE_DEFAULTS[role]) return res.status(400).json({ error: 'Invalid role' });
+  if (role === 'admin' && req.user.role !== 'admin') return res.status(403).json({ error: 'เฉพาะ Admin เท่านั้นที่สร้างบัญชี Admin ได้' });
+  if (password && String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (store.users.find(u => u.email === email)) return res.status(409).json({ error: 'Email already registered' });
+  const temp = password ? null : require('crypto').randomBytes(6).toString('base64').replace(/[+/=]/g,'').slice(0,8) + '9a';
+  const parts = name.split(/\s+/);
+  const init = (parts.length > 1 ? parts[0][0] + parts[parts.length-1][0] : name.slice(0,2)).toUpperCase();
+  const colors = ['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981','#06B6D4'];
+  const color = colors[store.users.length % colors.length];
+  const u = { id: genId('users'), name, email, password: bcrypt.hashSync(String(password || temp), 10), role,
+    permissions: JSON.stringify(ROLE_DEFAULTS[role]), department: department||'', position: position||'', phone: phone||'',
+    color, init, google_id:'', auth_provider:'local', picture:'', created_at: new Date().toISOString() };
+  store.users.push(u);
+  store.employees.push({ id: genId('employees'), emp_id: nextEmpId(), user_id: u.id, name, email,
+    department: department||'', position: position||'', join_date: start_date && isDate(start_date) ? start_date : bkkToday(),
+    start_date: start_date && isDate(start_date) ? start_date : undefined, contract_type: contract_type||undefined,
+    status:'Active', work_model: work_type||'Office', work_type: work_type||undefined, phone: phone||'', color, init, created_at: new Date().toISOString() });
+  saveDb();
+  res.status(201).json({ ok: true, user: fmtUser(u), tempPassword: temp });
+});
+// Company directory for messaging — every signed-in user (no contact or personal data)
+app.get('/api/directory', auth, (req, res) => {
+  res.json(store.users.map(u => ({ id: u.id, name: u.name, init: u.init||'?', color: u.color||'#6B7280', department: u.department||'', position: u.position||'' }))
+    .sort((a,b) => (a.name||'').localeCompare(b.name||'')));
+});
+// Settings (approval chain)
+app.get('/api/settings', auth, (req, res) => res.json({ approval_chain: approvalChain() }));
+app.put('/api/settings', auth, requireRole('admin'), (req, res) => {
+  const c = req.body.approval_chain || {};
+  for (const k of ['leave','ot','comp']) if (c[k] !== undefined && !ROLE_RANK[c[k]]) return res.status(400).json({ error: 'Invalid role for ' + k });
+  store.settings = store.settings || {};
+  store.settings.approval_chain = { ...approvalChain(), ...c };
+  saveDb(); res.json({ ok: true, approval_chain: store.settings.approval_chain });
+});
+// Full data export for backups (admin). Password hashes are never included.
+app.get('/api/export', auth, requireRole('admin'), (req, res) => {
+  const data = {};
+  STORE_KEYS.forEach(k => { data[k] = store[k]; });
+  data.users = store.users.map(({ password, ...rest }) => rest);
+  res.set('Content-Disposition', `attachment; filename="teams-hris-backup-${bkkToday()}.json"`);
+  res.json({ exported_at: new Date().toISOString(), version: 2, data });
+});
+
 // Approver list for request forms — available to every signed-in user (names & roles only)
 app.get('/api/approvers', auth, (req, res) => {
   let list = store.users.filter(u => isManagerRole(u.role) && u.id !== req.user.id);
