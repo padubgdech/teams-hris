@@ -690,7 +690,7 @@
               <circle class="ring-bg" cx="36" cy="36" r="30" stroke="#FECACA"/>
               <circle class="ring-fg" id="ring-sick" cx="36" cy="36" r="30" stroke="#DC2626" stroke-dasharray="188.5" stroke-dashoffset="0"/>
             </svg>
-            <div class="leave-bal-inner"><div class="leave-bal-num" id="lc-sick" style="color:#DC2626">30</div><div class="leave-bal-tot">/ 30 วัน</div></div>
+            <div class="leave-bal-inner"><div class="leave-bal-num" id="lc-sick" style="color:#DC2626">30</div><div class="leave-bal-tot" id="lc-sick-total">/ 30 วัน</div></div>
           </div>
           <div style="font-size:11px;color:#6B7280" id="lc-sick-used">ใช้แล้ว 0 วัน</div>
           <div class="leave-bal-bar" style="width:100%"><div class="leave-bal-bar-fill" id="bar-sick" style="width:0%;background:#DC2626"></div></div>
@@ -704,7 +704,7 @@
               <circle class="ring-bg" cx="36" cy="36" r="30" stroke="#BFDBFE"/>
               <circle class="ring-fg" id="ring-casual" cx="36" cy="36" r="30" stroke="#2563EB" stroke-dasharray="188.5" stroke-dashoffset="0"/>
             </svg>
-            <div class="leave-bal-inner"><div class="leave-bal-num" id="lc-casual" style="color:#2563EB">3</div><div class="leave-bal-tot">/ 3 วัน</div></div>
+            <div class="leave-bal-inner"><div class="leave-bal-num" id="lc-casual" style="color:#2563EB">3</div><div class="leave-bal-tot" id="lc-casual-total">/ 3 วัน</div></div>
           </div>
           <div style="font-size:11px;color:#6B7280" id="lc-casual-used">ใช้แล้ว 0 วัน</div>
           <div class="leave-bal-bar" style="width:100%"><div class="leave-bal-bar-fill" id="bar-casual" style="width:0%;background:#2563EB"></div></div>
@@ -6281,9 +6281,11 @@ submitLeave = async function(){
   const effectiveAnnualQ  = annualQ + (myEmpRec.annual_bonus||0);
   const effectiveSickQ    = LEAVE_QUOTA.Sick   + (myEmpRec.sick_bonus||0);
   const effectiveCasualQ  = LEAVE_QUOTA.Casual + (myEmpRec.casual_bonus||0);
-  if(type==='Annual' && usedA+days > effectiveAnnualQ){ showToast(`ลาพักร้อนเกินสิทธิ์ (เหลือ ${effectiveAnnualQ-usedA} วัน)`,'error'); return; }
-  if(type==='Sick' && usedS+days > effectiveSickQ){ showToast(`ลาป่วยเกินสิทธิ์ (เหลือ ${effectiveSickQ-usedS} วัน)`,'error'); return; }
-  if(type==='Casual' && usedC+days > effectiveCasualQ){ showToast(`ลากิจเกินสิทธิ์ (เหลือ ${effectiveCasualQ-usedC} วัน)`,'error'); return; }
+  if(['Annual','Sick','Casual'].includes(type)){
+    const bal = await apiCall('GET','/api/leave/balance?year='+from.slice(0,4));
+    const b = bal && bal[type.toLowerCase()];
+    if(b && days > b.remaining){ showToast(`${({Annual:'ลาพักร้อน',Sick:'ลาป่วย',Casual:'ลากิจ'})[type]}ปี ${+from.slice(0,4)+543} เหลือ ${b.remaining} วัน`,'error'); return; }
+  }
   if(type==='Compensatory' && days > _compTotal){ showToast(`วันลาชดเชยไม่พอ (เหลือ ${_compTotal} วัน)`,'error'); return; }
   // Medical certificate (sick leave)
   let attachment = null;
@@ -6957,6 +6959,109 @@ async function _checkHolidayYearAlert() {
   } else warn.innerHTML = '';
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  FEATURE 4 — Yearly leave balances (server-calculated) + carry-over policy
+// ══════════════════════════════════════════════════════════════════
+let _myBalance = null;
+function _setBalRing(id, used, total, extra) {
+  const rem = Math.max(0, total - used);
+  const g = s => document.getElementById(s);
+  if (g('lc-' + id)) g('lc-' + id).textContent = rem;
+  if (g('lc-' + id + '-total')) g('lc-' + id + '-total').textContent = '/ ' + total + ' วัน';
+  if (g('lc-' + id + '-used')) g('lc-' + id + '-used').textContent = 'ใช้แล้ว ' + used + ' วัน' + (extra || '');
+  if (g('bar-' + id)) g('bar-' + id).style.width = total > 0 ? Math.round((used / total) * 100) + '%' : '0%';
+  if (g('ring-' + id)) g('ring-' + id).setAttribute('stroke-dashoffset', 188.5 * (1 - (total > 0 ? Math.max(0, rem / total) : 0)));
+}
+async function loadMyBalance(year) {
+  const b = await apiCall('GET', '/api/leave/balance?year=' + (year || new Date().getFullYear()));
+  if (b && b.annual) _myBalance = b;
+  return _myBalance;
+}
+const _updateLeaveBalancesLocal = updateLeaveBalances;
+updateLeaveBalances = function() {
+  _updateLeaveBalancesLocal(); // keeps the probation banner / styling
+  if (!useApi || !currentUser) return;
+  loadMyBalance().then(b => {
+    if (!b) return;
+    const a = b.annual;
+    if (!isProbation(currentUser).inProbation)
+      _setBalRing('annual', a.used, a.total, a.carry ? ` · ยกยอดมา ${a.carry} วัน` : '');
+    _setBalRing('sick', b.sick.used, b.sick.total);
+    _setBalRing('casual', b.casual.used, b.casual.total);
+  });
+};
+myLeaveRemaining = function() {
+  const b = _myBalance;
+  if (!b) return { Annual: '…', Sick: '…', Casual: '…' };
+  return { Annual: b.annual.remaining, Sick: b.sick.remaining, Casual: b.casual.remaining };
+};
+const _leaveModalPostOpenLocal = leaveModalPostOpen;
+leaveModalPostOpen = function() { _leaveModalPostOpenLocal(); if (useApi) loadMyBalance().then(() => _leaveModalPostOpenLocal()); };
+
+// ── Admin / HR: leave policy + next-year preview ──
+function _ensurePolicyModal() {
+  if (document.getElementById('modal-leave-policy')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="modal-leave-policy">
+    <div class="modal" style="max-width:820px;width:96vw;max-height:90vh;overflow:auto">
+      <button class="modal-close" onclick="closeModal('modal-leave-policy')">✕</button>
+      <div class="modal-title">🔄 นโยบายวันลา & การยกยอดข้ามปี</div>
+      <div style="font-size:12px;color:var(--text-muted);margin:-6px 0 14px;line-height:1.6">ระบบเริ่มนับวันลาใหม่ทุกวันที่ 1 ม.ค. อัตโนมัติ · ลาพักร้อนที่เหลือยกไปปีถัดไปให้เอง โดยยอดสะสม (ยกมา + สิทธิ์ปีใหม่) ไม่เกินค่าที่ตั้งไว้ · ปีที่เริ่มงานได้สิทธิ์ตามสัดส่วน · ลาป่วย/ลากิจไม่ยกยอด</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px" id="lp-fields">
+        <div class="form-group"><label>ลาพักร้อน / ปี</label><input type="number" id="lp-annual" min="0" max="120"></div>
+        <div class="form-group"><label>สะสมพักร้อนสูงสุด</label><input type="number" id="lp-max" min="0" max="120"></div>
+        <div class="form-group"><label>ลาป่วย / ปี</label><input type="number" id="lp-sick" min="0" max="120"></div>
+        <div class="form-group"><label>ลากิจ / ปี</label><input type="number" id="lp-casual" min="0" max="120"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px"><button class="btn btn-primary" id="lp-save" onclick="saveLeavePolicy()">บันทึกนโยบาย</button></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="font-size:14px" id="lp-preview-title">ตัวอย่างยอดปีหน้า</b><span class="badge badge-gray">คำนวณจากข้อมูลตอนนี้</span></div>
+      <table class="table" style="width:100%;font-size:13px">
+        <thead><tr><th>พนักงาน</th><th>เริ่มงาน</th><th id="lp-h-rem">เหลือปีนี้</th><th>ยกไป</th><th>สิทธิ์ใหม่</th><th>รวมปีหน้า</th><th></th></tr></thead>
+        <tbody id="lp-tbody"></tbody>
+      </table>
+    </div>
+  </div>`);
+}
+async function openLeavePolicyModal() {
+  _ensurePolicyModal(); openModal('modal-leave-policy');
+  const isAdmin = currentUser?.role === 'admin';
+  document.querySelectorAll('#lp-fields input').forEach(i => i.disabled = !isAdmin);
+  document.getElementById('lp-save').style.display = isAdmin ? '' : 'none';
+  const s = await apiCall('GET', '/api/settings'), p = (s && s.leave_policy) || {};
+  document.getElementById('lp-annual').value = p.annual_days; document.getElementById('lp-max').value = p.max_accumulate;
+  document.getElementById('lp-sick').value = p.sick_days; document.getElementById('lp-casual').value = p.casual_days;
+  await renderPolicyPreview();
+}
+async function renderPolicyPreview() {
+  const y = new Date().getFullYear(), ny = y + 1;
+  document.getElementById('lp-preview-title').textContent = `ตัวอย่างยอดลาพักร้อนปี ${ny + 543} (1 ม.ค.)`;
+  document.getElementById('lp-h-rem').textContent = `เหลือปี ${y + 543}`;
+  const [cur, nxt] = await Promise.all([apiCall('GET', '/api/leave/balances?year=' + y), apiCall('GET', '/api/leave/balances?year=' + ny)]);
+  const tb = document.getElementById('lp-tbody');
+  if (!Array.isArray(nxt)) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">โหลดไม่ได้</td></tr>'; return; }
+  tb.innerHTML = nxt.map(n => {
+    const c = (cur || []).find(x => x.user_id === n.user_id) || { annual: { remaining: 0 } }, a = n.annual;
+    const note = a.forfeited ? `<span class="badge" style="background:#FEF3C7;color:#B45309">เกินเพดาน ${a.forfeited} วัน</span>` : (n.join_date.slice(0,4) == y ? '<span class="badge" style="background:#DBEAFE;color:#1D4ED8">เริ่มงานปีนี้</span>' : '');
+    return `<tr><td><span class="emp-avatar" style="background:${_escH(n.color||'#6B7280')};width:26px;height:26px;font-size:10px;display:inline-grid;place-items:center;vertical-align:middle;margin-right:6px">${_escH(n.init||'?')}</span>${_escH(n.name)}</td>
+      <td>${thDateShort(n.join_date)}</td><td>${c.annual.remaining} วัน</td><td style="color:var(--green-dark);font-weight:700">+${a.carry}</td>
+      <td>${a.entitlement}${a.bonus ? ' +' + a.bonus + ' พิเศษ' : ''} วัน</td><td><b>${a.total} วัน</b></td><td>${note}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ไม่มีพนักงาน</td></tr>';
+}
+async function saveLeavePolicy() {
+  const v = id => +document.getElementById(id).value;
+  const r = await apiCall('PUT', '/api/settings', { leave_policy: { annual_days: v('lp-annual'), max_accumulate: v('lp-max'), sick_days: v('lp-sick'), casual_days: v('lp-casual') } });
+  if (r && r.ok) {
+    Object.assign(LEAVE_QUOTA, { Annual: r.leave_policy.annual_days, Sick: r.leave_policy.sick_days, Casual: r.leave_policy.casual_days });
+    showToast('บันทึกนโยบายวันลาแล้ว', 'success'); await renderPolicyPreview(); updateLeaveBalances();
+  } else showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error');
+}
+function _ensureLeavePolicyButton() {
+  if (!currentUser || !['admin','hr_manager','hr_staff'].includes(currentUser.role)) return;
+  if (document.getElementById('btn-leave-policy')) return;
+  const anchor = document.querySelector('#view-leave button[onclick="openLeaveModal()"]');
+  if (anchor) anchor.insertAdjacentHTML('beforebegin', `<button class="btn btn-outline" id="btn-leave-policy" onclick="openLeavePolicyModal()">⚙️ นโยบายวันลา</button>`);
+}
+
 // Load the server-backed data each page needs
 let _wdLoadedOnce = false;
 const _navWired = nav;
@@ -6965,7 +7070,7 @@ nav = function(page) {
   if (!useApi || !currentUser) return;
   if (page === 'calendar') { const y = state.calYear; Promise.all([loadAppointmentsFromApi(), loadHolidaysYear(y), loadHolidaysYear(y + 1)]).then(() => { try { renderCalendar(); } catch(e) {} }); _checkHolidayYearAlert(); }
   if (!_wdLoadedOnce) { _wdLoadedOnce = true; loadWorkdays(); const y = new Date().getFullYear(); loadHolidaysYear(y); loadHolidaysYear(y + 1); }
-  if (page === 'leave') loadApprovalChainFromApi();
+  if (page === 'leave') { loadApprovalChainFromApi(); _ensureLeavePolicyButton(); }
   if (page === 'permissions') { loadApprovalChainFromApi(); updateBackupUI(); }
 };
 

@@ -602,6 +602,10 @@ app.post('/api/leave', auth, async (req, res) => {
     if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
     nDays = (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
   }
+  if (['Annual','Sick','Casual'].includes(type)) {
+    const yr = +from_date.slice(0, 4), b = leaveBalance(req.user.id, yr)[type.toLowerCase()];
+    if (nDays > b.remaining) return res.status(400).json({ error: `${LEAVE_TH[type]}ปี ${yr + 543} เหลือ ${b.remaining} วัน (ขอ ${nDays} วัน)` });
+  }
   // 'Comp' rows record OT-holiday work that EARNS comp days — they aren't time off, so skip the overlap rule
   if (type !== 'Comp') {
     const clash = store.leave_requests.find(r => r.user_id === req.user.id && r.type !== 'Comp'
@@ -879,7 +883,7 @@ app.get('/api/directory', auth, (req, res) => {
     .sort((a,b) => (a.name||'').localeCompare(b.name||'')));
 });
 // Settings (approval chain)
-app.get('/api/settings', auth, (req, res) => res.json({ approval_chain: approvalChain(), workdays: workdaysSetting() }));
+app.get('/api/settings', auth, (req, res) => res.json({ approval_chain: approvalChain(), workdays: workdaysSetting(), leave_policy: leavePolicy() }));
 app.put('/api/settings', auth, requireRole('admin'), (req, res) => {
   const c = req.body.approval_chain || {};
   for (const k of ['leave','ot','comp']) if (c[k] !== undefined && !ROLE_RANK[c[k]]) return res.status(400).json({ error: 'Invalid role for ' + k });
@@ -888,7 +892,19 @@ app.put('/api/settings', auth, requireRole('admin'), (req, res) => {
   store.settings = store.settings || {};
   if (req.body.approval_chain) store.settings.approval_chain = { ...approvalChain(), ...c };
   if (wd !== undefined) store.settings.workdays = [...new Set(wd)].sort();
-  saveDb(); res.json({ ok: true, approval_chain: approvalChain(), workdays: workdaysSetting() });
+  const lp = req.body.leave_policy;
+  if (lp !== undefined) {
+    const next = { ...leavePolicy() };
+    for (const k of ['annual_days','sick_days','casual_days','max_accumulate']) {
+      if (lp[k] === undefined) continue;
+      const v = Number(lp[k]);
+      if (!Number.isInteger(v) || v < 0 || v > 120) return res.status(400).json({ error: 'ค่านโยบายวันลาไม่ถูกต้อง: ' + k });
+      next[k] = v;
+    }
+    if (next.max_accumulate < next.annual_days) return res.status(400).json({ error: 'สะสมสูงสุดต้องไม่น้อยกว่าสิทธิ์ต่อปี' });
+    store.settings.leave_policy = next;
+  }
+  saveDb(); res.json({ ok: true, approval_chain: approvalChain(), workdays: workdaysSetting(), leave_policy: leavePolicy() });
 });
 // Full data export for backups (admin). Password hashes are never included.
 app.get('/api/export', auth, requireRole('admin'), (req, res) => {
@@ -962,6 +978,61 @@ app.delete('/api/holidays/:date', auth, requireRole('admin','hr_manager'), (req,
   store.holidays = store.holidays.filter(h => h.date !== req.params.date);
   saveDb(); res.json({ ok: true });
 });
+// ── Leave balances per calendar year (feature 4) ─────────────────────────────
+// Annual leave: full entitlement each year after the join year (pro-rated in the join year).
+// Unused annual leave carries over automatically, but the accumulated balance (carry + new entitlement)
+// may not exceed max_accumulate. Sick / casual leave start fresh every year. Carry-over starts from 2027.
+const SYSTEM_START_YEAR = 2026;
+const DEFAULT_POLICY = { annual_days: 6, sick_days: 30, casual_days: 3, max_accumulate: 12 };
+function leavePolicy() { return { ...DEFAULT_POLICY, ...((store.settings || {}).leave_policy || {}) }; }
+function joinDateOf(userId) {
+  const emp = store.employees.find(e => e.user_id === userId) || {};
+  const u = store.users.find(x => x.id === userId) || {};
+  return emp.start_date || emp.join_date || (u.created_at || '').slice(0, 10) || bkkToday();
+}
+function annualEntitlement(userId, year) {
+  const p = leavePolicy(), j = joinDateOf(userId), jy = +j.slice(0, 4), jm = +j.slice(5, 7) - 1;
+  if (jy > year) return 0;
+  if (jy < year) return p.annual_days;
+  return Math.max(1, Math.ceil(((12 - jm) / 12) * p.annual_days));
+}
+function usedDays(userId, type, year) {
+  return store.leave_requests.filter(r => r.user_id === userId && r.type === type && r.status === 'Approved' && (r.from_date || '').startsWith(year + '-'))
+    .reduce((s, r) => s + (+r.days || 0), 0);
+}
+function annualBalance(userId, year, depth = 0) {
+  const p = leavePolicy(), emp = store.employees.find(e => e.user_id === userId) || {};
+  const bonus = +emp.annual_bonus || 0;
+  const entitlement = annualEntitlement(userId, year);
+  const firstYear = Math.max(SYSTEM_START_YEAR, +joinDateOf(userId).slice(0, 4));
+  let carry = 0, prevRemaining = 0;
+  if (year > firstYear && depth < 30) {
+    prevRemaining = annualBalance(userId, year - 1, depth + 1).remaining;
+    carry = Math.max(0, Math.min(prevRemaining, p.max_accumulate - entitlement));
+  }
+  const used = usedDays(userId, 'Annual', year);
+  const total = entitlement + carry + bonus;
+  return { entitlement, carry, bonus, total, used, remaining: Math.max(0, total - used), forfeited: Math.max(0, prevRemaining - carry) };
+}
+function leaveBalance(userId, year) {
+  const p = leavePolicy(), emp = store.employees.find(e => e.user_id === userId) || {};
+  const simple = (type, base, bonusKey) => { const total = base + (+emp[bonusKey] || 0), used = usedDays(userId, type, year); return { total, used, remaining: Math.max(0, total - used) }; };
+  return { user_id: userId, year, join_date: joinDateOf(userId), annual: annualBalance(userId, year),
+    sick: simple('Sick', p.sick_days, 'sick_bonus'), casual: simple('Casual', p.casual_days, 'casual_bonus'), policy: p };
+}
+app.get('/api/leave/balance', auth, (req, res) => {
+  const year = Number(req.query.year) || +bkkToday().slice(0, 4);
+  const uid = req.query.user_id ? Number(req.query.user_id) : req.user.id;
+  if (uid !== req.user.id && !isManagerRole(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  if (!store.users.find(u => u.id === uid)) return res.status(404).json({ error: 'Not found' });
+  res.json(leaveBalance(uid, year));
+});
+app.get('/api/leave/balances', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
+  const year = Number(req.query.year) || +bkkToday().slice(0, 4);
+  res.json(store.users.map(u => ({ name: u.name, init: u.init, color: u.color, ...leaveBalance(u.id, year) }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+});
+
 // Working days between two dates (inclusive): company workdays minus active holidays
 function workdaysSetting() { const w = (store.settings || {}).workdays; return Array.isArray(w) && w.length ? w : [1,2,3,4,5]; }
 function workingDays(from, to) {
