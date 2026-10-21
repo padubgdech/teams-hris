@@ -5871,6 +5871,17 @@ function calcHours(inTime, outTime) {
 // ── CONFIG ─────────────────────────────────────────────────────────────
 // เปลี่ยน API_BASE ให้ตรงกับ URL ของ backend ที่ deploy (หรือ localhost สำหรับรันในเครื่อง)
 const API_BASE = window.HRIS_API_BASE || 'http://localhost:3001';
+// Staging / local: show a permanent banner so the test site is never mistaken for the real one
+if (window.HRIS_ENV && window.HRIS_ENV !== 'production') {
+  const _envBar = () => {
+    if (document.getElementById('env-banner')) return;
+    const b = document.createElement('div'); b.id = 'env-banner';
+    b.textContent = window.HRIS_ENV === 'staging' ? '🧪 STAGING — ระบบทดสอบ · ข้อมูลในนี้ไม่ใช่ของจริง และไม่กระทบระบบจริง' : '💻 LOCAL — ระบบทดสอบในเครื่อง';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#F59E0B;color:#1A1A2E;text-align:center;font:700 12px "Segoe UI",sans-serif;padding:4px 8px;pointer-events:none;opacity:.95';
+    document.body.appendChild(b); document.title = '[' + window.HRIS_ENV.toUpperCase() + '] ' + document.title.replace(/^\[\w+\] /, '');
+  };
+  if (document.body) _envBar(); else document.addEventListener('DOMContentLoaded', _envBar);
+}
 // ใส่ Google OAuth Client ID จาก Google Cloud Console
 const GOOGLE_CLIENT_ID = window.HRIS_GOOGLE_CLIENT_ID || '';
 // ─────────────────────────────────────────────────────────────────────

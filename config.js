@@ -1,18 +1,19 @@
 /**
  * Teams HRIS — Configuration
  *
- * แก้ไขไฟล์นี้เพื่อตั้งค่าระบบ แล้วกด Deploy ใหม่
+ * API_BASE — which backend this page talks to:
+ *   • Served by a Render service (production OR staging) or localhost → use that same server.
+ *     This keeps staging fully separate: a staging page can never write to production data.
+ *   • Served from anywhere else (e.g. GitHub Pages) → use the production backend.
  *
- * 1. API_BASE  → URL ของ backend server (ถ้ารันในเครื่องใช้ http://localhost:3001)
- *               ถ้า deploy backend ออนไลน์ให้ใส่ URL จริง เช่น https://myapp.up.railway.app
- *
- * 2. GOOGLE_CLIENT_ID → รับจาก Google Cloud Console
- *    ขั้นตอน: https://console.cloud.google.com
- *    → APIs & Services → Credentials → Create OAuth 2.0 Client ID
- *    → Application type: Web application
- *    → Authorized JavaScript origins: ใส่ URL ของเว็บ (เช่น https://padubgdech.github.io)
- *    → คัดลอก Client ID มาใส่ด้านล่าง
+ * GOOGLE_CLIENT_ID — from Google Cloud Console → APIs & Services → Credentials (OAuth 2.0 Client ID).
+ *   Each site URL must be listed under "Authorized JavaScript origins".
  */
-
-window.HRIS_API_BASE         = 'https://teams-hris.onrender.com';
+(function () {
+  var PROD_API = 'https://teams-hris.onrender.com';
+  var h = location.hostname;
+  var sameOrigin = /\.onrender\.com$/.test(h) || h === 'localhost' || h === '127.0.0.1';
+  window.HRIS_API_BASE = sameOrigin ? location.origin : PROD_API;
+  window.HRIS_ENV = /staging/.test(h) ? 'staging' : (h === 'localhost' || h === '127.0.0.1') ? 'local' : 'production';
+})();
 window.HRIS_GOOGLE_CLIENT_ID = '261071644785-4a5jlonrubqang0ppn1bq05upc1g4tvt.apps.googleusercontent.com';
