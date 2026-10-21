@@ -129,35 +129,48 @@ const ROLE_DEFAULTS = {
   employee:   ['checkin','ot','inbox','calendar','leave','myrecords'],
 };
 
-function seedHolidays() {
-  if (store.holidays.length > 0) return;
-  const holidays2026 = [
-    {date:'2026-01-01',name:'วันขึ้นปีใหม่',name_en:"New Year's Day",type:'official'},
-    {date:'2026-01-02',name:'วันหยุดพิเศษ (ครม.)',name_en:'Special Holiday',type:'special'},
-    {date:'2026-04-06',name:'วันจักรี',name_en:'Chakri Memorial Day',type:'official'},
-    {date:'2026-04-13',name:'วันสงกรานต์',name_en:'Songkran Festival',type:'official'},
-    {date:'2026-04-14',name:'วันสงกรานต์',name_en:'Songkran Festival',type:'official'},
-    {date:'2026-04-15',name:'วันสงกรานต์ (เพิ่มเติม)',name_en:'Songkran Festival (Extra)',type:'official'},
-    {date:'2026-05-01',name:'วันแรงงานแห่งชาติ',name_en:'National Labour Day',type:'official'},
-    {date:'2026-05-04',name:'วันฉัตรมงคล',name_en:'Coronation Day',type:'official'},
-    {date:'2026-06-01',name:'ชดเชยวิสาขบูชา',name_en:'Visakha Bucha (in lieu)',type:'compensatory'},
-    {date:'2026-06-03',name:'วันพระบรมราชินี',name_en:"HM Queen's Birthday",type:'official'},
-    {date:'2026-07-28',name:'วันเฉลิมพระชนมพรรษา ร.10',name_en:"HM King's Birthday",type:'official'},
-    {date:'2026-07-29',name:'วันอาสาฬหบูชา',name_en:'Asarnha Bucha Day',type:'official'},
-    {date:'2026-07-30',name:'วันเข้าพรรษา',name_en:'Buddhist Lent Day',type:'official'},
-    {date:'2026-08-12',name:'วันแม่แห่งชาติ',name_en:"HM Queen Mother's Birthday / Mother's Day",type:'official'},
-    {date:'2026-10-13',name:'วันคล้ายวันสวรรคต ร.9',name_en:'HM King Bhumibol Memorial Day',type:'official'},
-    {date:'2026-10-23',name:'วันปิยมหาราช',name_en:'Chulalongkorn Day',type:'official'},
-    {date:'2026-12-10',name:'วันรัฐธรรมนูญ',name_en:'Constitution Day',type:'official'},
-    {date:'2026-12-31',name:'วันสิ้นปี',name_en:"New Year's Eve",type:'official'},
-  ];
-  holidays2026.forEach(h => {
-    if (!store.holidays.find(x => x.date === h.date)) {
-      store.holidays.push({ id: genId('holidays'), ...h, year: 2026 });
-    }
+// Official financial-institution (bank) holidays announced by the Bank of Thailand.
+// 2569/2026: BOT Notification 31/2568 · 2570/2027: BOT Notification 37/2569
+const BANK_HOLIDAYS = {
+  2026: [
+    ['2026-01-01','วันขึ้นปีใหม่','official'],['2026-01-02','วันหยุดพิเศษ (ครม.)','special'],['2026-03-03','วันมาฆบูชา','official'],
+    ['2026-04-06','วันจักรี','official'],['2026-04-13','วันสงกรานต์','official'],['2026-04-14','วันสงกรานต์','official'],['2026-04-15','วันสงกรานต์','official'],
+    ['2026-05-01','วันแรงงานแห่งชาติ','official'],['2026-05-04','วันฉัตรมงคล','official'],['2026-06-01','ชดเชยวันวิสาขบูชา (31 พ.ค.)','compensatory'],
+    ['2026-06-03','วันเฉลิมพระชนมพรรษา พระราชินี','official'],['2026-07-28','วันเฉลิมพระชนมพรรษา ร.10','official'],['2026-07-29','วันอาสาฬหบูชา','official'],
+    ['2026-08-12','วันแม่แห่งชาติ','official'],['2026-10-13','วันนวมินทรมหาราช','official'],['2026-10-23','วันปิยมหาราช','official'],
+    ['2026-12-07','ชดเชยวันพ่อแห่งชาติ (5 ธ.ค.)','compensatory'],['2026-12-10','วันรัฐธรรมนูญ','official'],['2026-12-31','วันสิ้นปี','official'],
+  ],
+  2027: [
+    ['2027-01-01','วันขึ้นปีใหม่','official'],['2027-02-22','ชดเชยวันมาฆบูชา (21 ก.พ.)','compensatory'],['2027-04-06','วันจักรี','official'],
+    ['2027-04-13','วันสงกรานต์','official'],['2027-04-14','วันสงกรานต์','official'],['2027-04-15','วันสงกรานต์','official'],
+    ['2027-05-03','ชดเชยวันแรงงานแห่งชาติ (1 พ.ค.)','compensatory'],['2027-05-04','วันฉัตรมงคล','official'],['2027-05-20','วันวิสาขบูชา','official'],
+    ['2027-06-03','วันเฉลิมพระชนมพรรษา พระราชินี','official'],['2027-07-19','ชดเชยวันอาสาฬหบูชา (18 ก.ค.)','compensatory'],['2027-07-28','วันเฉลิมพระชนมพรรษา ร.10','official'],
+    ['2027-08-12','วันแม่แห่งชาติ','official'],['2027-10-13','วันนวมินทรมหาราช','official'],['2027-10-25','ชดเชยวันปิยมหาราช (23 ต.ค.)','compensatory'],
+    ['2027-12-06','ชดเชยวันพ่อแห่งชาติ (5 ธ.ค.)','compensatory'],['2027-12-10','วันรัฐธรรมนูญ','official'],['2027-12-31','วันสิ้นปี','official'],
+  ],
+};
+const BANK_SOURCE = { 2026: 'ประกาศ ธปท. ที่ 31/2568', 2027: 'ประกาศ ธปท. ที่ 37/2569' };
+function applyBankHolidays(year) {
+  const list = BANK_HOLIDAYS[year]; if (!list) return 0;
+  let n = 0;
+  list.forEach(([date, name, type]) => {
+    const ex = store.holidays.find(h => h.date === date);
+    if (ex) { ex.name = name; ex.type = type; ex.source = 'bank'; if (ex.active === undefined) ex.active = true; }
+    else { store.holidays.push({ id: genId('holidays'), date, name, name_en: '', type, year, active: true, source: 'bank' }); n++; }
   });
+  return n;
+}
+function seedHolidays() {
+  store.settings = store.settings || {};
+  if ((store.settings.holiday_version || 0) >= 2) return;
+  // v2: company follows the bank holiday calendar. Remove the old non-bank seed day (เข้าพรรษา 30 ก.ค. 2569),
+  // then load the official 2026 + 2027 lists. Holidays an admin added by hand are kept.
+  store.holidays = store.holidays.filter(h => !(h.date === '2026-07-30' && !h.source));
+  store.holidays.forEach(h => { if (h.active === undefined) h.active = true; if (!h.source) h.source = 'custom'; });
+  const added = applyBankHolidays(2026) + applyBankHolidays(2027);
+  store.settings.holiday_version = 2;
   saveDb();
-  console.log('Holidays seeded:', store.holidays.length);
+  console.log('Holidays migrated to bank calendar v2 (+' + added + ')');
 }
 
 // ══════════════════════════════════════
@@ -579,9 +592,16 @@ app.post('/api/leave', auth, async (req, res) => {
   if (!LEAVE_TYPES.includes(type)) return res.status(400).json({ error: 'ประเภทการลาไม่ถูกต้อง' });
   if (!isDate(from_date) || !isDate(to_date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
   if (to_date < from_date) return res.status(400).json({ error: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' });
-  const nDays = days === undefined ? 1 : Number(days);
+  const reqDays = days === undefined ? 1 : Number(days);
   const span = Math.round((new Date(to_date) - new Date(from_date)) / 864e5) + 1;
-  if (!isFinite(nDays) || nDays < 0.5 || nDays > span || nDays > 365) return res.status(400).json({ error: 'จำนวนวันลาไม่ถูกต้อง' });
+  if (!isFinite(reqDays) || reqDays < 0.5 || reqDays > span || reqDays > 365) return res.status(400).json({ error: 'จำนวนวันลาไม่ถูกต้อง' });
+  // Time off counts working days only (no weekends / company holidays). 'Comp' rows record holiday work, so keep their count.
+  let nDays = reqDays;
+  if (type !== 'Comp') {
+    const wdays = workingDays(from_date, to_date);
+    if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
+    nDays = (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
+  }
   // 'Comp' rows record OT-holiday work that EARNS comp days — they aren't time off, so skip the overlap rule
   if (type !== 'Comp') {
     const clash = store.leave_requests.find(r => r.user_id === req.user.id && r.type !== 'Comp'
@@ -859,13 +879,16 @@ app.get('/api/directory', auth, (req, res) => {
     .sort((a,b) => (a.name||'').localeCompare(b.name||'')));
 });
 // Settings (approval chain)
-app.get('/api/settings', auth, (req, res) => res.json({ approval_chain: approvalChain() }));
+app.get('/api/settings', auth, (req, res) => res.json({ approval_chain: approvalChain(), workdays: workdaysSetting() }));
 app.put('/api/settings', auth, requireRole('admin'), (req, res) => {
   const c = req.body.approval_chain || {};
   for (const k of ['leave','ot','comp']) if (c[k] !== undefined && !ROLE_RANK[c[k]]) return res.status(400).json({ error: 'Invalid role for ' + k });
+  const wd = req.body.workdays;
+  if (wd !== undefined && (!Array.isArray(wd) || !wd.length || wd.some(d => !Number.isInteger(d) || d < 0 || d > 6))) return res.status(400).json({ error: 'วันทำงานไม่ถูกต้อง' });
   store.settings = store.settings || {};
-  store.settings.approval_chain = { ...approvalChain(), ...c };
-  saveDb(); res.json({ ok: true, approval_chain: store.settings.approval_chain });
+  if (req.body.approval_chain) store.settings.approval_chain = { ...approvalChain(), ...c };
+  if (wd !== undefined) store.settings.workdays = [...new Set(wd)].sort();
+  saveDb(); res.json({ ok: true, approval_chain: approvalChain(), workdays: workdaysSetting() });
 });
 // Full data export for backups (admin). Password hashes are never included.
 app.get('/api/export', auth, requireRole('admin'), (req, res) => {
@@ -896,25 +919,64 @@ app.get('/api/stats', auth, requireRole('admin','hr_manager','hr_staff'), (req, 
 });
 
 // ── HOLIDAYS ──────────────────────────────────────────────────────────────────
+// Holidays. Default list = holidays the company observes (active). Admin/HR can ask for ?all=1 to manage inactive ones too.
+function isHolidayManager(req) {
+  const h = req.headers.authorization; if (!h) return false;
+  try { const p = jwt.verify(h.replace('Bearer ', ''), JWT_SECRET); const u = store.users.find(x => x.id === p.id); return !!u && ['admin','hr_manager'].includes(u.role); } catch { return false; }
+}
 app.get('/api/holidays', (req, res) => {
-  const { year, month } = req.query;
+  const { year, month, all } = req.query;
   let rows = [...store.holidays];
+  if (!(all && isHolidayManager(req))) rows = rows.filter(h => h.active !== false);
   if (year)  rows = rows.filter(h => h.year === Number(year));
   if (month) rows = rows.filter(h => h.date && h.date.startsWith(`${year||''}-${String(month).padStart(2,'0')}-`));
   res.json([...rows].sort((a,b) => a.date.localeCompare(b.date)));
 });
+app.get('/api/holidays/presets', auth, (req, res) => {
+  res.json(Object.keys(BANK_HOLIDAYS).map(y => ({ year: +y, count: BANK_HOLIDAYS[y].length, source: BANK_SOURCE[y] })));
+});
+app.post('/api/holidays/preset', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const year = Number(req.body.year);
+  if (!BANK_HOLIDAYS[year]) return res.status(404).json({ error: `ยังไม่มีประกาศวันหยุดธนาคารปี ${year} ในระบบ — เพิ่มวันหยุดเองได้` });
+  const added = applyBankHolidays(year);
+  saveDb(); res.json({ ok: true, added, total: BANK_HOLIDAYS[year].length, source: BANK_SOURCE[year] });
+});
 app.post('/api/holidays', auth, requireRole('admin','hr_manager'), (req, res) => {
   const { date, name, name_en, type } = req.body;
   if (!date || !name) return res.status(400).json({ error: 'date and name required' });
+  if (!isDate(date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
   const year = parseInt(date.slice(0,4));
   const existing = store.holidays.find(h => h.date === date);
-  if (existing) { existing.name = name; existing.name_en = name_en||''; existing.type = type||'official'; }
-  else store.holidays.push({ id: genId('holidays'), date, name, name_en: name_en||'', type: type||'official', year });
+  if (existing) { existing.name = name; existing.name_en = name_en||''; existing.type = type||existing.type||'company'; existing.active = true; }
+  else store.holidays.push({ id: genId('holidays'), date, name, name_en: name_en||'', type: type||'company', year, active: true, source: 'custom' });
   saveDb(); res.status(201).json({ ok: true });
 });
-app.delete('/api/holidays/:date', auth, requireRole('admin'), (req, res) => {
+app.put('/api/holidays/:date', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const h = store.holidays.find(x => x.date === req.params.date);
+  if (!h) return res.status(404).json({ error: 'Not found' });
+  if (req.body.active !== undefined) h.active = !!req.body.active;
+  if (req.body.name) h.name = String(req.body.name);
+  saveDb(); res.json({ ok: true, holiday: h });
+});
+app.delete('/api/holidays/:date', auth, requireRole('admin','hr_manager'), (req, res) => {
   store.holidays = store.holidays.filter(h => h.date !== req.params.date);
   saveDb(); res.json({ ok: true });
+});
+// Working days between two dates (inclusive): company workdays minus active holidays
+function workdaysSetting() { const w = (store.settings || {}).workdays; return Array.isArray(w) && w.length ? w : [1,2,3,4,5]; }
+function workingDays(from, to) {
+  const wd = workdaysSetting(), hol = new Set(store.holidays.filter(h => h.active !== false).map(h => h.date));
+  let n = 0;
+  for (let t = new Date(from + 'T00:00:00Z'); t <= new Date(to + 'T00:00:00Z'); t = new Date(t.getTime() + 864e5)) {
+    const ds = t.toISOString().slice(0,10);
+    if (wd.includes(t.getUTCDay()) && !hol.has(ds)) n++;
+  }
+  return n;
+}
+app.get('/api/working-days', auth, (req, res) => {
+  const { from, to } = req.query;
+  if (!isDate(from) || !isDate(to) || to < from) return res.status(400).json({ error: 'Invalid range' });
+  res.json({ from, to, days: workingDays(from, to), workdays: workdaysSetting() });
 });
 
 // ── Departments ──────────────────────────────────────────────────────────────

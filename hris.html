@@ -3620,25 +3620,14 @@ function approvLeave(btn, st) {
 const typeColors = {meeting:'#3B82F6',review:'#8B5CF6',planning:'#F59E0B',interview:'#EF4444',training:'#10B981',other:'#6B7280'};
 // holidayMap: { 'YYYY-MM-DD': {name, type} }
 // Hardcoded Thai holidays 2026 (BE 2569) — fallback when backend is offline
-const THAI_HOLIDAYS_2026 = [
-  {date:'2026-01-01',name:'วันขึ้นปีใหม่',type:'official'},
-  {date:'2026-01-02',name:'วันหยุดพิเศษ (ครม.)',type:'special'},
-  {date:'2026-04-06',name:'วันจักรี',type:'official'},
-  {date:'2026-04-13',name:'วันสงกรานต์',type:'official'},
-  {date:'2026-04-14',name:'วันสงกรานต์',type:'official'},
-  {date:'2026-04-15',name:'วันสงกรานต์ (เพิ่มเติม)',type:'official'},
-  {date:'2026-05-01',name:'วันแรงงานแห่งชาติ',type:'official'},
-  {date:'2026-05-04',name:'วันฉัตรมงคล',type:'official'},
-  {date:'2026-06-01',name:'ชดเชยวิสาขบูชา',type:'compensatory'},
-  {date:'2026-06-03',name:'วันพระบรมราชินี',type:'official'},
-  {date:'2026-07-28',name:'วันเฉลิมพระชนมพรรษา ร.10',type:'official'},
-  {date:'2026-07-29',name:'วันอาสาฬหบูชา',type:'official'},
-  {date:'2026-07-30',name:'วันเข้าพรรษา',type:'official'},
-  {date:'2026-08-12',name:'วันแม่แห่งชาติ',type:'official'},
-  {date:'2026-10-13',name:'วันคล้ายวันสวรรคต ร.9',type:'official'},
-  {date:'2026-10-23',name:'วันปิยมหาราช',type:'official'},
-  {date:'2026-12-10',name:'วันรัฐธรรมนูญ',type:'official'},
-  {date:'2026-12-31',name:'วันสิ้นปี',type:'official'},
+const THAI_HOLIDAYS_2026 = [ // bank calendar 2569 (ประกาศ ธปท. ที่ 31/2568) — offline fallback only
+  {date:'2026-01-01',name:'วันขึ้นปีใหม่',type:'official'},{date:'2026-01-02',name:'วันหยุดพิเศษ (ครม.)',type:'special'},{date:'2026-03-03',name:'วันมาฆบูชา',type:'official'},
+  {date:'2026-04-06',name:'วันจักรี',type:'official'},{date:'2026-04-13',name:'วันสงกรานต์',type:'official'},{date:'2026-04-14',name:'วันสงกรานต์',type:'official'},
+  {date:'2026-04-15',name:'วันสงกรานต์',type:'official'},{date:'2026-05-01',name:'วันแรงงานแห่งชาติ',type:'official'},{date:'2026-05-04',name:'วันฉัตรมงคล',type:'official'},
+  {date:'2026-06-01',name:'ชดเชยวันวิสาขบูชา',type:'compensatory'},{date:'2026-06-03',name:'วันเฉลิมพระชนมพรรษา พระราชินี',type:'official'},
+  {date:'2026-07-28',name:'วันเฉลิมพระชนมพรรษา ร.10',type:'official'},{date:'2026-07-29',name:'วันอาสาฬหบูชา',type:'official'},{date:'2026-08-12',name:'วันแม่แห่งชาติ',type:'official'},
+  {date:'2026-10-13',name:'วันนวมินทรมหาราช',type:'official'},{date:'2026-10-23',name:'วันปิยมหาราช',type:'official'},{date:'2026-12-07',name:'ชดเชยวันพ่อแห่งชาติ',type:'compensatory'},
+  {date:'2026-12-10',name:'วันรัฐธรรมนูญ',type:'official'},{date:'2026-12-31',name:'วันสิ้นปี',type:'official'},
 ];
 let holidayMap = {};
 // Pre-load from hardcoded data
@@ -3988,8 +3977,9 @@ function renderYearView() {
   document.getElementById('cal-year-summary').innerHTML = summaryHtml;
 
   // Load all months' holidays from API if connected
-  if (useApi) {
-    Promise.all(Array.from({length:12},(_,mo)=>loadHolidaysForMonth(yr,mo))).then(()=>renderYearView());
+  // (was: reloaded + re-rendered on every render → endless request loop while the year view was open)
+  if (useApi && typeof _holYearsLoaded !== 'undefined' && !_holYearsLoaded.has(yr)) {
+    loadHolidaysYear(yr).then(() => { if (state.calYear === yr) renderYearView(); });
   }
 }
 
@@ -6278,7 +6268,7 @@ submitLeave = async function(){
   if(new Date(to) < new Date(from)) { showToast('วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น','error'); return; }
   const reason= document.getElementById('leave-reason')?.value||'Personal';
   const halfDay = document.getElementById('leave-half-day')?.checked;
-  const days  = halfDay ? 0.5 : Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1);
+  const days  = halfDay ? 0.5 : (type==='Comp' ? Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1) : countWorkingDays(from, to));
   // Balance check
   const myName = currentUser?.name||'';
   const approved = leaveData.filter(r=>r.status==='Approved'&&(r.userId!==undefined ? r.userId===currentUser?.id : (r.emp||r.empName||'')===myName));
@@ -6783,12 +6773,198 @@ const _toggleCheckinPageLocal = toggleCheckinPage, _quickCheckinLocal = quickChe
 toggleCheckinPage = function() { if (!useApi) return _toggleCheckinPageLocal(); return toggleCheckin(); };
 quickCheckin = function() { if (!useApi) return _quickCheckinLocal(); return toggleCheckin(); };
 
+// ══════════════════════════════════════════════════════════════════
+//  FEATURE 1 — Company holidays (bank calendar) + working-day leave counting
+// ══════════════════════════════════════════════════════════════════
+let _workdays = [1,2,3,4,5];
+const _holYearsLoaded = new Set();
+const TH_WD = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const thDateShort = s => { const d = new Date(s + 'T00:00:00'); return `${d.getDate()} ${TH_MON[d.getMonth()]} ${d.getFullYear()+543}`; };
+// Replace (not merge) the holidays of a whole year, so removed / switched-off days disappear from the calendar
+async function loadHolidaysYear(yr, force) {
+  if (!useApi || (!force && _holYearsLoaded.has(yr))) return;
+  const data = await apiCall('GET', '/api/holidays?year=' + yr);
+  if (!Array.isArray(data)) return;
+  Object.keys(holidayMap).forEach(k => { if (k.startsWith(yr + '-')) delete holidayMap[k]; });
+  data.forEach(h => { holidayMap[h.date] = h; });
+  _holYearsLoaded.add(yr);
+}
+loadHolidaysForMonth = async function(yr, mo) { await loadHolidaysYear(yr); };
+async function loadWorkdays() {
+  const s = await apiCall('GET', '/api/settings');
+  if (s && Array.isArray(s.workdays)) _workdays = s.workdays;
+}
+function countWorkingDays(from, to) {
+  if (!from || !to || to < from) return 0;
+  let n = 0;
+  for (let d = new Date(from + 'T00:00:00'); localISODate(d) <= to; d.setDate(d.getDate() + 1)) {
+    if (_workdays.includes(d.getDay()) && !holidayMap[localISODate(d)]) n++;
+  }
+  return n;
+}
+async function updateLeaveDaysPreview() {
+  const dp = document.getElementById('leave-days-preview'); if (!dp) return;
+  if (document.getElementById('leave-half-day')?.checked) { dp.textContent = '= 0.5 วัน'; return; }
+  const from = document.getElementById('leave-from')?.value, to = document.getElementById('leave-to')?.value;
+  if (!from || !to) { dp.textContent = ''; return; }
+  if (to < from) { dp.textContent = '⚠ วันที่สิ้นสุดก่อนวันเริ่ม'; dp.style.color = '#DC2626'; return; }
+  await Promise.all([loadHolidaysYear(+from.slice(0,4)), loadHolidaysYear(+to.slice(0,4))]);
+  const n = countWorkingDays(from, to);
+  const span = Math.round((new Date(to) - new Date(from)) / 864e5) + 1;
+  dp.style.color = n ? '#6366F1' : '#DC2626';
+  dp.textContent = n ? `= ${n} วันทำงาน${span > n ? ` (ไม่นับวันหยุด ${span - n} วัน)` : ''}` : '⚠ ช่วงนี้เป็นวันหยุดทั้งหมด';
+}
+document.addEventListener('change', e => { if (e.target && ['leave-from','leave-to','leave-half-day'].includes(e.target.id)) updateLeaveDaysPreview(); });
+
+// Leave submit: count working days (server applies the same rule and has the final say)
+const _submitLeaveBeforeWD = submitLeave;
+submitLeave = async function() {
+  if (useApi && !document.getElementById('leave-half-day')?.checked && (state.selectedLeaveType || 'Annual') !== 'Comp') {
+    const from = document.getElementById('leave-from').value, to = document.getElementById('leave-to').value;
+    if (from && to && to >= from) {
+      await Promise.all([loadHolidaysYear(+from.slice(0,4)), loadHolidaysYear(+to.slice(0,4))]);
+      if (countWorkingDays(from, to) === 0) { showToast('ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา', 'error'); return; }
+    }
+  }
+  return _submitLeaveBeforeWD();
+};
+
+// ── Admin: holiday management window ──
+let _holEditYear = new Date().getFullYear();
+let _holRows = [];
+function _ensureHolidayModal() {
+  if (document.getElementById('modal-holidays')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="modal-holidays">
+    <div class="modal" style="max-width:760px;width:96vw;max-height:90vh;overflow:auto">
+      <button class="modal-close" onclick="closeModal('modal-holidays')">✕</button>
+      <div class="modal-title">📅 วันหยุดประจำปีของบริษัท</div>
+      <div style="font-size:12px;color:var(--text-muted);margin:-6px 0 14px">บริษัทหยุดตามวันหยุดธนาคาร (ธปท.) · ใช้กับปฏิทินและการนับวันลา</div>
+      <div id="hol-alert"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <b>ปี</b><select id="hol-year-sel" onchange="holLoad(+this.value)" style="width:auto"></select>
+        <span class="badge" id="hol-count-badge"></span><span class="badge" id="hol-law-badge"></span>
+        <span style="flex:1"></span>
+        <button class="btn btn-outline" id="hol-preset-btn" onclick="holApplyPreset()" style="font-size:12px">🏦 ใช้วันหยุดธนาคาร</button>
+      </div>
+      <table class="table" style="width:100%;font-size:13px">
+        <thead><tr><th style="width:44px">หยุด</th><th>วันที่</th><th>วัน</th><th>ชื่อวันหยุด</th><th>ที่มา</th><th style="width:60px"></th></tr></thead>
+        <tbody id="hol-tbody"></tbody>
+      </table>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <b style="font-size:13px">+ เพิ่มวันหยุดบริษัท</b>
+        <input type="date" id="hol-new-date" style="width:auto"><input type="text" id="hol-new-name" placeholder="เช่น วันหยุดพิเศษบริษัท" style="flex:1;min-width:160px">
+        <button class="btn btn-primary" onclick="holAdd()" style="font-size:12px">เพิ่ม</button>
+      </div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+        <b style="font-size:13px">วันทำงานของบริษัท</b> <span style="font-size:12px;color:var(--text-muted)">— ใช้นับวันลา (วันที่ไม่ใช่วันทำงานจะไม่ถูกนับ)</span>
+        <div id="hol-wd-chips" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+  </div>`);
+}
+async function openHolidayModal() {
+  _ensureHolidayModal();
+  const y = new Date().getFullYear();
+  document.getElementById('hol-year-sel').innerHTML = [y - 1, y, y + 1].map(v => `<option value="${v}">${v} (พ.ศ. ${v + 543})</option>`).join('');
+  document.getElementById('hol-year-sel').value = String(new Date().getMonth() >= 8 ? y + 1 : y);
+  openModal('modal-holidays');
+  await loadWorkdays(); _renderWdChips();
+  await holLoad(+document.getElementById('hol-year-sel').value);
+}
+async function holLoad(yr) {
+  _holEditYear = yr;
+  const [rows, presets] = await Promise.all([apiCall('GET', '/api/holidays?all=1&year=' + yr), apiCall('GET', '/api/holidays/presets')]);
+  _holRows = Array.isArray(rows) ? rows : [];
+  const preset = (Array.isArray(presets) ? presets : []).find(p => p.year === yr);
+  const btn = document.getElementById('hol-preset-btn');
+  btn.disabled = !preset; btn.title = preset ? `โหลด ${preset.count} วันตาม${preset.source}` : 'ยังไม่มีประกาศของปีนี้ในระบบ';
+  btn.textContent = preset ? `🏦 ใช้วันหยุดธนาคาร (${preset.source})` : '🏦 ยังไม่มีประกาศวันหยุดธนาคารปีนี้';
+  _renderHolRows(preset);
+}
+function _renderHolRows(preset) {
+  const tb = document.getElementById('hol-tbody'), yr = _holEditYear;
+  const active = _holRows.filter(h => h.active !== false).length;
+  document.getElementById('hol-count-badge').className = 'badge badge-gray';
+  document.getElementById('hol-count-badge').textContent = `หยุด ${active} วัน`;
+  const law = document.getElementById('hol-law-badge');
+  law.className = 'badge ' + (active >= 13 ? 'badge-green' : 'badge-red');
+  law.textContent = active >= 13 ? '✓ ครบขั้นต่ำ 13 วัน (กฎหมายแรงงาน)' : `⚠ กฎหมายกำหนดอย่างน้อย 13 วัน (ขาด ${13 - active})`;
+  document.getElementById('hol-alert').innerHTML = !_holRows.length
+    ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px">⚠️ ยังไม่มีวันหยุดปี ${yr}${preset ? ' — กด <b>"ใช้วันหยุดธนาคาร"</b> เพื่อโหลดตามประกาศ ธปท.' : ' — เพิ่มวันหยุดเองด้านล่าง หรือรอประกาศ ธปท.'}</div>` : '';
+  tb.innerHTML = _holRows.length ? _holRows.map(h => {
+    const d = new Date(h.date + 'T00:00:00'), we = d.getDay() === 0 || d.getDay() === 6;
+    return `<tr style="${h.active === false ? 'opacity:.5' : ''}">
+      <td><input type="checkbox" ${h.active !== false ? 'checked' : ''} onchange="holToggle('${h.date}', this.checked)" title="บริษัทหยุดวันนี้"></td>
+      <td>${thDateShort(h.date)}</td><td style="${we ? 'color:#DC2626;font-weight:700' : ''}">${TH_WD[d.getDay()]}</td>
+      <td>${_escH(h.name)}</td>
+      <td>${h.source === 'bank' ? '<span class="badge badge-blue" style="background:#DBEAFE;color:#1D4ED8">ธนาคาร</span>' : '<span class="badge badge-green">บริษัท</span>'}</td>
+      <td><button class="btn btn-outline" style="font-size:11px;padding:3px 8px" onclick="holDelete('${h.date}')">ลบ</button></td></tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">ไม่มีข้อมูล</td></tr>`;
+}
+async function _holChanged() { _holYearsLoaded.delete(_holEditYear); await loadHolidaysYear(_holEditYear, true); await holLoad(_holEditYear); try { renderCalendar(); } catch(e) {} _checkHolidayYearAlert(); }
+async function holApplyPreset() {
+  const r = await apiCall('POST', '/api/holidays/preset', { year: _holEditYear });
+  if (r && r.ok) { showToast(`โหลดวันหยุดธนาคารปี ${_holEditYear} แล้ว (${r.total} วัน)`, 'success'); await _holChanged(); }
+  else showToast((r && r.error) || 'โหลดไม่สำเร็จ', 'error');
+}
+async function holToggle(date, on) {
+  const r = await apiCall('PUT', '/api/holidays/' + date, { active: on });
+  if (r && r.ok) { showToast(on ? 'ตั้งเป็นวันหยุดบริษัทแล้ว' : 'บริษัทไม่หยุดวันนี้แล้ว', 'success'); await _holChanged(); }
+  else showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error');
+}
+async function holDelete(date) {
+  if (!confirm('ลบวันหยุด ' + thDateShort(date) + '?')) return;
+  const r = await apiCall('DELETE', '/api/holidays/' + date);
+  if (r && r.ok) { showToast('ลบแล้ว', 'success'); await _holChanged(); } else showToast((r && r.error) || 'ลบไม่สำเร็จ', 'error');
+}
+async function holAdd() {
+  const date = document.getElementById('hol-new-date').value, name = document.getElementById('hol-new-name').value.trim();
+  if (!date || !name) { showToast('กรุณาเลือกวันที่และใส่ชื่อวันหยุด', 'error'); return; }
+  const r = await apiCall('POST', '/api/holidays', { date, name });
+  if (r && r.ok) {
+    document.getElementById('hol-new-name').value = '';
+    const yr = +date.slice(0,4); if (yr !== _holEditYear) { document.getElementById('hol-year-sel').value = String(yr); _holEditYear = yr; }
+    showToast('เพิ่มวันหยุดแล้ว', 'success'); await _holChanged();
+  } else showToast((r && r.error) || 'เพิ่มไม่สำเร็จ', 'error');
+}
+function _renderWdChips() {
+  const el = document.getElementById('hol-wd-chips'); if (!el) return;
+  el.innerHTML = [1,2,3,4,5,6,0].map(d => `<div class="chip${_workdays.includes(d) ? ' selected' : ''}" onclick="holToggleWorkday(${d})">${TH_WD[d]}</div>`).join('');
+}
+async function holToggleWorkday(d) {
+  const next = _workdays.includes(d) ? _workdays.filter(x => x !== d) : [..._workdays, d];
+  if (!next.length) { showToast('ต้องมีวันทำงานอย่างน้อย 1 วัน', 'error'); return; }
+  const r = await apiCall('PUT', '/api/settings', { workdays: next });
+  if (r && r.ok) { _workdays = r.workdays; _renderWdChips(); showToast('บันทึกวันทำงานแล้ว', 'success'); } else showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error');
+}
+// Calendar page: "manage holidays" button + year-end warning (admin / HR manager)
+async function _checkHolidayYearAlert() {
+  const view = document.getElementById('view-calendar'); if (!view || !currentUser) return;
+  const canManage = ['admin','hr_manager'].includes(currentUser.role);
+  let bar = document.getElementById('hol-manage-bar');
+  if (!canManage) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    view.insertAdjacentHTML('afterbegin', `<div id="hol-manage-bar" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span id="hol-year-warn" style="flex:1"></span><button class="btn btn-outline" onclick="openHolidayModal()" style="font-size:12px">⚙️ จัดการวันหยุด</button></div>`);
+  }
+  const now = new Date(), ny = now.getFullYear() + 1;
+  const warn = document.getElementById('hol-year-warn');
+  if (now.getMonth() >= 8) {
+    const nyRows = await apiCall('GET', '/api/holidays?year=' + ny);
+    warn.innerHTML = Array.isArray(nyRows) && !nyRows.length
+      ? `<span style="display:inline-block;background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:8px;padding:6px 10px;font-size:12px">⚠️ ยังไม่ได้ตั้งวันหยุดปี ${ny} — <a href="#" onclick="openHolidayModal();return false" style="color:#92400E;font-weight:700">ตั้งค่าเลย</a></span>` : '';
+  } else warn.innerHTML = '';
+}
+
 // Load the server-backed data each page needs
+let _wdLoadedOnce = false;
 const _navWired = nav;
 nav = function(page) {
   _navWired(page);
   if (!useApi || !currentUser) return;
-  if (page === 'calendar') loadAppointmentsFromApi().then(() => { try { renderCalendar(); } catch(e) {} });
+  if (page === 'calendar') { const y = state.calYear; Promise.all([loadAppointmentsFromApi(), loadHolidaysYear(y), loadHolidaysYear(y + 1)]).then(() => { try { renderCalendar(); } catch(e) {} }); _checkHolidayYearAlert(); }
+  if (!_wdLoadedOnce) { _wdLoadedOnce = true; loadWorkdays(); const y = new Date().getFullYear(); loadHolidaysYear(y); loadHolidaysYear(y + 1); }
   if (page === 'leave') loadApprovalChainFromApi();
   if (page === 'permissions') { loadApprovalChainFromApi(); updateBackupUI(); }
 };
