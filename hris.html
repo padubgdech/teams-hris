@@ -7409,6 +7409,473 @@ function _impUI() {
   };
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  FEATURES 7–9: ขอเอกสาร HR · ประกาศบริษัท · แจ้งเตือนคำขอค้างอนุมัติ
+// ══════════════════════════════════════════════════════════════════════════════
+const _e = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const _isMgr = () => !!currentUser && ['admin','hr_manager','hr_staff'].includes(currentUser.role);
+const _thDate = (iso, opt) => { if (!iso) return '—'; const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso); return isNaN(d) ? '—' : d.toLocaleDateString('th-TH', opt || { day: 'numeric', month: 'short', year: 'numeric' }); };
+const _f789 = { anns: [], docs: [], allDocs: [], docTab: 'pending', company: null, overdue: null };
+const _btn2 = 'border:1px solid var(--border);background:#fff';
+
+// ── Nav items, labels, permissions, views, modals ──
+(function registerF789() {
+  const sec = id => NAV_SECTIONS.find(s => s.labelKey === id);
+  const main = sec('section_main'), personal = sec('section_personal');
+  if (main && !main.items.find(i => i.id === 'announcements')) main.items.push({ id: 'announcements', labelKey: 'nav_announcements', badge: null,
+    icon: '<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/>' });
+  if (personal && !personal.items.find(i => i.id === 'documents')) personal.items.push({ id: 'documents', labelKey: 'nav_documents', badge: null,
+    icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/>' });
+  Object.assign(STRINGS.th, { nav_announcements: 'ประกาศบริษัท', nav_documents: 'ขอเอกสาร HR' });
+  Object.assign(STRINGS.en, { nav_announcements: 'Announcements', nav_documents: 'HR Documents' });
+  // Everyone can see announcements and request documents, whatever page permissions were saved before
+  const _ep = effectivePerms;
+  effectivePerms = function(u) { const p = _ep.apply(this, arguments); ['announcements', 'documents'].forEach(x => { if (!p.includes(x)) p.push(x); }); return p; };
+  const content = document.getElementById('content');
+  if (content && !document.getElementById('view-announcements')) {
+    content.insertAdjacentHTML('beforeend', `
+      <div class="view" id="view-announcements">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+          <div class="page-title" style="margin-bottom:0">ประกาศบริษัท</div>
+          <button class="btn btn-primary" id="ann-new-btn" onclick="openAnnModal()" style="display:none">+ สร้างประกาศ</button>
+        </div>
+        <div id="ann-list"></div>
+      </div>
+      <div class="view" id="view-documents">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+          <div class="page-title" style="margin-bottom:0">ขอเอกสาร HR</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="doc-company-btn" onclick="openCompanyModal()" style="display:none;${_btn2}">⚙️ หัวกระดาษบริษัท</button>
+            <button class="btn btn-primary" onclick="openDocRequestModal()">+ ขอเอกสาร</button>
+          </div>
+        </div>
+        <div id="doc-hr-panel" style="display:none;margin-bottom:18px"></div>
+        <div class="card card-p"><div class="card-title" style="margin-bottom:12px">คำขอของฉัน</div><div id="doc-my-list"></div></div>
+      </div>`);
+  }
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-overlay" id="modal-docreq"><div class="modal" style="max-width:460px">
+      <button class="modal-close" onclick="closeModal('modal-docreq')">✕</button>
+      <div class="modal-title">ขอเอกสาร HR</div>
+      <div class="form-group"><label>ประเภทเอกสาร</label>
+        <div class="chip-select" id="docreq-type" style="margin-top:6px">
+          <div class="chip selected" data-v="employment" onclick="_docPick(this)">หนังสือรับรองการทำงาน</div>
+          <div class="chip" data-v="salary" onclick="_docPick(this)">หนังสือรับรองเงินเดือน</div>
+        </div></div>
+      <div class="form-group"><label>ภาษา</label>
+        <div class="chip-select" id="docreq-lang" style="margin-top:6px">
+          <div class="chip selected" data-v="th" onclick="_docPick(this)">ภาษาไทย</div>
+          <div class="chip" data-v="en" onclick="_docPick(this)">English</div>
+        </div></div>
+      <div class="form-group"><label>วัตถุประสงค์</label>
+        <select id="docreq-purpose" onchange="document.getElementById('docreq-other').style.display=this.value==='อื่น ๆ'?'block':'none'">
+          <option>ยื่นขอสินเชื่อ / กู้ธนาคาร</option><option>ยื่นขอวีซ่า</option><option>เปิดบัญชีธนาคาร / บัตรเครดิต</option>
+          <option>สมัครงาน / ศึกษาต่อ</option><option>อื่น ๆ</option></select>
+        <input id="docreq-other" placeholder="ระบุวัตถุประสงค์" style="display:none;margin-top:8px"></div>
+      <div class="form-group"><label>จำนวน (ฉบับ)</label><input id="docreq-copies" type="number" min="1" max="5" value="1" style="width:100px"></div>
+      <div style="background:var(--green-light);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--ink);margin-bottom:16px">HR จะตรวจสอบแล้วออกเอกสารให้ เมื่อพร้อมจะมีแจ้งเตือนในกล่องข้อความ และกดพิมพ์/บันทึก PDF ได้จากหน้านี้</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="closeModal('modal-docreq')" style="${_btn2}">ยกเลิก</button>
+        <button class="btn btn-primary" id="docreq-submit" onclick="submitDocRequest()">ส่งคำขอ</button></div>
+    </div></div>
+    <div class="modal-overlay" id="modal-docissue"><div class="modal" style="max-width:460px">
+      <button class="modal-close" onclick="closeModal('modal-docissue')">✕</button>
+      <div class="modal-title">ออกเอกสาร</div>
+      <div id="docissue-info" style="font-size:13px;margin-bottom:14px;line-height:1.6"></div>
+      <div class="form-group" id="docissue-salary-wrap"><label>เงินเดือนปัจจุบัน (บาท/เดือน)</label><input id="docissue-salary" type="number" min="0" step="0.01" placeholder="เช่น 25000"></div>
+      <div class="form-group"><label>ผู้ลงนาม</label><input id="docissue-signer" placeholder="ชื่อ-นามสกุล ผู้ลงนาม"></div>
+      <div class="form-group"><label>ตำแหน่งผู้ลงนาม</label><input id="docissue-title"></div>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="previewIssue()" style="${_btn2}">👁 ดูตัวอย่าง</button>
+        <button class="btn btn-primary" id="docissue-submit" onclick="submitDocIssue()">ออกเอกสาร</button></div>
+    </div></div>
+    <div class="modal-overlay" id="modal-company"><div class="modal" style="max-width:520px">
+      <button class="modal-close" onclick="closeModal('modal-company')">✕</button>
+      <div class="modal-title">หัวกระดาษบริษัท (ใช้ในเอกสาร HR)</div>
+      <div class="grid grid-2" style="gap:10px">
+        <div class="form-group"><label>ชื่อบริษัท (ไทย)</label><input id="co-name_th"></div>
+        <div class="form-group"><label>ชื่อบริษัท (อังกฤษ)</label><input id="co-name_en"></div></div>
+      <div class="form-group"><label>ที่อยู่ (ไทย)</label><textarea id="co-address_th" rows="2"></textarea></div>
+      <div class="form-group"><label>ที่อยู่ (อังกฤษ)</label><textarea id="co-address_en" rows="2"></textarea></div>
+      <div class="grid grid-2" style="gap:10px">
+        <div class="form-group"><label>เลขประจำตัวผู้เสียภาษี</label><input id="co-tax_id"></div>
+        <div class="form-group"><label>โทรศัพท์</label><input id="co-phone"></div>
+        <div class="form-group"><label>ผู้ลงนามประจำ</label><input id="co-signer_name"></div>
+        <div class="form-group"><label>อีเมล</label><input id="co-email"></div>
+        <div class="form-group"><label>ตำแหน่งผู้ลงนาม (ไทย)</label><input id="co-signer_title"></div>
+        <div class="form-group"><label>ตำแหน่งผู้ลงนาม (อังกฤษ)</label><input id="co-signer_title_en"></div></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-primary" onclick="saveCompany()">บันทึก</button></div>
+    </div></div>
+    <div class="modal-overlay" id="modal-ann"><div class="modal" style="max-width:560px">
+      <button class="modal-close" onclick="closeModal('modal-ann')">✕</button>
+      <div class="modal-title" id="ann-modal-title">สร้างประกาศ</div>
+      <input type="hidden" id="ann-id">
+      <div class="form-group"><label>หัวข้อ</label><input id="ann-title" maxlength="150" placeholder="เช่น ปรับเวลาทำงานช่วงปีใหม่"></div>
+      <div class="form-group"><label>รายละเอียด</label><textarea id="ann-body" rows="7" placeholder="รายละเอียดประกาศ"></textarea></div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="ann-ack" checked style="width:auto"> ให้พนักงานกด "รับทราบ" (ติดตามได้ว่าใครยังไม่อ่าน)</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="ann-pin" style="width:auto"> 📌 ปักหมุดไว้ด้านบน</label>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="closeModal('modal-ann')" style="${_btn2}">ยกเลิก</button>
+        <button class="btn btn-primary" id="ann-submit" onclick="saveAnn()">เผยแพร่</button></div>
+    </div></div>
+    <div class="modal-overlay" id="modal-ann-popup"><div class="modal" style="max-width:520px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:6px">📢 ประกาศบริษัท</div>
+      <div class="modal-title" id="annpop-title" style="margin-bottom:8px"></div>
+      <div id="annpop-meta" style="font-size:12px;color:var(--text-muted);margin-bottom:12px"></div>
+      <div id="annpop-body" style="font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:50vh;overflow:auto;margin-bottom:18px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="closeModal('modal-ann-popup')" style="${_btn2}">ไว้ทีหลัง</button>
+        <button class="btn btn-primary" id="annpop-ack">รับทราบ</button></div>
+    </div></div>
+    <div class="modal-overlay" id="modal-reminder"><div class="modal" style="max-width:420px">
+      <button class="modal-close" onclick="closeModal('modal-reminder')">✕</button>
+      <div class="modal-title">แจ้งเตือนคำขอค้างอนุมัติ</div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="rem-enabled" style="width:auto"> เปิดแจ้งเตือนอัตโนมัติ</label>
+      <div class="form-group"><label>แจ้งเตือนเมื่อคำขอค้างเกิน (วัน)</label><input id="rem-days" type="number" min="1" max="30" style="width:110px"></div>
+      <div style="background:var(--green-light);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--ink);margin-bottom:16px;line-height:1.6">ระบบจะส่งข้อความเตือนผู้มีสิทธิ์อนุมัติ วันละ 1 ครั้ง (เวลา 08:00–18:00) จนกว่าคำขอจะได้รับการพิจารณา</div>
+      <div style="display:flex;justify-content:space-between;gap:8px"><button class="btn" onclick="remindNow()" style="${_btn2}">ส่งแจ้งเตือนตอนนี้</button>
+        <button class="btn btn-primary" onclick="saveReminder()">บันทึก</button></div>
+    </div></div>`);
+  document.querySelectorAll('#modal-docreq,#modal-docissue,#modal-company,#modal-ann,#modal-ann-popup,#modal-reminder').forEach(m =>
+    m.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); }));
+})();
+
+function _docPick(el) { el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); }
+const _statusBadge = s => ({ Pending: '<span class="badge badge-orange">รอดำเนินการ</span>', Issued: '<span class="badge badge-green">ออกแล้ว</span>',
+  Rejected: '<span class="badge badge-red">ไม่อนุมัติ</span>', Cancelled: '<span class="badge badge-gray">ยกเลิก</span>' })[s] || _e(s);
+
+// ════════════ 7 · DOCUMENTS ════════════
+async function renderDocuments() {
+  const mgr = _isMgr();
+  document.getElementById('doc-company-btn').style.display = currentUser.role === 'admin' ? '' : 'none';
+  const [mine, all] = await Promise.all([apiCall('GET', '/api/doc-requests'), mgr ? apiCall('GET', '/api/doc-requests?scope=all') : Promise.resolve([])]);
+  _f789.docs = Array.isArray(mine) ? mine : []; _f789.allDocs = Array.isArray(all) ? all : [];
+  const myEl = document.getElementById('doc-my-list');
+  myEl.innerHTML = _f789.docs.length ? `<div style="overflow-x:auto"><table><thead><tr><th>เอกสาร</th><th>วัตถุประสงค์</th><th>ยื่นเมื่อ</th><th>สถานะ</th><th></th></tr></thead><tbody>${
+    _f789.docs.map(r => `<tr><td><b>${_e(r.type_th)}</b><div style="font-size:11px;color:var(--text-muted)">${r.lang === 'en' ? 'English' : 'ภาษาไทย'} · ${r.copies || 1} ฉบับ${r.doc_no ? ' · ' + _e(r.doc_no) : ''}</div></td>
+      <td>${_e(r.purpose)}${r.status === 'Rejected' && r.note ? `<div style="font-size:11px;color:#DC2626">เหตุผล: ${_e(r.note)}</div>` : ''}</td>
+      <td>${_thDate(r.created_at)}</td><td>${_statusBadge(r.status)}</td>
+      <td style="text-align:right;white-space:nowrap">${r.status === 'Issued' ? `<button class="btn btn-primary" style="padding:5px 12px;font-size:12px" onclick="printDoc(${r.id})">🖨 พิมพ์ / PDF</button>` : ''}
+        ${r.status === 'Pending' ? `<button class="btn" style="padding:5px 12px;font-size:12px;${_btn2}" onclick="cancelDoc(${r.id})">ยกเลิก</button>` : ''}</td></tr>`).join('')
+  }</tbody></table></div>` : '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">ยังไม่มีคำขอ — กด "+ ขอเอกสาร" เพื่อขอหนังสือรับรองการทำงานหรือเงินเดือน</div>';
+  const hr = document.getElementById('doc-hr-panel');
+  hr.style.display = mgr ? '' : 'none';
+  if (mgr) {
+    const pend = _f789.allDocs.filter(r => r.status === 'Pending');
+    const rows = _f789.docTab === 'pending' ? pend : _f789.allDocs;
+    const tabBtn = (k, label) => `<button class="${_f789.docTab === k ? 'ltab-active' : ''}" onclick="_f789.docTab='${k}';renderDocuments()" style="border:none;padding:6px 14px;font:inherit;font-size:12px;cursor:pointer;${_f789.docTab === k ? '' : 'background:none'}">${label}</button>`;
+    hr.innerHTML = `<div class="card card-p"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div class="card-title">คำขอเอกสารจากพนักงาน</div>
+      <div class="ltab-group" style="margin:0">${tabBtn('pending', 'รอดำเนินการ (' + pend.length + ')')}${tabBtn('all', 'ทั้งหมด')}</div></div>
+      ${rows.length ? `<div style="overflow-x:auto"><table><thead><tr><th>พนักงาน</th><th>เอกสาร</th><th>วัตถุประสงค์</th><th>ยื่นเมื่อ</th><th>สถานะ</th><th></th></tr></thead><tbody>${rows.map(r => `<tr>
+        <td><div style="display:flex;align-items:center;gap:8px"><span class="avatar" style="width:28px;height:28px;font-size:11px;background:${_e(r.emp_color)}">${_e(r.emp_init)}</span><div><b>${_e(r.emp_name)}</b><div style="font-size:11px;color:var(--text-muted)">${_e(r.emp_department)}</div></div></div></td>
+        <td>${_e(r.type_th)}<div style="font-size:11px;color:var(--text-muted)">${r.lang === 'en' ? 'English' : 'ไทย'} · ${r.copies || 1} ฉบับ${r.doc_no ? ' · ' + _e(r.doc_no) : ''}</div></td>
+        <td>${_e(r.purpose)}</td><td>${_thDate(r.created_at)}</td><td>${_statusBadge(r.status)}</td>
+        <td style="text-align:right;white-space:nowrap">${r.status === 'Pending' ? `<button class="btn btn-primary" style="padding:5px 12px;font-size:12px" onclick="openDocIssue(${r.id})">ออกเอกสาร</button>
+          <button class="btn" style="padding:5px 12px;font-size:12px;${_btn2}" onclick="rejectDoc(${r.id})">ไม่อนุมัติ</button>` : ''}
+          ${r.status === 'Issued' ? `<button class="btn" style="padding:5px 12px;font-size:12px;${_btn2}" onclick="printDoc(${r.id})">🖨 ดูเอกสาร</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : '<div style="color:var(--text-muted);font-size:13px">ไม่มีคำขอที่รอดำเนินการ</div>'}</div>`;
+  }
+  _refreshF789Badges();
+}
+function openDocRequestModal() {
+  ['docreq-type', 'docreq-lang'].forEach(id => _docPick(document.querySelector('#' + id + ' .chip')));
+  document.getElementById('docreq-purpose').selectedIndex = 0;
+  document.getElementById('docreq-other').style.display = 'none'; document.getElementById('docreq-other').value = '';
+  document.getElementById('docreq-copies').value = 1;
+  openModal('modal-docreq');
+}
+async function submitDocRequest() {
+  const sel = document.getElementById('docreq-purpose').value;
+  const purpose = sel === 'อื่น ๆ' ? document.getElementById('docreq-other').value.trim() : sel;
+  if (!purpose) { showToast('กรุณาระบุวัตถุประสงค์', 'error'); return; }
+  const btn = document.getElementById('docreq-submit'); btn.disabled = true;
+  const r = await apiCall('POST', '/api/doc-requests', { type: document.querySelector('#docreq-type .selected').dataset.v,
+    lang: document.querySelector('#docreq-lang .selected').dataset.v, purpose, copies: +document.getElementById('docreq-copies').value || 1 });
+  btn.disabled = false;
+  if (!r || r.error) { showToast((r && r.error) || 'ส่งคำขอไม่สำเร็จ', 'error'); return; }
+  closeModal('modal-docreq'); showToast('ส่งคำขอเอกสารแล้ว — HR จะแจ้งเมื่อพร้อม'); renderDocuments();
+}
+async function cancelDoc(id) {
+  if (!confirm('ยกเลิกคำขอเอกสารนี้?')) return;
+  const r = await apiCall('PUT', '/api/doc-requests/' + id + '/cancel');
+  if (!r || r.error) { showToast((r && r.error) || 'ยกเลิกไม่สำเร็จ', 'error'); return; }
+  renderDocuments();
+}
+async function rejectDoc(id) {
+  const note = prompt('เหตุผลที่ไม่อนุมัติ (จะแจ้งให้พนักงานทราบ)');
+  if (note === null) return;
+  const r = await apiCall('PUT', '/api/doc-requests/' + id + '/reject', { note });
+  if (!r || r.error) { showToast((r && r.error) || 'ไม่สำเร็จ', 'error'); return; }
+  showToast('แจ้งพนักงานแล้ว'); renderDocuments();
+}
+async function openDocIssue(id) {
+  const r = _f789.allDocs.find(x => x.id === id); if (!r) return;
+  if (!_f789.company) _f789.company = await apiCall('GET', '/api/settings/company');
+  const c = _f789.company || {};
+  document.getElementById('modal-docissue').dataset.id = id;
+  document.getElementById('docissue-info').innerHTML = `<b>${_e(r.type_th)}</b> (${r.lang === 'en' ? 'English' : 'ภาษาไทย'}, ${r.copies || 1} ฉบับ)<br>พนักงาน: <b>${_e(r.emp_name)}</b><br>วัตถุประสงค์: ${_e(r.purpose)}`;
+  document.getElementById('docissue-salary-wrap').style.display = r.type === 'salary' ? '' : 'none';
+  document.getElementById('docissue-salary').value = '';
+  document.getElementById('docissue-signer').value = c.signer_name || currentUser.name || '';
+  document.getElementById('docissue-title').value = (r.lang === 'en' ? c.signer_title_en : c.signer_title) || '';
+  openModal('modal-docissue');
+}
+function _issueBody() {
+  return { salary: document.getElementById('docissue-salary').value, signer_name: document.getElementById('docissue-signer').value.trim(),
+    signer_title: document.getElementById('docissue-title').value.trim() };
+}
+function previewIssue() {
+  const id = +document.getElementById('modal-docissue').dataset.id, r = _f789.allDocs.find(x => x.id === id); if (!r) return;
+  const b = _issueBody();
+  if (r.type === 'salary' && !(+b.salary > 0)) { showToast('กรุณาใส่เงินเดือนก่อน', 'error'); return; }
+  const w = window.open('', '_blank');
+  if (!w) { showToast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาต pop-up', 'error'); return; }
+  w.document.write(certificateHtml({ ...r, doc_no: '(ตัวอย่าง)', issued_at: new Date().toISOString(), salary: +b.salary || 0, signer_name: b.signer_name, signer_title: b.signer_title,
+    company: _f789.company || {}, employee: { name: r.emp_name, position: '', department: r.emp_department } }, true));
+  w.document.close();
+}
+async function submitDocIssue() {
+  const id = +document.getElementById('modal-docissue').dataset.id;
+  const btn = document.getElementById('docissue-submit'); btn.disabled = true;
+  const r = await apiCall('PUT', '/api/doc-requests/' + id + '/issue', _issueBody());
+  btn.disabled = false;
+  if (!r || r.error) { showToast((r && r.error) || 'ออกเอกสารไม่สำเร็จ', 'error'); return; }
+  closeModal('modal-docissue'); showToast('ออกเอกสารแล้ว เลขที่ ' + r.doc_no); renderDocuments();
+}
+async function printDoc(id) {
+  const w = window.open('', '_blank'); // open first (still inside the click) so pop-up blockers allow it
+  if (!w) { showToast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาต pop-up', 'error'); return; }
+  w.document.write('<p style="font-family:sans-serif;padding:40px;color:#6B7280">กำลังเตรียมเอกสาร…</p>');
+  const d = await apiCall('GET', '/api/doc-requests/' + id + '/document');
+  if (!d || d.error) { w.close(); showToast((d && d.error) || 'เปิดเอกสารไม่สำเร็จ', 'error'); return; }
+  w.document.open(); w.document.write(certificateHtml(d, false)); w.document.close();
+}
+async function openCompanyModal() {
+  const c = await apiCall('GET', '/api/settings/company');
+  if (!c || c.error) { showToast('โหลดข้อมูลไม่สำเร็จ', 'error'); return; }
+  Object.keys(c).forEach(k => { const el = document.getElementById('co-' + k); if (el) el.value = c[k] || ''; });
+  openModal('modal-company');
+}
+async function saveCompany() {
+  const body = {};
+  document.querySelectorAll('#modal-company [id^="co-"]').forEach(el => body[el.id.slice(3)] = el.value.trim());
+  const r = await apiCall('PUT', '/api/settings/company', body);
+  if (!r || r.error) { showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error'); return; }
+  _f789.company = r; closeModal('modal-company'); showToast('บันทึกหัวกระดาษแล้ว');
+}
+// Thai baht in words, e.g. 25,500.50 → "สองหมื่นห้าพันห้าร้อยบาทห้าสิบสตางค์"
+function bahtText(n) {
+  const D = ['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'], P = ['','สิบ','ร้อย','พัน','หมื่น','แสน'];
+  const words = num => {
+    if (num === 0) return '';
+    if (num >= 1e6) return words(Math.floor(num / 1e6)) + 'ล้าน' + words(num % 1e6);
+    const s = String(num); let out = '';
+    for (let i = 0; i < s.length; i++) {
+      const d = +s[i], pos = s.length - i - 1; if (!d) continue;
+      if (pos === 1 && d === 1) out += 'สิบ'; else if (pos === 1 && d === 2) out += 'ยี่สิบ';
+      else if (pos === 0 && d === 1 && s.length > 1) out += 'เอ็ด'; else out += D[d] + P[pos];
+    }
+    return out;
+  };
+  const baht = Math.floor(n), sat = Math.round((n - baht) * 100);
+  return (baht ? words(baht) + 'บาท' : (sat ? '' : 'ศูนย์บาท')) + (sat ? words(sat) + 'สตางค์' : 'ถ้วน');
+}
+function certificateHtml(d, preview) {
+  const c = d.company || {}, emp = d.employee || {}, en = d.lang === 'en';
+  const issued = new Date(d.issued_at || Date.now());
+  const dateTh = issued.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateEn = issued.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const startTh = emp.start_date ? _thDate(emp.start_date, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const startEn = emp.start_date ? new Date(emp.start_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const money = (+d.salary || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nameTh = emp.name_th || emp.name, nameEn = emp.name_en || emp.name;
+  const isSalary = d.type === 'salary';
+  const coTh = c.name_th || c.name_en || '', coEn = c.name_en || c.name_th || '';
+  const title = en ? (isSalary ? 'SALARY CERTIFICATE' : 'EMPLOYMENT CERTIFICATE') : (isSalary ? 'หนังสือรับรองเงินเดือน' : 'หนังสือรับรองการทำงาน');
+  const body = en
+    ? `<p>This is to certify that <b>${_e(nameEn)}</b>${emp.emp_id ? ` (Employee ID ${_e(emp.emp_id)})` : ''} is currently employed by <b>${_e(coEn)}</b>${startEn ? ` since <b>${startEn}</b>` : ''}${emp.position ? `, holding the position of <b>${_e(emp.position)}</b>` : ''}${emp.department ? ` in the <b>${_e(emp.department)}</b> department` : ''}.</p>
+       ${isSalary ? `<p>The employee currently receives a monthly salary of <b>THB ${money}</b>.</p>` : ''}
+       <p>This certificate is issued at the employee's request for the purpose of: <b>${_e(d.purpose)}</b>.</p>
+       <p style="margin-top:22px">Issued on ${dateEn}.</p>`
+    : `<p>หนังสือฉบับนี้ให้ไว้เพื่อรับรองว่า <b>${_e(nameTh)}</b>${emp.emp_id ? ` รหัสพนักงาน ${_e(emp.emp_id)}` : ''} เป็นพนักงานของ<b>${_e(coTh)}</b>${startTh ? ` ตั้งแต่วันที่ <b>${startTh}</b> จนถึงปัจจุบัน` : ''}${emp.position ? ` ดำรงตำแหน่ง <b>${_e(emp.position)}</b>` : ''}${emp.department ? ` สังกัดฝ่าย<b>${_e(emp.department)}</b>` : ''}</p>
+       ${isSalary ? `<p>ปัจจุบันได้รับเงินเดือนเดือนละ <b>${money} บาท</b> (${bahtText(+d.salary || 0)})</p>` : ''}
+       <p>ออกให้ตามคำขอของพนักงาน เพื่อใช้ประกอบ<b>${_e(d.purpose)}</b></p>
+       <p style="margin-top:22px">ให้ไว้ ณ วันที่ ${dateTh}</p>`;
+  const addr = en ? (c.address_en || c.address_th) : c.address_th;
+  const contact = [c.tax_id ? (en ? 'Tax ID ' : 'เลขประจำตัวผู้เสียภาษี ') + _e(c.tax_id) : '', c.phone ? (en ? 'Tel. ' : 'โทร. ') + _e(c.phone) : '', c.email ? _e(c.email) : ''].filter(Boolean).join(' · ');
+  return `<!DOCTYPE html><html lang="${en ? 'en' : 'th'}"><head><meta charset="utf-8"><title>${_e(title)} ${_e(d.doc_no || '')}</title>
+  <style>@page{size:A4;margin:22mm 20mm}*{box-sizing:border-box}body{font-family:'Sarabun','TH Sarabun New','Leelawadee UI','Segoe UI',sans-serif;color:#111;font-size:15px;line-height:1.85;margin:0;background:#E5E7EB}
+  .page{width:210mm;min-height:297mm;margin:16px auto;background:#fff;padding:22mm 20mm;box-shadow:0 4px 20px rgba(0,0,0,.12);position:relative}
+  .hd{border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:26px}.hd b{font-size:20px;letter-spacing:.02em}.hd div{font-size:12px;color:#444;line-height:1.6}
+  .meta{display:flex;justify-content:space-between;font-size:13px;margin-bottom:28px}h1{text-align:center;font-size:21px;margin:0 0 26px;letter-spacing:.04em}
+  p{text-indent:${en ? '0' : '2.5em'};margin:0 0 12px;text-align:justify}.sig{margin-top:60px;margin-left:auto;width:300px;text-align:center;font-size:14px;line-height:1.7}
+  .sig .line{border-bottom:1px dotted #111;height:44px;margin-bottom:6px}.bar{position:sticky;top:0;background:#111;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;font:13px sans-serif;z-index:5}
+  .bar button{background:#7A2E2E;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;white-space:nowrap}.wm{position:absolute;top:45%;left:0;right:0;text-align:center;font-size:72px;color:rgba(122,46,46,.12);transform:rotate(-24deg);font-weight:800;pointer-events:none}
+  @media print{body{background:#fff}.page{margin:0;box-shadow:none;width:auto;min-height:auto;padding:0}.bar{display:none}}</style></head><body>
+  <div class="bar"><span>${preview ? '👁 ตัวอย่างเอกสาร (ยังไม่ออกจริง)' : '📄 ' + _e(d.doc_no || '')} · กด "พิมพ์" แล้วเลือก "บันทึกเป็น PDF" ได้</span><button onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button></div>
+  <div class="page">${preview ? '<div class="wm">ตัวอย่าง</div>' : ''}
+    <div class="hd"><b>${_e(en ? coEn : coTh)}</b>${(en ? (c.name_th && c.name_th !== coEn) : (c.name_en && c.name_en !== coTh)) ? `<div>${_e(en ? c.name_th : c.name_en)}</div>` : ''}
+      ${addr ? `<div>${_e(addr)}</div>` : ''}${contact ? `<div>${contact}</div>` : ''}</div>
+    <div class="meta"><span>${en ? 'Ref.' : 'เลขที่'} ${_e(d.doc_no || '')}</span><span>${en ? dateEn : 'วันที่ ' + dateTh}</span></div>
+    <h1>${_e(title)}</h1>${en ? '<p style="margin-bottom:18px">To whom it may concern,</p>' : '<p style="text-indent:0;margin-bottom:18px">เรียน ผู้ที่เกี่ยวข้อง</p>'}
+    ${body}
+    <div class="sig"><div class="line"></div>(${_e(d.signer_name || '')})<br>${_e(d.signer_title || '')}<br>${_e(en ? coEn : coTh)}</div>
+  </div></body></html>`;
+}
+
+// ════════════ 8 · ANNOUNCEMENTS ════════════
+async function loadAnns() { const r = await apiCall('GET', '/api/announcements'); _f789.anns = Array.isArray(r) ? r : []; return _f789.anns; }
+function _toggleWho(a) { const w = a.closest('.card').querySelector('.ann-who'); w.style.display = w.style.display === 'none' ? 'block' : 'none'; }
+async function renderAnnouncements() {
+  const mgr = _isMgr();
+  document.getElementById('ann-new-btn').style.display = mgr ? '' : 'none';
+  await loadAnns();
+  const el = document.getElementById('ann-list');
+  if (!_f789.anns.length) { el.innerHTML = `<div class="card card-p" style="color:var(--text-muted);font-size:13px">ยังไม่มีประกาศ${mgr ? ' — กด "+ สร้างประกาศ" เพื่อเริ่ม' : ''}</div>`; _refreshF789Badges(); return; }
+  el.innerHTML = _f789.anns.map(a => {
+    const pct = a.total_users ? Math.round(a.ack_count / a.total_users * 100) : 0;
+    return `<div class="card card-p" style="margin-bottom:12px;${a.require_ack && !a.acked_at ? 'border-left:3px solid #7A2E2E' : ''}">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
+        <div style="min-width:0;flex:1"><div style="font-size:15px;font-weight:700">${a.pinned ? '📌 ' : ''}${_e(a.title)}</div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">${_e(a.created_by_name)} · ${_thDate(a.created_at, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${a.updated_at ? ' · แก้ไขแล้ว' : ''}</div></div>
+        <div style="display:flex;gap:6px;align-items:center">${a.require_ack ? (a.acked_at ? `<span class="badge badge-green">✓ รับทราบแล้ว</span>` : `<button class="btn btn-primary" style="padding:6px 14px;font-size:12px" onclick="ackAnn(${a.id})">รับทราบ</button>`) : ''}
+          ${mgr ? `<button class="btn" title="แก้ไข" onclick="openAnnModal(${a.id})" style="padding:5px 10px;font-size:12px;${_btn2}">✏️</button>
+          <button class="btn" title="ลบ" onclick="deleteAnn(${a.id})" style="padding:5px 10px;font-size:12px;${_btn2}">🗑</button>` : ''}</div></div>
+      <div style="font-size:13.5px;line-height:1.75;white-space:pre-wrap;margin-top:12px">${_e(a.body)}</div>
+      ${mgr && a.require_ack ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>รับทราบแล้ว <b>${a.ack_count}/${a.total_users}</b> คน</span>
+          ${a.not_acked && a.not_acked.length ? `<a href="javascript:void(0)" onclick="_toggleWho(this)" style="color:var(--ink);font-weight:600">ดูคนที่ยังไม่รับทราบ (${a.not_acked.length})</a>` : '<span style="color:#16A34A;font-weight:600">ครบทุกคนแล้ว ✓</span>'}</div>
+        <div style="height:6px;background:#F3F4F6;border-radius:99px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--ink)"></div></div>
+        <div class="ann-who" style="display:none;margin-top:10px;font-size:12px;line-height:1.8">${(a.not_acked || []).map(u => `<span style="display:inline-block;background:#F3F4F6;border-radius:99px;padding:1px 10px;margin:0 4px 4px 0;color:#374151">${_e(u.name)}${u.department ? ' · ' + _e(u.department) : ''}</span>`).join('')}</div></div>` : ''}
+    </div>`;
+  }).join('');
+  _refreshF789Badges();
+}
+function openAnnModal(id) {
+  const a = id ? _f789.anns.find(x => x.id === id) : null;
+  document.getElementById('ann-modal-title').textContent = a ? 'แก้ไขประกาศ' : 'สร้างประกาศ';
+  document.getElementById('ann-submit').textContent = a ? 'บันทึก' : 'เผยแพร่';
+  document.getElementById('ann-id').value = a ? a.id : '';
+  document.getElementById('ann-title').value = a ? a.title : '';
+  document.getElementById('ann-body').value = a ? a.body : '';
+  document.getElementById('ann-ack').checked = a ? a.require_ack : true;
+  document.getElementById('ann-pin').checked = a ? a.pinned : false;
+  openModal('modal-ann');
+}
+async function saveAnn() {
+  const id = document.getElementById('ann-id').value;
+  const body = { title: document.getElementById('ann-title').value.trim(), body: document.getElementById('ann-body').value.trim(),
+    require_ack: document.getElementById('ann-ack').checked, pinned: document.getElementById('ann-pin').checked };
+  if (!body.title || !body.body) { showToast('กรุณาใส่หัวข้อและรายละเอียด', 'error'); return; }
+  const btn = document.getElementById('ann-submit'); btn.disabled = true;
+  const r = await apiCall(id ? 'PUT' : 'POST', '/api/announcements' + (id ? '/' + id : ''), body);
+  btn.disabled = false;
+  if (!r || r.error) { showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error'); return; }
+  closeModal('modal-ann'); showToast(id ? 'บันทึกแล้ว' : 'เผยแพร่ประกาศแล้ว'); renderAnnouncements();
+}
+async function deleteAnn(id) {
+  if (!confirm('ลบประกาศนี้?')) return;
+  const r = await apiCall('DELETE', '/api/announcements/' + id);
+  if (!r || r.error) { showToast((r && r.error) || 'ลบไม่สำเร็จ', 'error'); return; }
+  renderAnnouncements();
+}
+async function ackAnn(id) {
+  const r = await apiCall('POST', '/api/announcements/' + id + '/ack');
+  if (!r || r.error) { showToast((r && r.error) || 'ไม่สำเร็จ', 'error'); return false; }
+  const i = _f789.anns.findIndex(x => x.id === id); if (i >= 0) _f789.anns[i] = r;
+  if (document.getElementById('view-announcements').classList.contains('active')) renderAnnouncements(); else _refreshF789Badges();
+  return true;
+}
+// After login: show the oldest announcement that still needs "รับทราบ" (once per session each)
+async function showPendingAnnPopup() {
+  if (!currentUser || (typeof isImpersonating === 'function' && isImpersonating())) return;
+  await loadAnns(); _refreshF789Badges();
+  let seen = []; try { seen = JSON.parse(sessionStorage.getItem('ann_popup_seen') || '[]'); } catch (e) {}
+  const a = _f789.anns.filter(x => x.require_ack && !x.acked_at && !seen.includes(x.id)).sort((x, y) => x.created_at.localeCompare(y.created_at))[0];
+  if (!a) return;
+  try { sessionStorage.setItem('ann_popup_seen', JSON.stringify([...seen, a.id])); } catch (e) {}
+  document.getElementById('annpop-title').textContent = a.title;
+  document.getElementById('annpop-meta').textContent = a.created_by_name + ' · ' + _thDate(a.created_at, { day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('annpop-body').textContent = a.body;
+  document.getElementById('annpop-ack').onclick = async () => { if (await ackAnn(a.id)) { closeModal('modal-ann-popup'); showToast('รับทราบแล้ว'); setTimeout(showPendingAnnPopup, 400); } };
+  document.getElementById('modal-ann-popup').classList.add('open');
+}
+
+// ════════════ 9 · OVERDUE APPROVALS ════════════
+async function loadOverdue() { if (!_isMgr()) { _f789.overdue = null; return null; } const r = await apiCall('GET', '/api/approvals/overdue'); _f789.overdue = r && !r.error ? r : null; return _f789.overdue; }
+async function renderOverdueBar(page) {
+  const view = document.getElementById('view-' + page); if (!view) return;
+  let bar = document.getElementById('overdue-bar-' + page);
+  if (!_isMgr()) { if (bar) bar.remove(); return; }
+  const o = await loadOverdue(); if (!o) return;
+  const items = o.items.filter(i => page === 'dashboard' || (page === 'ot' ? i.kind === 'ot' : i.kind === 'leave'));
+  const admin = currentUser.role === 'admin';
+  if (!items.length && !(admin && page === 'leave')) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'overdue-bar-' + page; view.insertBefore(bar, view.firstChild); }
+  const cfgTxt = `แจ้งเตือนคำขอค้างอัตโนมัติ: <b>${o.enabled ? 'เปิด' : 'ปิด'}</b> · เมื่อค้างเกิน ${o.days} วัน`;
+  bar.innerHTML = items.length
+    ? `<div style="background:#111;color:#fff;border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px"><div style="font-weight:700;font-size:13.5px">⏰ มี ${items.length} คำขอค้างอนุมัติเกิน ${o.days} วัน</div>
+          <div style="font-size:12px;opacity:.85;margin-top:4px;line-height:1.7">${items.slice(0, 3).map(i => `• ${_e(i.emp_name)} — ${_e(i.label)} <span style="opacity:.7">(รอ ${i.waiting_days} วัน)</span>`).join('<br>')}${items.length > 3 ? `<br>และอีก ${items.length - 3} รายการ` : ''}</div></div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${page === 'dashboard' ? `<button onclick="nav('${items.some(i => i.kind === 'leave') ? 'leave' : 'ot'}')" style="border:none;border-radius:8px;background:#7A2E2E;color:#fff;font-weight:700;font-size:12px;padding:7px 14px;cursor:pointer">ไปพิจารณา</button>` : ''}
+          ${admin ? `<button onclick="openReminderModal()" style="border:1px solid rgba(255,255,255,.3);border-radius:8px;background:transparent;color:#fff;font-size:12px;padding:6px 12px;cursor:pointer">⚙️ ตั้งค่า</button>` : ''}</div></div>`
+    : `<div style="font-size:12px;color:var(--text-muted);margin:0 0 12px;display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap">🔔 ${cfgTxt} <a href="javascript:void(0)" onclick="openReminderModal()" style="color:var(--ink);font-weight:600">ตั้งค่า</a></div>`;
+}
+async function openReminderModal() {
+  const r = await apiCall('GET', '/api/settings/reminder'); if (!r || r.error) return;
+  document.getElementById('rem-enabled').checked = !!r.enabled; document.getElementById('rem-days').value = r.days;
+  openModal('modal-reminder');
+}
+async function saveReminder() {
+  const r = await apiCall('PUT', '/api/settings/reminder', { enabled: document.getElementById('rem-enabled').checked, days: +document.getElementById('rem-days').value });
+  if (!r || r.error) { showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error'); return; }
+  closeModal('modal-reminder'); showToast('บันทึกการแจ้งเตือนแล้ว');
+  ['dashboard', 'leave', 'ot'].forEach(p => { const v = document.getElementById('view-' + p); if (v && v.classList.contains('active')) renderOverdueBar(p); });
+}
+async function remindNow() {
+  const r = await apiCall('POST', '/api/approvals/remind-now');
+  if (!r || r.error) { showToast((r && r.error) || 'ไม่สำเร็จ', 'error'); return; }
+  showToast(r.sent ? `ส่งแจ้งเตือนแล้ว ${r.sent} ข้อความ` : 'ไม่มีคำขอที่ต้องเตือน (หรือเตือนไปแล้ววันนี้)');
+}
+
+// ── Badges + wiring into the existing nav / sidebar / logout ──
+function _refreshF789Badges() {
+  if (!currentUser) return;
+  const setB = (id, n) => { const el = document.getElementById('nav-' + id); if (!el) return;
+    let b = el.querySelector('.nav-badge'); if (!b) { b = document.createElement('span'); b.className = 'nav-badge'; el.appendChild(b); }
+    b.textContent = n; b.style.display = n ? 'inline-block' : 'none'; };
+  setB('announcements', _f789.anns.filter(a => a.require_ack && !a.acked_at).length);
+  if (_isMgr()) setB('documents', (_f789.allDocs || []).filter(r => r.status === 'Pending').length);
+}
+async function _pollF789() {
+  if (!currentUser) return;
+  await loadAnns();
+  if (_isMgr()) { const all = await apiCall('GET', '/api/doc-requests?scope=all'); _f789.allDocs = Array.isArray(all) ? all : []; }
+  _refreshF789Badges();
+}
+{
+  const _navF = nav;
+  nav = function(page) {
+    const r = _navF.apply(this, arguments);
+    if (!currentUser || !currentUser.permissions.includes(page)) return r;
+    const lbl = { announcements: t('nav_announcements'), documents: t('nav_documents') }[page];
+    if (lbl) document.getElementById('breadcrumb').innerHTML = `<span style="color:var(--text-muted)">Home</span> &rsaquo; <strong>${lbl}</strong>`;
+    if (page === 'announcements') renderAnnouncements();
+    if (page === 'documents') renderDocuments();
+    if (['dashboard', 'leave', 'ot'].includes(page)) renderOverdueBar(page);
+    return r;
+  };
+  const _bsF = buildSidebar;
+  let _f789Started = false, _f789Timer = null;
+  buildSidebar = function() {
+    const r = _bsF.apply(this, arguments);
+    _refreshF789Badges();
+    if (!_f789Started) { _f789Started = true; setTimeout(() => { _pollF789(); showPendingAnnPopup(); }, 800); if (!_f789Timer) _f789Timer = setInterval(_pollF789, 120000); }
+    return r;
+  };
+  const _loF = doLogout;
+  doLogout = function() { _f789Started = false; _f789.anns = []; _f789.allDocs = []; return _loF.apply(this, arguments); };
+}
+
 </script>
 <!-- Notification Popup -->
 <div id="notif-popup">
