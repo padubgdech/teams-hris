@@ -1,5 +1,5 @@
 /**
- * Teams HRIS — Backend API Server
+ * KHUMTONE Teams HRIS — Backend API Server
  * Node.js + Express + JSON file storage (no SQLite needed)
  * Port: 3001  |  start: node server.js
  */
@@ -1115,7 +1115,7 @@ function seedAdmin() {
   seedAdmin();
   app.listen(PORT, () => {
     console.log('');
-    console.log('  Teams HRIS Backend Running' + (pgPool ? ' (PostgreSQL)' : ' (file store)'));
+    console.log('  KHUMTONE Teams HRIS Backend Running' + (pgPool ? ' (PostgreSQL)' : ' (file store)'));
     console.log('  http://localhost:' + PORT);
     console.log('');
   });
