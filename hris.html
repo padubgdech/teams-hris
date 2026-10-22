@@ -339,6 +339,14 @@
   .chip-select { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { padding: 6px 14px; border-radius: 99px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; background: #fff; }
   .chip.selected { background: var(--green); color: #fff; border-color: var(--green); }
+  /* Leave-type chips: each type keeps its own colour (same as the balance rings) */
+  .lt-chip { --lt: #6B7280; --lt-bg: #F3F4F6; color: var(--lt); border-color: color-mix(in srgb, var(--lt) 35%, #fff); background: #fff; }
+  .lt-chip:hover { background: var(--lt-bg); }
+  .lt-chip.selected { background: var(--lt); border-color: var(--lt); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--lt) 35%, transparent); }
+  .lt-annual { --lt: #D97706; --lt-bg: #FFFBEB; }
+  .lt-sick   { --lt: #DC2626; --lt-bg: #FEF2F2; }
+  .lt-casual { --lt: #2563EB; --lt-bg: #EFF6FF; }
+  .lt-comp   { --lt: #7C3AED; --lt-bg: #F5F3FF; }
 
   /* ── YEAR VIEW ── */
   #cal-year-grid {
@@ -1642,10 +1650,10 @@
     <div class="modal-title">ยื่นคำขอลา</div>
     <div class="form-group"><label>ประเภทการลา</label>
       <div class="chip-select" style="margin-top:6px">
-        <div class="chip selected" id="chip-annual" onclick="selectLeaveType(this,'Annual')">ลาพักร้อน</div>
-        <div class="chip" onclick="selectLeaveType(this,'Sick')">ลาป่วย</div>
-        <div class="chip" onclick="selectLeaveType(this,'Casual')">ลากิจ</div>
-        <div class="chip" onclick="selectLeaveType(this,'Compensatory')" style="border-color:#C4B5FD;color:#7C3AED">⚖️ ลาชดเชย</div>
+        <div class="chip lt-chip lt-annual selected" id="chip-annual" onclick="selectLeaveType(this,'Annual')">ลาพักร้อน</div>
+        <div class="chip lt-chip lt-sick" onclick="selectLeaveType(this,'Sick')">ลาป่วย</div>
+        <div class="chip lt-chip lt-casual" onclick="selectLeaveType(this,'Casual')">ลากิจ</div>
+        <div class="chip lt-chip lt-comp" onclick="selectLeaveType(this,'Compensatory')">⚖️ ลาชดเชย</div>
       </div>
       <div id="leave-modal-probation-notice" style="display:none;background:#FEF3C7;border:0.5px solid #FDE68A;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400E;margin-top:8px">
         ⚠️ อยู่ในช่วงทดลองงาน — ยังไม่สามารถยื่นลาพักร้อนได้ ลาป่วย/ลากิจ/ลาชดเชยใช้ได้ตามปกติ
