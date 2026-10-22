@@ -257,6 +257,30 @@ function fmtUser(u) {
   };
 }
 
+// ── DEMO LOGIN (staging only) ────────────────────────────────────────────────
+// Lets testers enter the staging site without a password. Only active when the
+// service has DEMO_LOGIN=1 set (staging). Production never sets it → 404.
+const DEMO_LOGIN = process.env.DEMO_LOGIN === '1';
+function demoGuard(req, res, next) {
+  if (!DEMO_LOGIN) return res.status(404).json({ error: 'Not found' });
+  next();
+}
+app.get('/api/auth/demo-users', demoGuard, (req, res) => {
+  const order = { admin: 0, manager: 1, employee: 2 };
+  res.json(store.users
+    .map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, department: u.department || '', color: u.color || '#6B7280', init: u.init || '?' }))
+    .sort((a, b) => (order[a.role] ?? 9) - (order[b.role] ?? 9) || String(a.name).localeCompare(String(b.name))));
+});
+app.post('/api/auth/demo', demoGuard, (req, res) => {
+  const { user_id, role } = req.body || {};
+  const user = user_id != null
+    ? store.users.find(u => String(u.id) === String(user_id))
+    : store.users.find(u => u.role === (role || 'admin'));
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const token = jwt.sign({ id:user.id, email:user.email, role:user.role, demo:true }, JWT_SECRET, { expiresIn:'1d' });
+  res.json({ token, user: fmtUser(user) });
+});
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;

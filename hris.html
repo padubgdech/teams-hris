@@ -4860,7 +4860,7 @@ function doLogin() {
 function doLogout() {
   currentUser = null;
   apiToken = null;
-  try { localStorage.removeItem('hris_session'); } catch(e){}
+  try { localStorage.removeItem('hris_session'); sessionStorage.setItem('demo_logged_out', '1'); } catch(e){}
   // Hide profile complete popup if still showing
   const profileModal = document.getElementById('modal-profile-complete');
   if (profileModal) profileModal.style.display = 'none';
@@ -5958,6 +5958,84 @@ if (window.HRIS_ENV && window.HRIS_ENV !== 'production') {
     document.body.appendChild(b); document.title = '[' + window.HRIS_ENV.toUpperCase() + '] ' + document.title.replace(/^\[\w+\] /, '');
   };
   if (document.body) _envBar(); else document.addEventListener('DOMContentLoaded', _envBar);
+}
+
+// ── Staging demo login: enter without a password + switch test user ──────────
+// Server side is only enabled when the service has DEMO_LOGIN=1 (staging only).
+if (window.HRIS_ENV === 'staging') {
+  const ROLE_TH = { admin: 'แอดมิน', manager: 'หัวหน้า', employee: 'พนักงาน' };
+  window.demoLoginAs = async function(userId) {
+    try {
+      const r = await fetch(API_BASE + '/api/auth/demo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userId != null ? { user_id: userId } : { role: 'admin' }) });
+      const d = await r.json();
+      if (!d.token) { alert(d.error || 'เข้าใช้งานโหมดทดสอบไม่สำเร็จ'); return; }
+      localStorage.setItem('hris_session', JSON.stringify({ email: d.user.email, token: d.token, demo: true }));
+      localStorage.removeItem('hris_last_page');
+      try { sessionStorage.removeItem('demo_logged_out'); } catch (e) {}
+      location.reload();
+    } catch (e) { alert('เข้าใช้งานโหมดทดสอบไม่สำเร็จ'); }
+  };
+  window.openDemoSwitcher = async function() {
+    let list = [];
+    try { list = await (await fetch(API_BASE + '/api/auth/demo-users')).json(); } catch (e) {}
+    if (!Array.isArray(list) || !list.length) { alert('ยังเปิดโหมดทดสอบไม่ได้'); return; }
+    document.getElementById('demo-sw')?.remove();
+    let me = null; try { me = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null; } catch (e) {}
+    const wrap = document.createElement('div'); wrap.id = 'demo-sw';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(17,17,17,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+    wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
+    const groups = ['admin', 'manager', 'employee'].map(role => {
+      const us = list.filter(u => u.role === role);
+      if (!us.length) return '';
+      return '<div style="font:700 11px sans-serif;color:#6B7280;margin:14px 0 6px;text-transform:uppercase">' + ROLE_TH[role] + ' (' + us.length + ')</div>' +
+        us.map(u => '<button data-uid="' + u.id + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;margin-bottom:6px;border:1px solid ' + (u.id === me ? 'var(--green)' : '#E5E7EB') + ';background:' + (u.id === me ? 'var(--green-light)' : '#fff') + ';border-radius:10px;cursor:pointer;font:inherit">' +
+          '<span style="width:30px;height:30px;border-radius:50%;background:' + u.color + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' + String(u.init).replace(/</g, '&lt;') + '</span>' +
+          '<span style="min-width:0"><b style="display:block;font-size:13px;color:#111">' + String(u.name).replace(/</g, '&lt;') + (u.id === me ? ' · ใช้อยู่' : '') + '</b>' +
+          '<span style="font-size:11px;color:#6B7280">' + String(u.department || u.email).replace(/</g, '&lt;') + '</span></span></button>').join('');
+    }).join('');
+    wrap.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;max-height:80vh;overflow:auto;padding:18px 18px 12px;box-shadow:0 20px 50px rgba(0,0,0,.25)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:15px">🧪 สลับผู้ใช้ทดสอบ</b>' +
+      '<button onclick="document.getElementById(\'demo-sw\').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#6B7280">×</button></div>' +
+      '<div style="font-size:12px;color:#6B7280;margin-top:4px">เลือกคนที่ต้องการทดสอบ ไม่ต้องใส่รหัสผ่าน (เฉพาะระบบทดสอบ)</div>' + groups + '</div>';
+    wrap.querySelectorAll('[data-uid]').forEach(b => b.onclick = () => demoLoginAs(b.dataset.uid));
+    document.body.appendChild(wrap);
+  };
+  const _demoUI = () => {
+    // Floating "switch user" pill (always available on staging)
+    if (!document.getElementById('demo-pill')) {
+      const p = document.createElement('button'); p.id = 'demo-pill'; p.textContent = '🧪 สลับผู้ใช้';
+      p.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:9999;background:#F59E0B;color:#1A1A2E;border:none;border-radius:99px;padding:7px 14px;font:700 12px sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)';
+      p.onclick = openDemoSwitcher; document.body.appendChild(p);
+    }
+    // Quick-entry buttons on the login card
+    const btn = document.getElementById('login-btn');
+    if (btn && !document.getElementById('demo-quick')) {
+      const q = document.createElement('div'); q.id = 'demo-quick';
+      q.style.cssText = 'margin:0 0 14px;padding:12px;border:1px dashed #F59E0B;background:#FFFBEB;border-radius:12px';
+      q.innerHTML = '<div style="font:700 12px sans-serif;color:#92400E;margin-bottom:8px">🧪 ระบบทดสอบ — เข้าใช้งานได้ทันที ไม่ต้องล็อกอิน</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        ['admin', 'manager', 'employee'].map(r => '<button type="button" onclick="demoLoginAs(null,\'' + r + '\')" data-role="' + r + '" style="flex:1;min-width:90px;padding:8px;border-radius:8px;border:1px solid #FCD34D;background:#fff;font:600 12px sans-serif;cursor:pointer">' + ROLE_TH[r] + '</button>').join('') +
+        '</div><button type="button" onclick="openDemoSwitcher()" style="margin-top:8px;width:100%;padding:7px;border:none;background:none;color:#92400E;font:600 12px sans-serif;text-decoration:underline;cursor:pointer">เลือกผู้ใช้รายคน</button>';
+      btn.parentElement.insertBefore(q, btn);
+    }
+  };
+  // Role buttons: pick the first user with that role
+  const _origDemo = window.demoLoginAs;
+  window.demoLoginAs = async function(userId, role) {
+    if (userId == null && role) {
+      try {
+        const list = await (await fetch(API_BASE + '/api/auth/demo-users')).json();
+        const u = Array.isArray(list) && list.find(x => x.role === role);
+        if (!u) { alert('ไม่มีผู้ใช้สิทธิ์ ' + ROLE_TH[role] + ' ในระบบทดสอบ'); return; }
+        userId = u.id;
+      } catch (e) {}
+    }
+    return _origDemo(userId);
+  };
+  if (document.body) _demoUI(); else document.addEventListener('DOMContentLoaded', _demoUI);
+  // First visit with no saved session → go straight in as admin
+  try { if (!localStorage.getItem('hris_session') && !sessionStorage.getItem('demo_logged_out')) demoLoginAs(null, 'admin'); } catch (e) {}
 }
 // ใส่ Google OAuth Client ID จาก Google Cloud Console
 const GOOGLE_CLIENT_ID = window.HRIS_GOOGLE_CLIENT_ID || '';
