@@ -7592,7 +7592,7 @@ async function submitDocRequest() {
     lang: document.querySelector('#docreq-lang .selected').dataset.v, purpose, copies: +document.getElementById('docreq-copies').value || 1 });
   btn.disabled = false;
   if (!r || r.error) { showToast((r && r.error) || 'ส่งคำขอไม่สำเร็จ', 'error'); return; }
-  closeModal('modal-docreq'); showToast('ส่งคำขอเอกสารแล้ว — HR จะแจ้งเมื่อพร้อม'); renderDocuments();
+  closeModal('modal-docreq'); showToast('ส่งคำขอเอกสารแล้ว — HR จะแจ้งเมื่อพร้อม', 'success'); renderDocuments();
 }
 async function cancelDoc(id) {
   if (!confirm('ยกเลิกคำขอเอกสารนี้?')) return;
@@ -7605,7 +7605,7 @@ async function rejectDoc(id) {
   if (note === null) return;
   const r = await apiCall('PUT', '/api/doc-requests/' + id + '/reject', { note });
   if (!r || r.error) { showToast((r && r.error) || 'ไม่สำเร็จ', 'error'); return; }
-  showToast('แจ้งพนักงานแล้ว'); renderDocuments();
+  showToast('แจ้งพนักงานแล้ว', 'success'); renderDocuments();
 }
 async function openDocIssue(id) {
   const r = _f789.allDocs.find(x => x.id === id); if (!r) return;
@@ -7639,7 +7639,7 @@ async function submitDocIssue() {
   const r = await apiCall('PUT', '/api/doc-requests/' + id + '/issue', _issueBody());
   btn.disabled = false;
   if (!r || r.error) { showToast((r && r.error) || 'ออกเอกสารไม่สำเร็จ', 'error'); return; }
-  closeModal('modal-docissue'); showToast('ออกเอกสารแล้ว เลขที่ ' + r.doc_no); renderDocuments();
+  closeModal('modal-docissue'); showToast('ออกเอกสารแล้ว เลขที่ ' + r.doc_no, 'success'); renderDocuments();
 }
 async function printDoc(id) {
   const w = window.open('', '_blank'); // open first (still inside the click) so pop-up blockers allow it
@@ -7660,7 +7660,7 @@ async function saveCompany() {
   document.querySelectorAll('#modal-company [id^="co-"]').forEach(el => body[el.id.slice(3)] = el.value.trim());
   const r = await apiCall('PUT', '/api/settings/company', body);
   if (!r || r.error) { showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error'); return; }
-  _f789.company = r; closeModal('modal-company'); showToast('บันทึกหัวกระดาษแล้ว');
+  _f789.company = r; closeModal('modal-company'); showToast('บันทึกหัวกระดาษแล้ว', 'success');
 }
 // Thai baht in words, e.g. 25,500.50 → "สองหมื่นห้าพันห้าร้อยบาทห้าสิบสตางค์"
 function bahtText(n) {
@@ -7770,7 +7770,7 @@ async function saveAnn() {
   const r = await apiCall(id ? 'PUT' : 'POST', '/api/announcements' + (id ? '/' + id : ''), body);
   btn.disabled = false;
   if (!r || r.error) { showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error'); return; }
-  closeModal('modal-ann'); showToast(id ? 'บันทึกแล้ว' : 'เผยแพร่ประกาศแล้ว'); renderAnnouncements();
+  closeModal('modal-ann'); showToast(id ? 'บันทึกแล้ว' : 'เผยแพร่ประกาศแล้ว', 'success'); renderAnnouncements();
 }
 async function deleteAnn(id) {
   if (!confirm('ลบประกาศนี้?')) return;
@@ -7796,7 +7796,7 @@ async function showPendingAnnPopup() {
   document.getElementById('annpop-title').textContent = a.title;
   document.getElementById('annpop-meta').textContent = a.created_by_name + ' · ' + _thDate(a.created_at, { day: 'numeric', month: 'long', year: 'numeric' });
   document.getElementById('annpop-body').textContent = a.body;
-  document.getElementById('annpop-ack').onclick = async () => { if (await ackAnn(a.id)) { closeModal('modal-ann-popup'); showToast('รับทราบแล้ว'); setTimeout(showPendingAnnPopup, 400); } };
+  document.getElementById('annpop-ack').onclick = async () => { if (await ackAnn(a.id)) { closeModal('modal-ann-popup'); showToast('รับทราบแล้ว', 'success'); setTimeout(showPendingAnnPopup, 400); } };
   document.getElementById('modal-ann-popup').classList.add('open');
 }
 
@@ -7828,13 +7828,13 @@ async function openReminderModal() {
 async function saveReminder() {
   const r = await apiCall('PUT', '/api/settings/reminder', { enabled: document.getElementById('rem-enabled').checked, days: +document.getElementById('rem-days').value });
   if (!r || r.error) { showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error'); return; }
-  closeModal('modal-reminder'); showToast('บันทึกการแจ้งเตือนแล้ว');
+  closeModal('modal-reminder'); showToast('บันทึกการแจ้งเตือนแล้ว', 'success');
   ['dashboard', 'leave', 'ot'].forEach(p => { const v = document.getElementById('view-' + p); if (v && v.classList.contains('active')) renderOverdueBar(p); });
 }
 async function remindNow() {
   const r = await apiCall('POST', '/api/approvals/remind-now');
   if (!r || r.error) { showToast((r && r.error) || 'ไม่สำเร็จ', 'error'); return; }
-  showToast(r.sent ? `ส่งแจ้งเตือนแล้ว ${r.sent} ข้อความ` : 'ไม่มีคำขอที่ต้องเตือน (หรือเตือนไปแล้ววันนี้)');
+  showToast(r.sent ? `ส่งแจ้งเตือนแล้ว ${r.sent} ข้อความ` : 'ไม่มีคำขอที่ต้องเตือน (หรือเตือนไปแล้ววันนี้)', r.sent ? 'success' : '');
 }
 
 // ── Badges + wiring into the existing nav / sidebar / logout ──
