@@ -9,12 +9,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {
-    --green: #00C896;
-    --green-light: #E6FAF5;
-    --green-dark: #009E78;
+    /* Theme 01 "Fresh Signature" — KHUMTONE CI. --green is kept as the variable name for the brand accent */
+    --green: #7A2E2E;        /* KHUMTONE Burgundy */
+    --green-light: #FBEFEF;
+    --green-dark: #5E2222;
+    --mint: #12B886;         /* fresh data / success colour */
+    --mint-light: #E5F8F1;
     --sidebar-w: 220px;
     --header-h: 64px;
-    --text: #1A1A2E;
+    --text: #111111;        /* CI Deep Black */
     --text-muted: #6B7280;
     --border: #E5E7EB;
     --card: #FFFFFF;
@@ -46,12 +49,11 @@
     transition: all .15s; margin-bottom: 2px; font-weight: 400;
   }
   .nav-item:hover { background: var(--green-light); color: var(--green-dark); }
-  .nav-item.active { background: var(--green); color: #fff; }
-  .nav-item.active svg { stroke: #fff; }
+  .nav-item.active { background: var(--green-light); color: var(--green); font-weight: 600; box-shadow: inset 3px 0 0 var(--green); }
   .nav-item svg { width: 17px; height: 17px; stroke: #6B7280; stroke-width: 1.8; fill: none; flex-shrink: 0; }
-  .nav-item.active svg { stroke: #fff; }
+  .nav-item.active svg { stroke: var(--green); }
   .nav-badge { margin-left:auto; background:rgba(239,68,68,.13); color:#DC2626; border:1px solid rgba(239,68,68,.25); font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; }
-  .nav-item.active .nav-badge { background:rgba(255,255,255,.22); color:#fff; border-color:rgba(255,255,255,.3); }
+  .nav-item.active .nav-badge { background:var(--green); color:#fff; border-color:var(--green); }
   .nav-total-badge { background:rgba(239,68,68,.13); color:#DC2626; border:1px solid rgba(239,68,68,.25); font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; margin-left:auto; }
   /* Leave table tabs — segmented control */
   .ltab-group { display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg-alt,#F3F4F6); margin-top:20px; margin-bottom:12px; }
@@ -199,7 +201,7 @@
     font-size: 13px; color: var(--text); background: #fff; outline: none;
     transition: border-color .15s;
   }
-  input:focus, select:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,200,150,.1); }
+  input:focus, select:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(122,46,46,.12); }
   label { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 5px; display: block; }
   .form-group { margin-bottom: 14px; }
 
@@ -221,7 +223,7 @@
 
   /* ── ATTENDANCE ── */
   .checkin-card {
-    background: linear-gradient(135deg, var(--green), #00A87A);
+    background: linear-gradient(135deg, var(--green), #A2453F);
     color: #fff; border-radius: 14px; padding: 28px; text-align: center;
   }
   .checkin-time { font-size: 48px; font-weight: 800; letter-spacing: -1px; }
@@ -535,7 +537,7 @@
         </div>
         <div class="card">
           <div class="stat-card">
-            <div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="stat-icon" style="background:var(--mint)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div>
               <div class="stat-val" id="dash-present-count">—</div>
               <div class="stat-label" data-i18n="present_today">มาทำงานวันนี้</div>
@@ -575,7 +577,7 @@
               <option data-i18n="this_year">ปีนี้</option>
             </select>
           </div>
-          <div style="font-size:28px;font-weight:800;color:var(--green)" id="dash-perf-pct">—</div>
+          <div style="font-size:28px;font-weight:800;color:var(--mint)" id="dash-perf-pct">—</div>
           <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px" id="dash-perf-sub">อัตราการมาทำงาน (วันนี้)</div>
           <canvas id="perfChart" height="120"></canvas>
         </div>
@@ -691,7 +693,7 @@
           <div class="card card-p" style="margin-top:16px">
             <div class="card-title" style="margin-bottom:12px" data-i18n="monthly_stats">สถิติเดือนนี้</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center">
-              <div style="background:var(--green-light);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--green)">22</div><div style="font-size:11px;color:var(--text-muted)" data-i18n="days_present">วันที่มา</div></div>
+              <div style="background:var(--mint-light);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--mint)">22</div><div style="font-size:11px;color:var(--text-muted)" data-i18n="days_present">วันที่มา</div></div>
               <div style="background:#FEE2E2;border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--red)">1</div><div style="font-size:11px;color:var(--text-muted)" data-i18n="days_absent">วันขาด</div></div>
               <div style="background:#FEF3C7;border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--orange)">2</div><div style="font-size:11px;color:var(--text-muted)" data-i18n="late_arrivals">มาสาย</div></div>
               <div style="background:#DBEAFE;border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--blue)">3</div><div style="font-size:11px;color:var(--text-muted)" data-i18n="leave_days">วันลา</div></div>
@@ -1009,7 +1011,7 @@
     <div class="view" id="view-payroll">
       <div class="page-title" data-i18n="payroll">เงินเดือน</div>
       <div class="grid grid-4" style="margin-bottom:20px">
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">เงินเดือนรวม</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--mint)"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">เงินเดือนรวม</div></div></div></div>
         <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">เงินเดือนเฉลี่ย</div></div></div></div>
         <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">โบนัส</div></div></div></div>
         <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><div><div class="stat-val">฿0</div><div class="stat-label">หักเงิน</div></div></div></div>
@@ -1054,7 +1056,7 @@
       <div class="grid grid-3" style="margin-bottom:20px">
         <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div><div class="stat-val">0</div><div class="stat-label">Open Positions</div></div></div></div>
         <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="stat-val">0</div><div class="stat-label">Applicants</div></div></div></div>
-        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--green)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="stat-val">0</div><div class="stat-label">Hired This Month</div></div></div></div>
+        <div class="card"><div class="stat-card"><div class="stat-icon" style="background:var(--mint)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="stat-val">0</div><div class="stat-label">Hired This Month</div></div></div></div>
       </div>
       <div class="card">
         <div class="card-header card-p" style="margin-bottom:0;padding-bottom:14px;border-bottom:1px solid var(--border)">
@@ -1141,9 +1143,9 @@
           <div style="font-size:26px;font-weight:800;color:var(--orange)" id="ot-total-hours">0h 00m</div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:4px" data-i18n="total_ot_hours">ชั่วโมง OT รวม</div>
         </div>
-        <div class="card card-p" style="border-top:3px solid var(--green)">
+        <div class="card card-p" style="border-top:3px solid var(--mint)">
           <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" data-i18n="approved">อนุมัติแล้ว</div>
-          <div style="font-size:26px;font-weight:800;color:var(--green)" id="ot-approved-count">0</div>
+          <div style="font-size:26px;font-weight:800;color:var(--mint)" id="ot-approved-count">0</div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:4px" data-i18n="requests_approved">คำขอที่อนุมัติ</div>
         </div>
         <div class="card card-p" style="border-top:3px solid var(--orange)">
@@ -1186,7 +1188,7 @@
       <!-- Stats row -->
       <div class="grid grid-4" style="margin-bottom:16px">
         <div class="card card-p" style="text-align:center">
-          <div id="mr-present" style="font-size:26px;font-weight:700;color:var(--green)">—</div>
+          <div id="mr-present" style="font-size:26px;font-weight:700;color:var(--mint)">—</div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:4px" data-i18n="days_worked">วันที่มาทำงาน</div>
           <div style="font-size:10px;color:var(--text-muted)" data-i18n="this_month">เดือนนี้</div>
         </div>
@@ -1673,7 +1675,7 @@
       </label>
       <input type="file" id="leave-attach" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" style="display:none" onchange="onLeaveAttachChange(this)">
     </div>
-    <div id="leave-modal-balance" data-live="1" style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:#065F46;margin-bottom:16px">
+    <div id="leave-modal-balance" data-live="1" style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:var(--green-dark);margin-bottom:16px">
       📋 <strong>วันลาคงเหลือ:</strong> กำลังคำนวณ…
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -1719,7 +1721,7 @@
     <button class="modal-close" onclick="closeModal('modal-ot-request')">✕</button>
     <div class="modal-title">ยื่นขอทำงานล่วงเวลา (OT)</div>
 
-    <div style="background:var(--green-light);border-radius:10px;padding:12px 14px;font-size:12px;color:#065F46;margin-bottom:18px;line-height:1.6">
+    <div style="background:var(--green-light);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--green-dark);margin-bottom:18px;line-height:1.6">
       📋 คำขอ OT ต้องได้รับ<strong>การอนุมัติจากผู้จัดการ</strong>ก่อนมีผล ระบบจะแจ้งเตือนเมื่อได้รับการตรวจสอบ
     </div>
 
@@ -2062,7 +2064,7 @@
         We sent a password reset link to
       </div>
       <div id="forgot-email-shown" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:24px"></div>
-      <div style="background:var(--green-light);border-radius:10px;padding:14px;font-size:12px;color:#065F46;text-align:left;margin-bottom:24px;line-height:1.6">
+      <div style="background:var(--green-light);border-radius:10px;padding:14px;font-size:12px;color:var(--green-dark);text-align:left;margin-bottom:24px;line-height:1.6">
         รหัสผ่านของคุณถูกรีเซ็ตแล้ว — กรุณาติดต่อผู้ดูแลระบบเพื่อรับรหัสผ่านใหม่
       </div>
       <button onclick="showPanel('signin')"
@@ -4185,8 +4187,8 @@ function initChart() {
       labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
       datasets: [{
         data:[78,82,79,85,88,87,83,90,86,89,92,87],
-        borderColor:'#00C896', borderWidth:2.5, fill:true,
-        backgroundColor:'rgba(0,200,150,0.08)', tension:.4, pointRadius:0,
+        borderColor:'#7A2E2E', borderWidth:2.5, fill:true,
+        backgroundColor:'rgba(122,46,46,0.07)', tension:.4, pointRadius:0,
       }]
     },
     options: {
