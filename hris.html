@@ -393,6 +393,90 @@
   .google-btn:hover { background:#F8FAFC; box-shadow:0 1px 6px rgba(0,0,0,.08); }
   .divider-or { display:flex;align-items:center;gap:10px;margin:14px 0;color:#9CA3AF;font-size:12px;font-weight:600; }
   .divider-or::before,.divider-or::after { content:'';flex:1;border-top:1px solid #E5E7EB; }
+  /* ══════════════ MOBILE / TABLET (≤ 860px) ══════════════ */
+  #mnav-btn, #mnav-backdrop { display: none; }
+  @media (max-width: 860px) {
+    body { display: block; height: auto; min-height: 100vh; overflow: auto; }
+    /* Sidebar → slide-out drawer */
+    #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; z-index: 1200; transform: translateX(-105%);
+               transition: transform .22s ease; box-shadow: 0 0 0 rgba(0,0,0,0); }
+    body.mnav-open #sidebar { transform: translateX(0); box-shadow: 8px 0 30px rgba(0,0,0,.18); }
+    #mnav-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1100; }
+    body.mnav-open #mnav-backdrop { display: block; }
+    #mnav-btn { display: inline-grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--border);
+                border-radius: 10px; background: #fff; cursor: pointer; flex-shrink: 0; margin-right: 8px; }
+    #mnav-btn svg { width: 20px; height: 20px; stroke: #374151; fill: none; stroke-width: 2; }
+    #main { width: 100%; min-width: 0; height: auto; }
+    header { position: sticky; top: 0; z-index: 900; padding: 8px 12px !important; gap: 6px; }
+    header .breadcrumb { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+    header > div[style*="flex:1"] { display: none; }
+    .header-actions { gap: 6px !important; flex-shrink: 0; }
+    .user-chip .user-info { display: none; }
+    #content { padding: 14px 12px 80px !important; height: auto; overflow: visible; }
+    .page-title { font-size: 19px !important; line-height: 1.3; }
+
+    /* Grids: 4 → 2, 3/2 → 1 (including inline grid styles) */
+    .grid-4 { grid-template-columns: 1fr 1fr !important; }
+    .grid-3, .grid-2 { grid-template-columns: 1fr !important; }
+    #content [style*="grid-template-columns:repeat(4"], #content [style*="grid-template-columns: repeat(4"] { grid-template-columns: 1fr 1fr !important; }
+    #content [style*="grid-template-columns:1fr 1fr"], #content [style*="grid-template-columns: 1fr 1fr"],
+    #content [style*="grid-template-columns:repeat(2"], #content [style*="grid-template-columns:repeat(3"],
+    #content [style*="grid-template-columns: repeat(3"], #content [style*="grid-template-columns:2fr"],
+    #content [style*="grid-template-columns:3fr"], #content [style*="grid-template-columns: 2fr"] { grid-template-columns: 1fr !important; }
+    .cal-grid, .mini-cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+    #cal-year-grid { grid-template-columns: 1fr 1fr !important; }
+
+
+    /* Side-by-side page rows (e.g. 320px check-in column + list) → stacked */
+    .flex.gap-16 { flex-direction: column; align-items: stretch !important; height: auto !important; }
+    .flex.gap-16 > * { width: 100% !important; max-width: 100% !important; min-width: 0 !important; flex: 0 0 auto !important; height: auto !important; }
+    #view-calendar .card { height: auto !important; overflow: visible !important; }
+
+    /* Flex rows wrap instead of squeezing */
+    .card-header, .cal-header, .flex { flex-wrap: wrap; gap: 8px; }
+    #content [style*="justify-content:space-between"] { flex-wrap: wrap; gap: 8px; }
+    .ltab-group, .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .ltab, .tab { white-space: nowrap; }
+
+    /* Tables: scroll sideways inside their card instead of breaking the page */
+    #content table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; max-width: 100%; }
+    #content td, #content th { padding: 8px 10px; }
+
+    /* Cards / stats */
+    .card-p { padding: 14px !important; }
+    .stat-card { padding: 12px !important; gap: 10px; }
+    .stat-val { font-size: 20px !important; }
+    .checkin-card { padding: 18px !important; }
+    .checkin-time { font-size: 34px !important; }
+    .leave-bal-card { min-width: 0; }
+
+    /* Calendar */
+    .cal-day { min-height: 44px !important; padding: 3px !important; }
+    .cal-day .cal-d-tag, .cal-day .cal-d-note { display: none; }
+
+    /* Modals → full-width bottom sheets */
+    .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+    .modal { width: 100% !important; max-width: 100% !important; max-height: 92vh; overflow-y: auto;
+             border-radius: 18px 18px 0 0 !important; padding: 20px 16px 28px !important; }
+    .modal [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+
+    /* Forms: 16px inputs stop iOS auto-zoom; bigger touch targets */
+    input, select, textarea { font-size: 16px !important; }
+    .btn, .btn-checkin { min-height: 40px; }
+    .chip { padding: 8px 12px; }
+
+    /* Floating bits */
+    #toast { left: 12px !important; right: 12px !important; bottom: 16px !important; max-width: none !important; }
+    #notif-popup { left: 12px !important; right: 12px !important; width: auto !important; }
+    #profile-dropdown { right: 8px !important; left: auto !important; max-width: calc(100vw - 16px); }
+    #login-screen { padding: 16px; }
+    .login-card { width: 100% !important; max-width: 420px; padding: 24px 20px !important; }
+    #env-banner { font-size: 10px !important; }
+    [onclick^="removeDepartment"] { min-width: 30px; min-height: 30px; font-size: 18px !important; }
+  }
+  @media (max-width: 380px) {
+    .grid-4, #content [style*="grid-template-columns:repeat(4"] { grid-template-columns: 1fr !important; }
+  }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -888,7 +972,7 @@
         <div style="width:240px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 160px);overflow-y:auto;padding-right:2px" id="cal-right-panel">
           <!-- Selected day events -->
           <div class="card card-p">
-            <div class="card-title" style="margin-bottom:12px" id="cal-selected-label">Events — June 26</div>
+            <div class="card-title" style="margin-bottom:12px" id="cal-selected-label">กิจกรรมวันนี้</div>
             <div id="cal-day-events">
               <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0">No events on this day</div>
             </div>
@@ -3808,6 +3892,7 @@ function saveDayNote() {
   showToast('บันทึก Note แล้ว','success');
 }
 function renderDayEvents(d) {
+  { const _l = document.getElementById('cal-selected-label'); if (_l) _l.textContent = 'กิจกรรม — ' + d + ' ' + ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][state.calMonth] + ' ' + (state.calYear + 543); }
   const dateStr = `${state.calYear}-${String(state.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   const evts = appointments.filter(a => a.date===dateStr);
   const el = document.getElementById('cal-day-events');
@@ -7168,5 +7253,28 @@ window.addEventListener('load', async ()=>{
     </div>
   </div>
 </div>
+<script>
+// ── Mobile navigation: ☰ button + slide-out sidebar drawer ──
+(function setupMobileNav() {
+  function init() {
+    const header = document.querySelector('#main > header');
+    if (!header || document.getElementById('mnav-btn')) return;
+    header.insertAdjacentHTML('afterbegin',
+      '<button id="mnav-btn" type="button" aria-label="เมนู" onclick="toggleMobileNav()">' +
+      '<svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>');
+    document.body.insertAdjacentHTML('beforeend', '<div id="mnav-backdrop" onclick="toggleMobileNav(false)"></div>');
+    // close the drawer after picking a page
+    document.getElementById('sidebar').addEventListener('click', e => {
+      if (e.target.closest('.nav-item') && window.innerWidth <= 860) toggleMobileNav(false);
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleMobileNav(false); });
+  }
+  window.toggleMobileNav = function (force) {
+    const open = typeof force === 'boolean' ? force : !document.body.classList.contains('mnav-open');
+    document.body.classList.toggle('mnav-open', open);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
 </body>
 </html>
