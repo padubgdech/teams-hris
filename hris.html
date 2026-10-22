@@ -6005,7 +6005,7 @@ if (window.HRIS_ENV === 'staging') {
     // Floating "switch user" pill (always available on staging)
     if (!document.getElementById('demo-pill')) {
       const p = document.createElement('button'); p.id = 'demo-pill'; p.textContent = '🧪 สลับผู้ใช้';
-      p.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:9999;background:#F59E0B;color:#1A1A2E;border:none;border-radius:99px;padding:7px 14px;font:700 12px sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)';
+      p.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9999;background:#F59E0B;color:#1A1A2E;border:none;border-radius:99px;padding:7px 14px;font:700 12px sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)';
       p.onclick = openDemoSwitcher; document.body.appendChild(p);
     }
     // Quick-entry buttons on the login card
