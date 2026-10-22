@@ -11,7 +11,8 @@
   :root {
     /* Theme 01 "Fresh Signature" — KHUMTONE CI. --green is kept as the variable name for the brand accent */
     --green: #7A2E2E;        /* KHUMTONE Burgundy */
-    --green-light: #FBEFEF;
+    --green-light: #F3F4F6;   /* Theme 03: neutral tint (was pink) */
+    --ink: #111111;           /* Theme 03: black accent for non-button UI */
     --green-dark: #5E2222;
     --mint: #12B886;         /* fresh data / success colour */
     --mint-light: #E5F8F1;
@@ -39,7 +40,7 @@
   .logo-icon { width: 34px; height: 34px; background: var(--green); border-radius: 8px; display: grid; place-items: center; }
   .logo-icon svg { fill: white; width: 18px; height: 18px; }
   .logo-text { font-weight: 800; font-size: 15px; color: var(--text); letter-spacing: .2px; white-space: nowrap; }
-  .logo-text span { color: var(--green); }
+  .logo-text span { color: #6B7280; }
 
   .nav-section { padding: 16px 10px 0; }
   .nav-label { font-size: 12px; font-weight: 700; color: #374151; letter-spacing: .2px; padding: 0 8px 8px; }
@@ -48,18 +49,18 @@
     border-radius: 8px; cursor: pointer; font-size: 13px; color: #6B7280;
     transition: all .15s; margin-bottom: 2px; font-weight: 400;
   }
-  .nav-item:hover { background: var(--green-light); color: var(--green-dark); }
-  .nav-item.active { background: var(--green-light); color: var(--green); font-weight: 600; box-shadow: inset 3px 0 0 var(--green); }
+  .nav-item:hover { background: var(--green-light); color: var(--ink); }
+  .nav-item.active { background: var(--green-light); color: var(--ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--ink); }
   .nav-item svg { width: 17px; height: 17px; stroke: #6B7280; stroke-width: 1.8; fill: none; flex-shrink: 0; }
-  .nav-item.active svg { stroke: var(--green); }
-  .nav-badge { margin-left:auto; background:rgba(239,68,68,.13); color:#DC2626; border:1px solid rgba(239,68,68,.25); font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; }
-  .nav-item.active .nav-badge { background:var(--green); color:#fff; border-color:var(--green); }
-  .nav-total-badge { background:rgba(239,68,68,.13); color:#DC2626; border:1px solid rgba(239,68,68,.25); font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; margin-left:auto; }
+  .nav-item.active svg { stroke: var(--ink); }
+  .nav-badge { margin-left:auto; background:#111; color:#fff; border:1px solid #111; font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; }
+  .nav-item.active .nav-badge { background:#fff; color:#111; border-color:#111; }
+  .nav-total-badge { background:#111; color:#fff; border:1px solid #111; font-size:10px; border-radius:99px; padding:1px 7px; font-weight:700; display:none; margin-left:auto; }
   /* Leave table tabs — segmented control */
   .ltab-group { display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg-alt,#F3F4F6); margin-top:20px; margin-bottom:12px; }
   .ltab { background:transparent; border:none; border-right:1px solid var(--border); padding:8px 18px; font-size:13px; font-weight:600; color:var(--text-muted); cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:6px; }
   .ltab:last-child { border-right:none; }
-  .ltab-active { background:#fff; color:var(--green-dark); box-shadow:0 1px 4px rgba(0,0,0,.07); }
+  .ltab-active { background:#fff; color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,.07); }
   /* Notification popup */
   #notif-popup { position:fixed; bottom:24px; right:24px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,.14); padding:16px 20px; max-width:320px; z-index:9999; display:none; animation:slideUp .3s ease; }
   @keyframes slideUp { from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -128,7 +129,7 @@
   .pd-divider { height: 1px; background: var(--border); margin: 4px 0; }
   .pd-logout { color: #DC2626 !important; }
   .pd-logout svg { stroke: #DC2626 !important; }
-  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--green); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--ink); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; }
   .user-info { line-height: 1.2; }
   .user-name { font-size: 13px; font-weight: 600; }
   .user-role { font-size: 11px; color: var(--text-muted); }
@@ -201,7 +202,7 @@
     font-size: 13px; color: var(--text); background: #fff; outline: none;
     transition: border-color .15s;
   }
-  input:focus, select:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(122,46,46,.12); }
+  input:focus, select:focus, textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(17,17,17,.10); }
   label { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 5px; display: block; }
   .form-group { margin-bottom: 14px; }
 
@@ -274,14 +275,14 @@
     border-radius: 8px; font-size: 13px; cursor: pointer; position: relative;
     flex-direction: column; gap: 3px; padding: 7px 8px; border: 1px solid transparent;
   }
-  .cal-day:hover { background: var(--green-light); border-color: var(--green); }
-  .cal-day.today { background: var(--green); color: #fff; font-weight: 700; }
+  .cal-day:hover { background: var(--green-light); border-color: var(--ink); }
+  .cal-day.today { background: var(--ink); color: #fff; font-weight: 700; }
   .cal-day.other-month { color: #D1D5DB; }
   .cal-day.has-event::after { content:''; width: 5px; height: 5px; background: var(--orange); border-radius: 50%; position: absolute; top: 6px; right: 6px; }
   .cal-day.today.has-event::after { background: rgba(255,255,255,.8); }
   .cal-day.leave-day { background: #FEF9C3; color: #D97706; }
   .cal-day.holiday-day { background: #DCFCE7; color: #059669; font-weight: 700; }
-  .cal-day.selected { outline: 2px solid var(--green); outline-offset: -2px; }
+  .cal-day.selected { outline: 2px solid var(--ink); outline-offset: -2px; }
   .cal-day .cal-d-num { font-size: 13px; font-weight: 600; line-height: 1; }
   .cal-day .cal-d-tag { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 99px; margin-top: 2px; }
   .cal-day .cal-d-note { font-size: 9px; color: var(--text-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -319,12 +320,12 @@
 
   /* ── PROGRESS ── */
   .progress-bar { background: #E5E7EB; border-radius: 99px; height: 6px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 99px; background: var(--green); transition: width .5s; }
+  .progress-fill { height: 100%; border-radius: 99px; background: var(--ink); transition: width .5s; }
 
   /* ── PAYROLL PREVIEW ── */
   .payroll-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F3F4F6; font-size: 13px; }
   .payroll-row:last-child { border-bottom: none; }
-  .payroll-total { font-weight: 700; color: var(--green); font-size: 15px; }
+  .payroll-total { font-weight: 700; color: var(--ink); font-size: 15px; }
 
   /* Quick schedule list */
   .event-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #F3F4F6; }
@@ -338,7 +339,7 @@
 
   .chip-select { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { padding: 6px 14px; border-radius: 99px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; background: #fff; }
-  .chip.selected { background: var(--green); color: #fff; border-color: var(--green); }
+  .chip.selected { background: var(--ink); color: #fff; border-color: var(--ink); }
   /* Leave-type chips: each type keeps its own colour (same as the balance rings) */
   .lt-chip { --lt: #6B7280; --lt-bg: #F3F4F6; color: var(--lt); border-color: color-mix(in srgb, var(--lt) 35%, #fff); background: #fff; }
   .lt-chip:hover { background: var(--lt-bg); }
@@ -362,7 +363,7 @@
     padding: 6px 0 8px; color: var(--text);
     cursor: pointer;
   }
-  .mini-cal-title:hover { color: var(--green); }
+  .mini-cal-title:hover { color: var(--ink); }
   .mini-cal-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -379,7 +380,7 @@
   }
   .mini-day:hover { background: var(--green-light); }
   .mini-day.other { color: #D1D5DB; }
-  .mini-day.today-mini { background: var(--green); color: #fff; border-radius: 50%; font-weight: 800; }
+  .mini-day.today-mini { background: var(--ink); color: #fff; border-radius: 50%; font-weight: 800; }
   .mini-day.holiday-mini { color: #EF4444; font-weight: 700; }
   .mini-day.leave-mini { background: #FEE2E2; border-radius: 3px; }
   .mini-day.leave-mini.holiday-mini { background: #FEE2E2; color: #EF4444; font-weight: 700; }
@@ -496,9 +497,6 @@
 <!-- ══════════════════ SIDEBAR ══════════════════ -->
 <nav id="sidebar">
   <div class="logo">
-    <div class="logo-icon">
-      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-    </div>
     <span class="logo-text">KHUMTONE <span>Teams</span></span>
     <span class="nav-total-badge" id="nav-total-badge"></span>
   </div>
@@ -965,7 +963,7 @@
             </div>
             <div style="display:flex;gap:8px">
               <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="gotoToday()">วันนี้</button>
-              <select style="width:auto;font-size:12px;padding:6px 10px;border:1.5px solid var(--green);border-radius:8px;font-weight:600" id="cal-view-mode" onchange="switchCalView(this.value)">
+              <select style="width:auto;font-size:12px;padding:6px 10px;border:1.5px solid var(--ink);border-radius:8px;font-weight:600" id="cal-view-mode" onchange="switchCalView(this.value)">
                 <option value="month">Month</option>
                 <option value="year">Year</option>
               </select>
@@ -1527,7 +1525,7 @@
         <label>เหตุผล / หมายเหตุ <span style="color:red">*</span></label>
         <textarea id="retro-reason" rows="3" placeholder="เช่น ลืมลงเวลา, อยู่ในพื้นที่ที่ไม่มีสัญญาณ..." style="width:100%;resize:vertical"></textarea>
       </div>
-      <div id="retro-preview" style="background:var(--green-light);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green-dark);display:none">
+      <div id="retro-preview" style="background:var(--green-light);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--ink);display:none">
         เวลาทำงาน: <strong id="retro-hours-preview">—</strong>
       </div>
     </div>
@@ -1684,7 +1682,7 @@
       </label>
       <input type="file" id="leave-attach" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" style="display:none" onchange="onLeaveAttachChange(this)">
     </div>
-    <div id="leave-modal-balance" data-live="1" style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:var(--green-dark);margin-bottom:16px">
+    <div id="leave-modal-balance" data-live="1" style="background:var(--green-light);border-radius:8px;padding:12px;font-size:12px;color:var(--ink);margin-bottom:16px">
       📋 <strong>วันลาคงเหลือ:</strong> กำลังคำนวณ…
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -1730,7 +1728,7 @@
     <button class="modal-close" onclick="closeModal('modal-ot-request')">✕</button>
     <div class="modal-title">ยื่นขอทำงานล่วงเวลา (OT)</div>
 
-    <div style="background:var(--green-light);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--green-dark);margin-bottom:18px;line-height:1.6">
+    <div style="background:var(--green-light);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--ink);margin-bottom:18px;line-height:1.6">
       📋 คำขอ OT ต้องได้รับ<strong>การอนุมัติจากผู้จัดการ</strong>ก่อนมีผล ระบบจะแจ้งเตือนเมื่อได้รับการตรวจสอบ
     </div>
 
@@ -1861,10 +1859,7 @@
       </button>
     </div>
     <div class="login-logo">
-      <div class="login-logo-icon">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-      </div>
-      <span class="login-logo-text">KHUMTONE <span style="color:var(--green)">Teams</span></span>
+      <span class="login-logo-text">KHUMTONE <span style="color:#6B7280">Teams</span></span>
     </div>
     <div class="login-title" id="signin-title">ยินดีต้อนรับ 👋</div>
     <div class="login-sub" id="signin-sub">เข้าสู่ระบบบริหารทรัพยากรบุคคล</div>
@@ -1886,10 +1881,10 @@
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
       <label style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:500;cursor:pointer;margin:0">
-        <input type="checkbox" id="remember" checked style="width:auto;accent-color:var(--green)">
+        <input type="checkbox" id="remember" checked style="width:auto;accent-color:var(--ink)">
         <span id="lbl-remember">จดจำฉัน</span>
       </label>
-      <span onclick="showPanel('forgot')" style="font-size:12px;color:var(--green);cursor:pointer;font-weight:600" id="lbl-forgot">ลืมรหัสผ่าน?</span>
+      <span onclick="showPanel('forgot')" style="font-size:12px;color:var(--ink);cursor:pointer;font-weight:600" id="lbl-forgot">ลืมรหัสผ่าน?</span>
     </div>
     <button onclick="doLogin()" id="login-btn"
       style="width:100%;background:var(--green);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s">
@@ -1903,7 +1898,7 @@
     <div id="google-login-error" style="display:none;margin-top:8px;font-size:12px;color:#EF4444;text-align:center"></div>
     <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-muted)">
       <span id="lbl-no-account">ยังไม่มีบัญชี?</span>
-      <span onclick="showPanel('signup')" style="color:var(--green);font-weight:700;cursor:pointer;margin-left:4px" id="lbl-signup-link">สมัครสมาชิก</span>
+      <span onclick="showPanel('signup')" style="color:var(--ink);font-weight:700;cursor:pointer;margin-left:4px" id="lbl-signup-link">สมัครสมาชิก</span>
     </div>
   </div>
 
@@ -1914,10 +1909,7 @@
       กลับสู่หน้าเข้าสู่ระบบ
     </button>
     <div class="login-logo">
-      <div class="login-logo-icon">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-      </div>
-      <span class="login-logo-text">KHUMTONE <span style="color:var(--green)">Teams</span></span>
+      <span class="login-logo-text">KHUMTONE <span style="color:#6B7280">Teams</span></span>
     </div>
     <div class="login-title" id="su-step-title">ข้อมูลบัญชี</div>
 
@@ -1926,13 +1918,13 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span style="font-size:12px;color:var(--text-muted)" id="su-step-label">ขั้นตอน 1 / 3</span>
         <div style="display:flex;gap:6px">
-          <div id="su-dot-1" style="width:20px;height:6px;border-radius:99px;background:var(--green);transition:background .3s"></div>
+          <div id="su-dot-1" style="width:20px;height:6px;border-radius:99px;background:var(--ink);transition:background .3s"></div>
           <div id="su-dot-2" style="width:6px;height:6px;border-radius:99px;background:var(--border);transition:background .3s"></div>
           <div id="su-dot-3" style="width:6px;height:6px;border-radius:99px;background:var(--border);transition:background .3s"></div>
         </div>
       </div>
       <div style="height:3px;background:var(--border);border-radius:99px;overflow:hidden">
-        <div id="su-prog-fill" style="height:100%;background:var(--green);border-radius:99px;width:33%;transition:width .35s ease"></div>
+        <div id="su-prog-fill" style="height:100%;background:var(--ink);border-radius:99px;width:33%;transition:width .35s ease"></div>
       </div>
     </div>
 
@@ -2030,7 +2022,7 @@
 
     <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-muted)">
       มีบัญชีอยู่แล้ว?
-      <span onclick="showPanel('signin')" style="color:var(--green);font-weight:700;cursor:pointer;margin-left:4px">เข้าสู่ระบบ</span>
+      <span onclick="showPanel('signin')" style="color:var(--ink);font-weight:700;cursor:pointer;margin-left:4px">เข้าสู่ระบบ</span>
     </div>
   </div>
 
@@ -2041,10 +2033,7 @@
       Back to Sign In
     </button>
     <div class="login-logo">
-      <div class="login-logo-icon">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-      </div>
-      <span class="login-logo-text">KHUMTONE <span style="color:var(--green)">Teams</span></span>
+      <span class="login-logo-text">KHUMTONE <span style="color:#6B7280">Teams</span></span>
     </div>
 
     <!-- Step 1: Enter email -->
@@ -2066,14 +2055,14 @@
     <!-- Step 2: Success -->
     <div id="forgot-step2" style="display:none;text-align:center;padding:10px 0">
       <div style="width:72px;height:72px;background:var(--green-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-        <svg width="32" height="32" viewBox="0 0 24 24" stroke="var(--green)" stroke-width="2" fill="none"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg width="32" height="32" viewBox="0 0 24 24" stroke="var(--ink)" stroke-width="2" fill="none"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
       <div class="login-title" style="font-size:20px">Check your inbox 📬</div>
       <div style="font-size:13px;color:var(--text-muted);margin:12px 0 8px;line-height:1.6">
         We sent a password reset link to
       </div>
       <div id="forgot-email-shown" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:24px"></div>
-      <div style="background:var(--green-light);border-radius:10px;padding:14px;font-size:12px;color:var(--green-dark);text-align:left;margin-bottom:24px;line-height:1.6">
+      <div style="background:var(--green-light);border-radius:10px;padding:14px;font-size:12px;color:var(--ink);text-align:left;margin-bottom:24px;line-height:1.6">
         รหัสผ่านของคุณถูกรีเซ็ตแล้ว — กรุณาติดต่อผู้ดูแลระบบเพื่อรับรหัสผ่านใหม่
       </div>
       <button onclick="showPanel('signin')"
@@ -2082,7 +2071,7 @@
       </button>
       <div style="font-size:12px;color:var(--text-muted);margin-top:14px">
         Didn't receive it?
-        <span onclick="sendReset()" style="color:var(--green);font-weight:600;cursor:pointer">Resend</span>
+        <span onclick="sendReset()" style="color:var(--ink);font-weight:600;cursor:pointer">Resend</span>
       </div>
     </div>
   </div>
@@ -4117,7 +4106,7 @@ function renderInbox() {
           <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.from}</div>
           <div style="font-size:10px;color:var(--text-muted)">${m.time}</div>
         </div>
-        ${m.unread?'<div style="width:7px;height:7px;background:var(--green);border-radius:50%"></div>':''}
+        ${m.unread?'<div style="width:7px;height:7px;background:var(--ink);border-radius:50%"></div>':''}
       </div>
       <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.subject}</div>
     </div>`).join('');
@@ -4196,8 +4185,8 @@ function initChart() {
       labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
       datasets: [{
         data:[78,82,79,85,88,87,83,90,86,89,92,87],
-        borderColor:'#7A2E2E', borderWidth:2.5, fill:true,
-        backgroundColor:'rgba(122,46,46,0.07)', tension:.4, pointRadius:0,
+        borderColor:'#111111', borderWidth:2.5, fill:true,
+        backgroundColor:'rgba(17,17,17,0.06)', tension:.4, pointRadius:0,
       }]
     },
     options: {
@@ -4664,8 +4653,8 @@ function suGoStep(n) {
   for (let i = 1; i <= 3; i++) {
     const dot = document.getElementById('su-dot-' + i);
     if (!dot) continue;
-    if (i < n)       { dot.style.background = 'var(--green)'; dot.style.width = '6px'; }
-    else if (i === n){ dot.style.background = 'var(--green)'; dot.style.width = '20px'; }
+    if (i < n)       { dot.style.background = 'var(--ink)'; dot.style.width = '6px'; }
+    else if (i === n){ dot.style.background = 'var(--ink)'; dot.style.width = '20px'; }
     else             { dot.style.background = 'var(--border)'; dot.style.width = '6px'; }
   }
   // title & label
@@ -5045,7 +5034,7 @@ async function renderPayroll() {
       <td>${fmt(allowance)}</td>
       <td>${fmt(bonus)}</td>
       <td>${fmt(deduction)}</td>
-      <td style="font-weight:700;color:${net?'var(--green)':'var(--text-muted)'}">${net ? '฿'+net.toLocaleString() : '—'}</td>
+      <td style="font-weight:700;color:${net?'var(--ink)':'var(--text-muted)'}">${net ? '฿'+net.toLocaleString() : '—'}</td>
       <td><button class="btn btn-outline" style="font-size:11px;padding:5px 10px">สลิปเงินเดือน</button></td>
     </tr>`;
   }).join('');
@@ -5692,7 +5681,7 @@ async function renderMyRecords() {
       const editBtn = document.createElement('button');
       editBtn.className = 'mr-edit-btn';
       editBtn.innerHTML = '✏️ แก้ไขข้อมูล';
-      editBtn.style.cssText = 'float:right;background:none;border:1px solid var(--green);color:var(--green);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-top:-4px';
+      editBtn.style.cssText = 'float:right;background:none;border:1px solid var(--ink);color:var(--ink);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-top:-4px';
       editBtn.onclick = () => showProfileCompleteModal();
       piCard.querySelector('[style*="ข้อมูลส่วนตัว"]')?.before(editBtn) || piCard.prepend(editBtn);
     }
@@ -5998,7 +5987,7 @@ if (window.HRIS_ENV === 'staging') {
       const us = list.filter(u => u.role === role);
       if (!us.length) return '';
       return '<div style="font:700 11px sans-serif;color:#6B7280;margin:14px 0 6px;text-transform:uppercase">' + ROLE_TH[role] + ' (' + us.length + ')</div>' +
-        us.map(u => '<button data-uid="' + u.id + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;margin-bottom:6px;border:1px solid ' + (u.id === me ? 'var(--green)' : '#E5E7EB') + ';background:' + (u.id === me ? 'var(--green-light)' : '#fff') + ';border-radius:10px;cursor:pointer;font:inherit">' +
+        us.map(u => '<button data-uid="' + u.id + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;margin-bottom:6px;border:1px solid ' + (u.id === me ? 'var(--ink)' : '#E5E7EB') + ';background:' + (u.id === me ? 'var(--green-light)' : '#fff') + ';border-radius:10px;cursor:pointer;font:inherit">' +
           '<span style="width:30px;height:30px;border-radius:50%;background:' + u.color + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' + String(u.init).replace(/</g, '&lt;') + '</span>' +
           '<span style="min-width:0"><b style="display:block;font-size:13px;color:#111">' + String(u.name).replace(/</g, '&lt;') + (u.id === me ? ' · ใช้อยู่' : '') + '</b>' +
           '<span style="font-size:11px;color:#6B7280">' + String(u.department || u.email).replace(/</g, '&lt;') + '</span></span></button>').join('');
@@ -6618,7 +6607,7 @@ async function loadInboxFromApi(){
         <div style="font-size:13px;${m.is_read?'':'font-weight:600;'}margin-bottom:2px">${m.subject}</div>
         <div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(m.body||'').slice(0,80)}</div>
       </div>
-      ${!m.is_read?'<div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:4px"></div>':''}
+      ${!m.is_read?'<div style="width:8px;height:8px;border-radius:50%;background:var(--ink);flex-shrink:0;margin-top:4px"></div>':''}
     </div>`).join('')||'<div style="text-align:center;padding:40px;color:var(--text-muted)">No messages in inbox.</div>';
 }
 
@@ -7217,7 +7206,7 @@ async function renderPolicyPreview() {
     const c = (cur || []).find(x => x.user_id === n.user_id) || { annual: { remaining: 0 } }, a = n.annual;
     const note = a.forfeited ? `<span class="badge" style="background:#FEF3C7;color:#B45309">เกินเพดาน ${a.forfeited} วัน</span>` : (n.join_date.slice(0,4) == y ? '<span class="badge" style="background:#DBEAFE;color:#1D4ED8">เริ่มงานปีนี้</span>' : '');
     return `<tr><td><span class="emp-avatar" style="background:${_escH(n.color||'#6B7280')};width:26px;height:26px;font-size:10px;display:inline-grid;place-items:center;vertical-align:middle;margin-right:6px">${_escH(n.init||'?')}</span>${_escH(n.name)}</td>
-      <td>${thDateShort(n.join_date)}</td><td>${c.annual.remaining} วัน</td><td style="color:var(--green-dark);font-weight:700">+${a.carry}</td>
+      <td>${thDateShort(n.join_date)}</td><td>${c.annual.remaining} วัน</td><td style="color:var(--ink);font-weight:700">+${a.carry}</td>
       <td>${a.entitlement}${a.bonus ? ' +' + a.bonus + ' พิเศษ' : ''} วัน</td><td><b>${a.total} วัน</b></td><td>${note}</td></tr>`;
   }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ไม่มีพนักงาน</td></tr>';
 }
