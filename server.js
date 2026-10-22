@@ -211,6 +211,14 @@ function auth(req, res, next) {
   const u = store.users.find(x => x.id === payload.id) || store.users.find(x => x.email === payload.email);
   if (!u) return res.status(401).json({ error: 'User no longer exists' });
   req.user = { id: u.id, email: u.email, role: u.role };
+  // Admin "view as member" token: only valid while the issuing admin is still an admin,
+  // and strictly READ-ONLY — any write is refused so nothing is changed in the member's name.
+  if (payload.imp_by != null) {
+    const admin = store.users.find(x => x.id === payload.imp_by);
+    if (!admin || admin.role !== 'admin') return res.status(401).json({ error: 'Impersonation no longer allowed' });
+    req.user.impersonated_by = admin.id;
+    if (req.method !== 'GET') return res.status(403).json({ error: 'โหมดดูแทนสมาชิก: ดูข้อมูลได้อย่างเดียว ไม่สามารถแก้ไข/บันทึกได้ — กด "กลับเป็นแอดมิน" ก่อน' });
+  }
   next();
 }
 // Simple in-memory login throttle: 10 failed attempts per email+IP per 15 minutes
@@ -416,7 +424,28 @@ app.get('/api/auth/me', auth, (req, res) => {
   const user = store.users.find(u => u.id === req.user.id)
             || store.users.find(u => u.email === req.user.email);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(fmtUser(user));
+  const out = fmtUser(user);
+  if (req.user.impersonated_by != null) {
+    const a = store.users.find(x => x.id === req.user.impersonated_by);
+    out.impersonated_by = { id: a.id, name: a.name, email: a.email };
+  }
+  res.json(out);
+});
+
+// ── ADMIN: view the app as a member (read-only, no password) ─────────────────
+app.post('/api/admin/impersonate', auth, requireRole('admin'), (req, res) => {
+  const target = store.users.find(u => String(u.id) === String((req.body || {}).user_id));
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.id === req.user.id) return res.status(400).json({ error: 'เลือกบัญชีอื่นที่ไม่ใช่ของตัวเอง' });
+  store.impersonation_log = store.impersonation_log || [];
+  store.impersonation_log.push({ at: new Date().toISOString(), admin_id: req.user.id, admin_email: req.user.email, target_id: target.id, target_email: target.email });
+  if (store.impersonation_log.length > 500) store.impersonation_log = store.impersonation_log.slice(-500);
+  saveDb();
+  const token = jwt.sign({ id: target.id, email: target.email, role: target.role, imp_by: req.user.id }, JWT_SECRET, { expiresIn: '2h' });
+  res.json({ token, user: fmtUser(target) });
+});
+app.get('/api/admin/impersonation-log', auth, requireRole('admin'), (req, res) => {
+  res.json((store.impersonation_log || []).slice(-100).reverse());
 });
 
 // ── EMPLOYEES ─────────────────────────────────────────────────────────────────

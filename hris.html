@@ -7318,6 +7318,97 @@ window.addEventListener('load', async ()=>{
   // Re-render Google button now that login screen visibility is final
   if (typeof _initGSI === 'function') _initGSI();
 });
+
+// ══ ADMIN: switch to a member's account (view-only, no password) ══════════════
+// The admin's own session is kept in localStorage 'hris_admin_session' and restored by "กลับเป็นแอดมิน".
+// The server issues a 2-hour READ-ONLY token: any save/submit is refused while viewing as a member.
+function _impEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function isImpersonating() { return !!(currentUser && currentUser.impersonated_by); }
+async function openImpersonatePicker() {
+  const list = await apiCall('GET', '/api/users');
+  if (!Array.isArray(list)) { showToast((list && list.error) || 'โหลดรายชื่อไม่สำเร็จ', 'error'); return; }
+  document.getElementById('imp-picker')?.remove();
+  const ROLE_TH = { admin: 'แอดมิน', hr_manager: 'HR', manager: 'หัวหน้า', employee: 'พนักงาน' };
+  const others = list.filter(u => u.id !== currentUser.id);
+  const wrap = document.createElement('div'); wrap.id = 'imp-picker';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(17,17,17,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
+  const row = u => '<button data-uid="' + _impEsc(u.id) + '" data-name="' + _impEsc((u.name + ' ' + u.email + ' ' + (u.department || '')).toLowerCase()) + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;margin-bottom:6px;border:1px solid #E5E7EB;background:#fff;border-radius:10px;cursor:pointer;font:inherit">' +
+    '<span style="width:30px;height:30px;border-radius:50%;background:' + _impEsc(u.color || '#6B7280') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' + _impEsc(u.init || '?') + '</span>' +
+    '<span style="min-width:0;flex:1"><b style="display:block;font-size:13px;color:#111">' + _impEsc(u.name) + '</b><span style="font-size:11px;color:#6B7280">' + _impEsc(u.department || u.email) + '</span></span>' +
+    '<span style="font-size:10px;font-weight:700;color:#374151;background:#F3F4F6;border-radius:99px;padding:2px 8px">' + _impEsc(ROLE_TH[u.role] || u.role) + '</span></button>';
+  wrap.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:400px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.25)">' +
+    '<div style="padding:18px 18px 10px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:15px">👁 สลับไปดูบัญชีสมาชิก</b>' +
+    '<button onclick="document.getElementById(\'imp-picker\').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#6B7280">×</button></div>' +
+    '<div style="font-size:12px;color:#6B7280;margin:4px 0 10px;line-height:1.5">เห็นหน้าจอเหมือนที่สมาชิกเห็น · <b>ดูได้อย่างเดียว</b> แก้ไข/บันทึกไม่ได้ · ระบบบันทึกประวัติการสลับไว้</div>' +
+    '<input id="imp-search" placeholder="ค้นหาชื่อ / อีเมล / แผนก" style="width:100%"></div>' +
+    '<div id="imp-list" style="overflow:auto;padding:0 18px 12px">' + (others.length ? others.map(row).join('') : '<div style="color:#6B7280;font-size:12px;padding:10px 0">ยังไม่มีสมาชิกคนอื่น</div>') + '</div></div>';
+  document.body.appendChild(wrap);
+  const s = document.getElementById('imp-search');
+  s.oninput = () => { const q = s.value.trim().toLowerCase(); wrap.querySelectorAll('[data-uid]').forEach(b => b.style.display = !q || b.dataset.name.includes(q) ? 'flex' : 'none'); };
+  s.focus();
+  wrap.querySelectorAll('[data-uid]').forEach(b => b.onclick = () => startImpersonation(b.dataset.uid));
+}
+async function startImpersonation(userId) {
+  const r = await apiCall('POST', '/api/admin/impersonate', { user_id: userId });
+  if (!r || !r.token) { showToast((r && r.error) || 'สลับบัญชีไม่สำเร็จ', 'error'); return; }
+  try {
+    // Keep the admin's own session so we can come back without signing in again
+    if (!localStorage.getItem('hris_admin_session')) localStorage.setItem('hris_admin_session', localStorage.getItem('hris_session') || '');
+    localStorage.setItem('hris_session', JSON.stringify({ email: r.user.email, token: r.token, impersonating: true }));
+    localStorage.removeItem('hris_last_page');
+  } catch (e) {}
+  location.reload();
+}
+function endImpersonation() {
+  try {
+    const back = localStorage.getItem('hris_admin_session');
+    if (back) localStorage.setItem('hris_session', back); else localStorage.removeItem('hris_session');
+    localStorage.removeItem('hris_admin_session');
+    localStorage.removeItem('hris_last_page');
+  } catch (e) {}
+  location.reload();
+}
+function _impUI() {
+  if (!currentUser) return;
+  const foot = document.getElementById('sidebar-footer');
+  // Admin: "switch account" button above Sign out
+  if (foot && currentUser.role === 'admin' && !isImpersonating() && !document.getElementById('imp-btn')) {
+    const b = document.createElement('button'); b.id = 'imp-btn'; b.type = 'button';
+    b.style.cssText = 'width:100%;display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:12px;font-weight:600;color:var(--ink,#111);cursor:pointer;margin-bottom:8px';
+    b.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>สลับบัญชีสมาชิก';
+    b.onclick = openImpersonatePicker;
+    const logout = foot.querySelector('button[onclick="doLogout()"]');
+    logout ? foot.insertBefore(b, logout) : foot.appendChild(b);
+  }
+  // Viewing as a member: permanent banner + "back to admin"
+  let bar = document.getElementById('imp-banner');
+  if (isImpersonating()) {
+    if (!bar) {
+      bar = document.createElement('div'); bar.id = 'imp-banner';
+      bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:10000;background:#111;color:#fff;border-radius:99px;padding:8px 8px 8px 16px;display:flex;align-items:center;gap:12px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:calc(100vw - 24px)';
+      document.body.appendChild(bar);
+    }
+    bar.innerHTML = '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👁 กำลังดูในฐานะ <b>' + _impEsc(currentUser.name) + '</b> · ดูอย่างเดียว</span>' +
+      '<button onclick="endImpersonation()" style="border:none;border-radius:99px;background:#7A2E2E;color:#fff;font-weight:700;font-size:12px;padding:6px 14px;cursor:pointer;white-space:nowrap">กลับเป็นแอดมิน</button>';
+    const pill = document.getElementById('demo-pill'); if (pill) pill.style.bottom = '64px';
+  } else if (bar) bar.remove();
+}
+{
+  const _bsImp = buildSidebar;
+  buildSidebar = function() { const r = _bsImp.apply(this, arguments); try { _impUI(); } catch (e) {} return r; };
+  // Don't nag the admin with the member's "complete your profile" popup while viewing
+  const _cpcImp = checkProfileComplete;
+  checkProfileComplete = function() { return isImpersonating() ? true : _cpcImp.apply(this, arguments); };
+  // Sign out while viewing a member → go back to the admin instead
+  const _logoutImp = doLogout;
+  doLogout = function() {
+    if (isImpersonating()) { endImpersonation(); return; }
+    try { localStorage.removeItem('hris_admin_session'); } catch (e) {}
+    return _logoutImp.apply(this, arguments);
+  };
+}
+
 </script>
 <!-- Notification Popup -->
 <div id="notif-popup">
