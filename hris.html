@@ -2212,36 +2212,37 @@
 <div id="modal-profile-complete" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:20px;padding:36px 40px;width:480px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.3)">
     <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
-      <button onclick="doLogout()" title="ออกจากระบบ" style="background:none;border:1px solid #e5e7eb;border-radius:8px;padding:5px 12px;font-size:12px;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:5px" onmouseover="this.style.background='#fee2e2';this.style.color='#b91c1c';this.style.borderColor='#fca5a5'" onmouseout="this.style.background='none';this.style.color='#6b7280';this.style.borderColor='#e5e7eb'">
+      <button id="pc-close-btn" onclick="closeProfileModal()" title="ปิด" style="display:none;width:32px;height:32px;border:none;background:#F3F4F6;border-radius:8px;font-size:16px;cursor:pointer;color:#374151">✕</button>
+      <button id="pc-logout-btn" onclick="doLogout()" title="ออกจากระบบ" style="background:none;border:1px solid #e5e7eb;border-radius:8px;padding:5px 12px;font-size:12px;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:5px" onmouseover="this.style.background='#fee2e2';this.style.color='#b91c1c';this.style.borderColor='#fca5a5'" onmouseout="this.style.background='none';this.style.color='#6b7280';this.style.borderColor='#e5e7eb'">
         <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         ออกจากระบบ
       </button>
     </div>
     <div style="text-align:center;margin-bottom:20px">
       <div style="font-size:36px;margin-bottom:8px">👤</div>
-      <div style="font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:4px">กรุณาเติมข้อมูลโปรไฟล์</div>
-      <div style="font-size:12px;color:#6b7280">กรอกข้อมูลให้ครบก่อนเข้าใช้งาน — ไม่สามารถปิดได้จนกว่าจะบันทึก</div>
+      <div id="pc-title" style="font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:4px">กรุณาเติมข้อมูลโปรไฟล์</div>
+      <div id="pc-sub" style="font-size:12px;color:#6b7280">กรอกข้อมูลให้ครบก่อนเข้าใช้งาน — ไม่สามารถปิดได้จนกว่าจะบันทึก</div>
     </div>
     <!-- Required fields -->
     <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">ข้อมูลสำคัญ <span style="color:#ef4444">*</span> จำเป็นต้องกรอก</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ชื่อ-นามสกุล <span style="color:#ef4444">*</span></label>
-        <input id="pc-name" type="text" placeholder="สมชาย ใจดี" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+        <input id="pc-name" type="text" placeholder="สมชาย ใจดี" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#111'" onblur="this.style.borderColor='#e5e7eb'">
       </div>
       <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">เบอร์โทรศัพท์</label>
-        <input id="pc-phone" type="tel" placeholder="0xx-xxx-xxxx" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+        <input id="pc-phone" type="tel" placeholder="0xx-xxx-xxxx" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#111'" onblur="this.style.borderColor='#e5e7eb'">
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
       <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">แผนก <span style="color:#ef4444">*</span></label>
-        <input id="pc-department" type="text" placeholder="ฝ่ายไอที, บัญชี..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+        <input id="pc-department" type="text" placeholder="ฝ่ายไอที, บัญชี..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#111'" onblur="this.style.borderColor='#e5e7eb'">
       </div>
       <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">ตำแหน่ง <span style="color:#ef4444">*</span></label>
-        <input id="pc-position" type="text" placeholder="Developer, บัญชี..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+        <input id="pc-position" type="text" placeholder="Developer, บัญชี..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#111'" onblur="this.style.borderColor='#e5e7eb'">
       </div>
     </div>
     <!-- Optional fields -->
@@ -2249,19 +2250,19 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">วันเกิด</label>
-        <input id="pc-dob" type="date" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+        <input id="pc-dob" type="date" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#111'" onblur="this.style.borderColor='#e5e7eb'">
       </div>
       <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">สัญชาติ</label>
-        <input id="pc-nationality" type="text" placeholder="ไทย, อเมริกัน..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+        <input id="pc-nationality" type="text" placeholder="ไทย, อเมริกัน..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#111'" onblur="this.style.borderColor='#e5e7eb'">
       </div>
     </div>
     <div style="margin-bottom:16px">
       <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:5px">เลขบัตรประชาชน</label>
-      <input id="pc-idcard" type="text" placeholder="x-xxxx-xxxxx-xx-x" maxlength="17" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+      <input id="pc-idcard" type="text" placeholder="x-xxxx-xxxxx-xx-x" maxlength="17" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none;font-family:inherit" onfocus="this.style.borderColor='#111'" onblur="this.style.borderColor='#e5e7eb'">
     </div>
     <div id="pc-error" style="display:none;background:#fee2e2;border-radius:8px;padding:10px 14px;font-size:13px;color:#b91c1c;margin-bottom:12px"></div>
-    <button id="pc-save-btn" onclick="saveProfileComplete()" style="width:100%;background:#10b981;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+    <button id="pc-save-btn" onclick="saveProfileComplete()" style="width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--green-dark)'" onmouseout="this.style.background='var(--green)'">
       💾 บันทึกข้อมูล
     </button>
   </div>
@@ -2410,10 +2411,19 @@ async function restoreProfileFromCache() {
   } catch(e) {}
 }
 
-function showProfileCompleteModal() {
+// editMode=true → opened from "แก้ไขข้อมูล": closable (✕), no logout button
+function showProfileCompleteModal(editMode) {
   const modal = document.getElementById('modal-profile-complete');
   if (!modal) return;
   const u = currentUser;
+  const edit = editMode === true;
+  modal.dataset.edit = edit ? '1' : '';
+  document.getElementById('pc-close-btn').style.display = edit ? 'block' : 'none';
+  document.getElementById('pc-logout-btn').style.display = edit ? 'none' : 'flex';
+  document.getElementById('pc-title').textContent = edit ? 'แก้ไขข้อมูลส่วนตัว' : 'กรุณาเติมข้อมูลโปรไฟล์';
+  document.getElementById('pc-sub').textContent = edit ? 'แก้ไขแล้วกดบันทึก หรือกด ✕ เพื่อปิดโดยไม่บันทึก' : 'กรอกข้อมูลให้ครบก่อนเข้าใช้งาน — ไม่สามารถปิดได้จนกว่าจะบันทึก';
+  const btn = document.getElementById('pc-save-btn'); btn.disabled = false; btn.textContent = '💾 บันทึกข้อมูล';
+  document.getElementById('pc-error').style.display = 'none';
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
   set('pc-name',        u.name);
   set('pc-department',  u.department);
@@ -2426,6 +2436,13 @@ function showProfileCompleteModal() {
   const nameEl = document.getElementById('pc-name');
   if (nameEl) setTimeout(() => nameEl.focus(), 100);
 }
+
+function closeProfileModal() {
+  const m = document.getElementById('modal-profile-complete');
+  if (m && m.dataset.edit === '1') m.style.display = 'none';
+}
+document.addEventListener('click', e => { if (e.target && e.target.id === 'modal-profile-complete') closeProfileModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProfileModal(); });
 
 async function saveProfileComplete() {
   const g = id => (document.getElementById(id)||{}).value?.trim() || '';
@@ -2461,6 +2478,7 @@ async function saveProfileComplete() {
     } catch(e) {}
     buildSidebar();
     document.getElementById('modal-profile-complete').style.display = 'none';
+    btn.disabled = false; btn.textContent = '💾 บันทึกข้อมูล';
     showToast('บันทึกข้อมูลเรียบร้อยแล้ว ✓', 'success');
     // Refresh myrecords page if currently viewing it
     if (document.getElementById('view-myrecords')?.classList.contains('active')) renderMyRecords();
@@ -5682,7 +5700,7 @@ async function renderMyRecords() {
       editBtn.className = 'mr-edit-btn';
       editBtn.innerHTML = '✏️ แก้ไขข้อมูล';
       editBtn.style.cssText = 'float:right;background:none;border:1px solid var(--ink);color:var(--ink);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-top:-4px';
-      editBtn.onclick = () => showProfileCompleteModal();
+      editBtn.onclick = () => showProfileCompleteModal(true);
       piCard.querySelector('[style*="ข้อมูลส่วนตัว"]')?.before(editBtn) || piCard.prepend(editBtn);
     }
   }
