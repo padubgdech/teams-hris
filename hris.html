@@ -1045,6 +1045,7 @@
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               <span data-i18n="new_message">ข้อความใหม่</span>
             </button>
+            <button class="btn" onclick="markAllInboxRead()" style="width:100%;justify-content:center;margin-top:8px;border:1px solid var(--border);background:#fff;font-size:12px">✓ อ่านทั้งหมด</button>
           </div>
           <div id="inbox-list" style="padding:0 8px 12px"></div>
         </div>
@@ -6789,6 +6790,7 @@ markReadApi = async function(id, el) {
     await apiCall('PUT', '/api/inbox/' + id + '/read'); m.is_read = 1;
     if (el) { el.querySelector('div[style*="border-radius:50%"]')?.remove(); el.classList.remove('unread'); }
     const b = document.getElementById('inbox-unread-count'); if (b && +b.textContent > 0) b.textContent = +b.textContent - 1;
+    updateNavBadges(); // refresh the sidebar count right away (not only on the 60-second poll)
   }
   if (!m) return;
   const dir = await getDirectory();
@@ -6807,10 +6809,25 @@ markReadApi = async function(id, el) {
     <div class="form-group"><label>${canReply?'ตอบกลับ / ส่งต่อ':'ส่งต่อ'}</label><textarea id="inbox-reply-text" rows="3" placeholder="พิมพ์ข้อความ..."></textarea></div>
     <div class="form-group"><label>ส่งต่อถึง</label><select id="inbox-fwd-to"><option value="">— เลือกผู้รับ —</option>${dir.filter(u=>u.id!==currentUser?.id).map(u=>`<option value="${u.id}">${_escH(u.name)}${u.department?' — '+_escH(u.department):''}</option>`).join('')}</select></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="deleteInboxMsg(${m.id})" style="margin-right:auto;color:#B91C1C">🗑 ลบข้อความ</button>
       <button class="btn btn-outline" onclick="forwardInboxMsg(${m.id})">ส่งต่อ</button>
       ${canReply?`<button class="btn btn-primary" onclick="replyInboxMsg(${m.id})">ตอบกลับ</button>`:''}
     </div>`;
 };
+async function markAllInboxRead() {
+  const r = await apiCall('PUT', '/api/inbox/read-all');
+  if (!r || r.error) { showToast((r && r.error) || 'ไม่สำเร็จ', 'error'); return; }
+  await loadInboxFromApi(); updateNavBadges();
+  showToast(r.updated ? `อ่านแล้ว ${r.updated} ข้อความ` : 'ไม่มีข้อความที่ยังไม่อ่าน', 'success');
+}
+async function deleteInboxMsg(id) {
+  if (!confirm('ลบข้อความนี้ออกจากกล่องข้อความ?')) return;
+  const r = await apiCall('DELETE', '/api/inbox/' + id);
+  if (!r || r.error) { showToast((r && r.error) || 'ลบไม่สำเร็จ', 'error'); return; }
+  const box = document.getElementById('inbox-content');
+  if (box) box.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:13px">เลือกข้อความทางซ้ายเพื่ออ่าน</div>';
+  await loadInboxFromApi(); updateNavBadges(); showToast('ลบข้อความแล้ว', 'success');
+}
 async function replyInboxMsg(id) {
   const m = _inboxCache.find(x => x.id === id); const text = document.getElementById('inbox-reply-text')?.value.trim();
   if (!m || !text) { showToast('กรุณาพิมพ์ข้อความ', 'error'); return; }

@@ -783,7 +783,7 @@ app.put('/api/ot/:id/status', auth, requireRole('admin','hr_manager','hr_staff')
 // ── INBOX ─────────────────────────────────────────────────────────────────────
 app.get('/api/inbox', auth, (req, res) => {
   const rows = store.inbox
-    .filter(i => i.to_user === req.user.id)
+    .filter(i => i.to_user === req.user.id && !i.deleted)
     .map(i => {
       const u = store.users.find(x => x.id === i.from_user) || {};
       return { ...i, from_name: u.name||'', from_init: u.init||'?', from_color: u.color||'#6B7280' };
@@ -800,6 +800,19 @@ app.post('/api/inbox', auth, (req, res) => {
   };
   store.inbox.push(row);
   saveDb(); res.status(201).json({ id: row.id });
+});
+app.put('/api/inbox/read-all', auth, (req, res) => {
+  let n = 0;
+  store.inbox.forEach(i => { if (i.to_user === req.user.id && !i.is_read && !i.deleted) { i.is_read = 1; n++; } });
+  if (n) saveDb();
+  res.json({ ok: true, updated: n });
+});
+// Recipient removes a message from their own inbox (kept in the data for audit, just hidden)
+app.delete('/api/inbox/:id', auth, (req, res) => {
+  const row = store.inbox.find(i => i.id == req.params.id && i.to_user === req.user.id && !i.deleted);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  row.deleted = true; row.is_read = 1; row.deleted_at = new Date().toISOString();
+  saveDb(); res.json({ ok: true });
 });
 app.put('/api/inbox/:id/read', auth, (req, res) => {
   const row = store.inbox.find(i => i.id == req.params.id && i.to_user === req.user.id);
