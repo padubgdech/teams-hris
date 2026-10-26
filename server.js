@@ -1,5 +1,5 @@
 /**
- * Teams HRIS — Backend API Server
+ * KHUMTONE Teams HRIS — Backend API Server
  * Node.js + Express + JSON file storage (no SQLite needed)
  * Port: 3001  |  start: node server.js
  */
@@ -38,10 +38,13 @@ let store = {
   appointments: [], holidays: [], _seq: {},
   departments: [],      // admin-managed department list
   cal_notes: {},        // { userId: { "YYYY-MM-DD": "note text" } }
-  settings: {}          // { approval_chain: { leave, ot, comp } }
+  settings: {},         // { approval_chain: { leave, ot, comp }, company, reminder }
+  doc_requests: [],     // HR document requests (employment / salary certificates)
+  announcements: [],    // company announcements + acknowledgements
+  impersonation_log: [] // admin "view as member" audit trail
 };
 
-const STORE_KEYS = ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq','departments','cal_notes','settings'];
+const STORE_KEYS = ['users','employees','attendance','leave_requests','ot_requests','inbox','appointments','holidays','_seq','departments','cal_notes','settings','doc_requests','announcements','impersonation_log'];
 
 async function loadStore() {
   if (pgPool) {
@@ -129,35 +132,48 @@ const ROLE_DEFAULTS = {
   employee:   ['checkin','ot','inbox','calendar','leave','myrecords'],
 };
 
-function seedHolidays() {
-  if (store.holidays.length > 0) return;
-  const holidays2026 = [
-    {date:'2026-01-01',name:'วันขึ้นปีใหม่',name_en:"New Year's Day",type:'official'},
-    {date:'2026-01-02',name:'วันหยุดพิเศษ (ครม.)',name_en:'Special Holiday',type:'special'},
-    {date:'2026-04-06',name:'วันจักรี',name_en:'Chakri Memorial Day',type:'official'},
-    {date:'2026-04-13',name:'วันสงกรานต์',name_en:'Songkran Festival',type:'official'},
-    {date:'2026-04-14',name:'วันสงกรานต์',name_en:'Songkran Festival',type:'official'},
-    {date:'2026-04-15',name:'วันสงกรานต์ (เพิ่มเติม)',name_en:'Songkran Festival (Extra)',type:'official'},
-    {date:'2026-05-01',name:'วันแรงงานแห่งชาติ',name_en:'National Labour Day',type:'official'},
-    {date:'2026-05-04',name:'วันฉัตรมงคล',name_en:'Coronation Day',type:'official'},
-    {date:'2026-06-01',name:'ชดเชยวิสาขบูชา',name_en:'Visakha Bucha (in lieu)',type:'compensatory'},
-    {date:'2026-06-03',name:'วันพระบรมราชินี',name_en:"HM Queen's Birthday",type:'official'},
-    {date:'2026-07-28',name:'วันเฉลิมพระชนมพรรษา ร.10',name_en:"HM King's Birthday",type:'official'},
-    {date:'2026-07-29',name:'วันอาสาฬหบูชา',name_en:'Asarnha Bucha Day',type:'official'},
-    {date:'2026-07-30',name:'วันเข้าพรรษา',name_en:'Buddhist Lent Day',type:'official'},
-    {date:'2026-08-12',name:'วันแม่แห่งชาติ',name_en:"HM Queen Mother's Birthday / Mother's Day",type:'official'},
-    {date:'2026-10-13',name:'วันคล้ายวันสวรรคต ร.9',name_en:'HM King Bhumibol Memorial Day',type:'official'},
-    {date:'2026-10-23',name:'วันปิยมหาราช',name_en:'Chulalongkorn Day',type:'official'},
-    {date:'2026-12-10',name:'วันรัฐธรรมนูญ',name_en:'Constitution Day',type:'official'},
-    {date:'2026-12-31',name:'วันสิ้นปี',name_en:"New Year's Eve",type:'official'},
-  ];
-  holidays2026.forEach(h => {
-    if (!store.holidays.find(x => x.date === h.date)) {
-      store.holidays.push({ id: genId('holidays'), ...h, year: 2026 });
-    }
+// Official financial-institution (bank) holidays announced by the Bank of Thailand.
+// 2569/2026: BOT Notification 31/2568 · 2570/2027: BOT Notification 37/2569
+const BANK_HOLIDAYS = {
+  2026: [
+    ['2026-01-01','วันขึ้นปีใหม่','official'],['2026-01-02','วันหยุดพิเศษ (ครม.)','special'],['2026-03-03','วันมาฆบูชา','official'],
+    ['2026-04-06','วันจักรี','official'],['2026-04-13','วันสงกรานต์','official'],['2026-04-14','วันสงกรานต์','official'],['2026-04-15','วันสงกรานต์','official'],
+    ['2026-05-01','วันแรงงานแห่งชาติ','official'],['2026-05-04','วันฉัตรมงคล','official'],['2026-06-01','ชดเชยวันวิสาขบูชา (31 พ.ค.)','compensatory'],
+    ['2026-06-03','วันเฉลิมพระชนมพรรษา พระราชินี','official'],['2026-07-28','วันเฉลิมพระชนมพรรษา ร.10','official'],['2026-07-29','วันอาสาฬหบูชา','official'],
+    ['2026-08-12','วันแม่แห่งชาติ','official'],['2026-10-13','วันนวมินทรมหาราช','official'],['2026-10-23','วันปิยมหาราช','official'],
+    ['2026-12-07','ชดเชยวันพ่อแห่งชาติ (5 ธ.ค.)','compensatory'],['2026-12-10','วันรัฐธรรมนูญ','official'],['2026-12-31','วันสิ้นปี','official'],
+  ],
+  2027: [
+    ['2027-01-01','วันขึ้นปีใหม่','official'],['2027-02-22','ชดเชยวันมาฆบูชา (21 ก.พ.)','compensatory'],['2027-04-06','วันจักรี','official'],
+    ['2027-04-13','วันสงกรานต์','official'],['2027-04-14','วันสงกรานต์','official'],['2027-04-15','วันสงกรานต์','official'],
+    ['2027-05-03','ชดเชยวันแรงงานแห่งชาติ (1 พ.ค.)','compensatory'],['2027-05-04','วันฉัตรมงคล','official'],['2027-05-20','วันวิสาขบูชา','official'],
+    ['2027-06-03','วันเฉลิมพระชนมพรรษา พระราชินี','official'],['2027-07-19','ชดเชยวันอาสาฬหบูชา (18 ก.ค.)','compensatory'],['2027-07-28','วันเฉลิมพระชนมพรรษา ร.10','official'],
+    ['2027-08-12','วันแม่แห่งชาติ','official'],['2027-10-13','วันนวมินทรมหาราช','official'],['2027-10-25','ชดเชยวันปิยมหาราช (23 ต.ค.)','compensatory'],
+    ['2027-12-06','ชดเชยวันพ่อแห่งชาติ (5 ธ.ค.)','compensatory'],['2027-12-10','วันรัฐธรรมนูญ','official'],['2027-12-31','วันสิ้นปี','official'],
+  ],
+};
+const BANK_SOURCE = { 2026: 'ประกาศ ธปท. ที่ 31/2568', 2027: 'ประกาศ ธปท. ที่ 37/2569' };
+function applyBankHolidays(year) {
+  const list = BANK_HOLIDAYS[year]; if (!list) return 0;
+  let n = 0;
+  list.forEach(([date, name, type]) => {
+    const ex = store.holidays.find(h => h.date === date);
+    if (ex) { ex.name = name; ex.type = type; ex.source = 'bank'; if (ex.active === undefined) ex.active = true; }
+    else { store.holidays.push({ id: genId('holidays'), date, name, name_en: '', type, year, active: true, source: 'bank' }); n++; }
   });
+  return n;
+}
+function seedHolidays() {
+  store.settings = store.settings || {};
+  if ((store.settings.holiday_version || 0) >= 2) return;
+  // v2: company follows the bank holiday calendar. Remove the old non-bank seed day (เข้าพรรษา 30 ก.ค. 2569),
+  // then load the official 2026 + 2027 lists. Holidays an admin added by hand are kept.
+  store.holidays = store.holidays.filter(h => !(h.date === '2026-07-30' && !h.source));
+  store.holidays.forEach(h => { if (h.active === undefined) h.active = true; if (!h.source) h.source = 'custom'; });
+  const added = applyBankHolidays(2026) + applyBankHolidays(2027);
+  store.settings.holiday_version = 2;
   saveDb();
-  console.log('Holidays seeded:', store.holidays.length);
+  console.log('Holidays migrated to bank calendar v2 (+' + added + ')');
 }
 
 // ══════════════════════════════════════
@@ -198,6 +214,14 @@ function auth(req, res, next) {
   const u = store.users.find(x => x.id === payload.id) || store.users.find(x => x.email === payload.email);
   if (!u) return res.status(401).json({ error: 'User no longer exists' });
   req.user = { id: u.id, email: u.email, role: u.role };
+  // Admin "view as member" token: only valid while the issuing admin is still an admin,
+  // and strictly READ-ONLY — any write is refused so nothing is changed in the member's name.
+  if (payload.imp_by != null) {
+    const admin = store.users.find(x => x.id === payload.imp_by);
+    if (!admin || admin.role !== 'admin') return res.status(401).json({ error: 'Impersonation no longer allowed' });
+    req.user.impersonated_by = admin.id;
+    if (req.method !== 'GET') return res.status(403).json({ error: 'โหมดดูแทนสมาชิก: ดูข้อมูลได้อย่างเดียว ไม่สามารถแก้ไข/บันทึกได้ — กด "กลับเป็นแอดมิน" ก่อน' });
+  }
   next();
 }
 // Simple in-memory login throttle: 10 failed attempts per email+IP per 15 minutes
@@ -243,6 +267,30 @@ function fmtUser(u) {
     work_type: emp ? (emp.work_type||emp.work_model||'') : '',
   };
 }
+
+// ── DEMO LOGIN (staging only) ────────────────────────────────────────────────
+// Lets testers enter the staging site without a password. Only active when the
+// service has DEMO_LOGIN=1 set (staging). Production never sets it → 404.
+const DEMO_LOGIN = process.env.DEMO_LOGIN === '1';
+function demoGuard(req, res, next) {
+  if (!DEMO_LOGIN) return res.status(404).json({ error: 'Not found' });
+  next();
+}
+app.get('/api/auth/demo-users', demoGuard, (req, res) => {
+  const order = { admin: 0, manager: 1, employee: 2 };
+  res.json(store.users
+    .map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, department: u.department || '', color: u.color || '#6B7280', init: u.init || '?' }))
+    .sort((a, b) => (order[a.role] ?? 9) - (order[b.role] ?? 9) || String(a.name).localeCompare(String(b.name))));
+});
+app.post('/api/auth/demo', demoGuard, (req, res) => {
+  const { user_id, role } = req.body || {};
+  const user = user_id != null
+    ? store.users.find(u => String(u.id) === String(user_id))
+    : store.users.find(u => u.role === (role || 'admin'));
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const token = jwt.sign({ id:user.id, email:user.email, role:user.role, demo:true }, JWT_SECRET, { expiresIn:'1d' });
+  res.json({ token, user: fmtUser(user) });
+});
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', (req, res) => {
@@ -379,7 +427,28 @@ app.get('/api/auth/me', auth, (req, res) => {
   const user = store.users.find(u => u.id === req.user.id)
             || store.users.find(u => u.email === req.user.email);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(fmtUser(user));
+  const out = fmtUser(user);
+  if (req.user.impersonated_by != null) {
+    const a = store.users.find(x => x.id === req.user.impersonated_by);
+    out.impersonated_by = { id: a.id, name: a.name, email: a.email };
+  }
+  res.json(out);
+});
+
+// ── ADMIN: view the app as a member (read-only, no password) ─────────────────
+app.post('/api/admin/impersonate', auth, requireRole('admin'), (req, res) => {
+  const target = store.users.find(u => String(u.id) === String((req.body || {}).user_id));
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.id === req.user.id) return res.status(400).json({ error: 'เลือกบัญชีอื่นที่ไม่ใช่ของตัวเอง' });
+  store.impersonation_log = store.impersonation_log || [];
+  store.impersonation_log.push({ at: new Date().toISOString(), admin_id: req.user.id, admin_email: req.user.email, target_id: target.id, target_email: target.email });
+  if (store.impersonation_log.length > 500) store.impersonation_log = store.impersonation_log.slice(-500);
+  saveDb();
+  const token = jwt.sign({ id: target.id, email: target.email, role: target.role, imp_by: req.user.id }, JWT_SECRET, { expiresIn: '2h' });
+  res.json({ token, user: fmtUser(target) });
+});
+app.get('/api/admin/impersonation-log', auth, requireRole('admin'), (req, res) => {
+  res.json((store.impersonation_log || []).slice(-100).reverse());
 });
 
 // ── EMPLOYEES ─────────────────────────────────────────────────────────────────
@@ -579,9 +648,20 @@ app.post('/api/leave', auth, async (req, res) => {
   if (!LEAVE_TYPES.includes(type)) return res.status(400).json({ error: 'ประเภทการลาไม่ถูกต้อง' });
   if (!isDate(from_date) || !isDate(to_date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
   if (to_date < from_date) return res.status(400).json({ error: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' });
-  const nDays = days === undefined ? 1 : Number(days);
+  const reqDays = days === undefined ? 1 : Number(days);
   const span = Math.round((new Date(to_date) - new Date(from_date)) / 864e5) + 1;
-  if (!isFinite(nDays) || nDays < 0.5 || nDays > span || nDays > 365) return res.status(400).json({ error: 'จำนวนวันลาไม่ถูกต้อง' });
+  if (!isFinite(reqDays) || reqDays < 0.5 || reqDays > span || reqDays > 365) return res.status(400).json({ error: 'จำนวนวันลาไม่ถูกต้อง' });
+  // Time off counts working days only (no weekends / company holidays). 'Comp' rows record holiday work, so keep their count.
+  let nDays = reqDays;
+  if (type !== 'Comp') {
+    const wdays = workingDays(from_date, to_date);
+    if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
+    nDays = (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
+  }
+  if (['Annual','Sick','Casual'].includes(type)) {
+    const yr = +from_date.slice(0, 4), b = leaveBalance(req.user.id, yr)[type.toLowerCase()];
+    if (nDays > b.remaining) return res.status(400).json({ error: `${LEAVE_TH[type]}ปี ${yr + 543} เหลือ ${b.remaining} วัน (ขอ ${nDays} วัน)` });
+  }
   // 'Comp' rows record OT-holiday work that EARNS comp days — they aren't time off, so skip the overlap rule
   if (type !== 'Comp') {
     const clash = store.leave_requests.find(r => r.user_id === req.user.id && r.type !== 'Comp'
@@ -703,7 +783,7 @@ app.put('/api/ot/:id/status', auth, requireRole('admin','hr_manager','hr_staff')
 // ── INBOX ─────────────────────────────────────────────────────────────────────
 app.get('/api/inbox', auth, (req, res) => {
   const rows = store.inbox
-    .filter(i => i.to_user === req.user.id)
+    .filter(i => i.to_user === req.user.id && !i.deleted)
     .map(i => {
       const u = store.users.find(x => x.id === i.from_user) || {};
       return { ...i, from_name: u.name||'', from_init: u.init||'?', from_color: u.color||'#6B7280' };
@@ -721,11 +801,231 @@ app.post('/api/inbox', auth, (req, res) => {
   store.inbox.push(row);
   saveDb(); res.status(201).json({ id: row.id });
 });
+app.put('/api/inbox/read-all', auth, (req, res) => {
+  let n = 0;
+  store.inbox.forEach(i => { if (i.to_user === req.user.id && !i.is_read && !i.deleted) { i.is_read = 1; n++; } });
+  if (n) saveDb();
+  res.json({ ok: true, updated: n });
+});
+// Recipient removes a message from their own inbox (kept in the data for audit, just hidden)
+app.delete('/api/inbox/:id', auth, (req, res) => {
+  const row = store.inbox.find(i => i.id == req.params.id && i.to_user === req.user.id && !i.deleted);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  row.deleted = true; row.is_read = 1; row.deleted_at = new Date().toISOString();
+  saveDb(); res.json({ ok: true });
+});
 app.put('/api/inbox/:id/read', auth, (req, res) => {
   const row = store.inbox.find(i => i.id == req.params.id && i.to_user === req.user.id);
   if (row) { row.is_read = 1; saveDb(); }
   res.json({ ok: true });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 7 — HR DOCUMENT REQUESTS (employment / salary certificates)
+// ══════════════════════════════════════════════════════════════════════════════
+const DOC_TYPES = { employment: 'หนังสือรับรองการทำงาน', salary: 'หนังสือรับรองเงินเดือน' };
+const DEFAULT_COMPANY = {
+  name_th: 'บริษัท คุมโทน จำกัด', name_en: 'KHUMTONE CO., LTD.',
+  address_th: '', address_en: '', tax_id: '', phone: '', email: '',
+  signer_name: '', signer_title: 'ผู้จัดการฝ่ายทรัพยากรบุคคล', signer_title_en: 'Human Resources Manager',
+};
+function companyInfo() { return { ...DEFAULT_COMPANY, ...((store.settings || {}).company || {}) }; }
+function docRow(r) {
+  const u = store.users.find(x => x.id === r.user_id) || {};
+  const by = store.users.find(x => x.id === r.issued_by) || {};
+  return { ...r, emp_name: u.name || '', emp_init: u.init || '?', emp_color: u.color || '#6B7280', emp_department: u.department || '',
+    type_th: DOC_TYPES[r.type] || r.type, issued_by_name: by.name || '' };
+}
+function nextDocNo() {
+  const be = new Date().getFullYear() + 543;
+  const n = store.doc_requests.filter(r => r.doc_no && r.doc_no.includes('/' + be + '/')).length + 1;
+  return 'KT-HR/' + be + '/' + String(n).padStart(3, '0');
+}
+app.get('/api/doc-requests', auth, (req, res) => {
+  const mgr = isManagerRole(req.user.role);
+  const rows = (req.query.scope === 'all' && mgr) ? store.doc_requests : store.doc_requests.filter(r => r.user_id === req.user.id);
+  res.json(rows.map(docRow).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+});
+app.post('/api/doc-requests', auth, (req, res) => {
+  const { type, lang, purpose, copies } = req.body || {};
+  if (!DOC_TYPES[type]) return res.status(400).json({ error: 'ประเภทเอกสารไม่ถูกต้อง' });
+  if (!['th', 'en'].includes(lang || 'th')) return res.status(400).json({ error: 'ภาษาไม่ถูกต้อง' });
+  const p = String(purpose || '').trim();
+  if (!p) return res.status(400).json({ error: 'กรุณาระบุวัตถุประสงค์' });
+  const n = Math.min(Math.max(parseInt(copies, 10) || 1, 1), 5);
+  if (store.doc_requests.find(r => r.user_id === req.user.id && r.type === type && r.status === 'Pending'))
+    return res.status(409).json({ error: 'มีคำขอเอกสารประเภทนี้รอดำเนินการอยู่แล้ว' });
+  const row = { id: genId('doc_requests'), user_id: req.user.id, type, lang: lang || 'th', purpose: p.slice(0, 200), copies: n,
+    status: 'Pending', created_at: new Date().toISOString(), note: '' };
+  store.doc_requests.push(row);
+  const me = store.users.find(u => u.id === req.user.id) || {};
+  store.users.filter(u => isManagerRole(u.role) && u.id !== req.user.id).forEach(m =>
+    notify(req.user.id, m.id, `📄 คำขอ${DOC_TYPES[type]} — ${me.name || ''}`, `วัตถุประสงค์: ${row.purpose}\nภาษา: ${row.lang === 'en' ? 'อังกฤษ' : 'ไทย'} · ${n} ฉบับ`));
+  saveDb(); res.status(201).json(docRow(row));
+});
+app.put('/api/doc-requests/:id/issue', auth, requireRole('admin', 'hr_manager', 'hr_staff'), (req, res) => {
+  const row = store.doc_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  if (row.status !== 'Pending') return res.status(409).json({ error: 'คำขอนี้ดำเนินการไปแล้ว' });
+  const { salary, signer_name, signer_title, note } = req.body || {};
+  if (row.type === 'salary') {
+    const s = Number(salary);
+    if (!isFinite(s) || s <= 0 || s > 10000000) return res.status(400).json({ error: 'กรุณาระบุเงินเดือนให้ถูกต้อง' });
+    row.salary = Math.round(s * 100) / 100;
+  }
+  const c = companyInfo();
+  row.signer_name = String(signer_name || c.signer_name || '').slice(0, 120);
+  row.signer_title = String(signer_title || (row.lang === 'en' ? c.signer_title_en : c.signer_title) || '').slice(0, 120);
+  row.status = 'Issued'; row.issued_by = req.user.id; row.issued_at = new Date().toISOString();
+  row.doc_no = nextDocNo(); row.note = String(note || '').slice(0, 300);
+  notify(req.user.id, row.user_id, `✅ ${DOC_TYPES[row.type]} พร้อมแล้ว`, `เลขที่ ${row.doc_no} — ดาวน์โหลด/พิมพ์ได้ที่เมนู "ขอเอกสาร"`);
+  saveDb(); res.json(docRow(row));
+});
+app.put('/api/doc-requests/:id/reject', auth, requireRole('admin', 'hr_manager', 'hr_staff'), (req, res) => {
+  const row = store.doc_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  if (row.status !== 'Pending') return res.status(409).json({ error: 'คำขอนี้ดำเนินการไปแล้ว' });
+  row.status = 'Rejected'; row.issued_by = req.user.id; row.issued_at = new Date().toISOString(); row.note = String((req.body || {}).note || '').slice(0, 300);
+  notify(req.user.id, row.user_id, `❌ ${DOC_TYPES[row.type]} — ไม่อนุมัติ`, row.note ? 'เหตุผล: ' + row.note : '');
+  saveDb(); res.json(docRow(row));
+});
+app.put('/api/doc-requests/:id/cancel', auth, (req, res) => {
+  const row = store.doc_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  if (row.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+  if (row.status !== 'Pending') return res.status(409).json({ error: 'ยกเลิกได้เฉพาะคำขอที่รอดำเนินการ' });
+  row.status = 'Cancelled'; row.cancelled_at = new Date().toISOString();
+  saveDb(); res.json(docRow(row));
+});
+// Everything needed to render the certificate (owner or HR, issued only)
+app.get('/api/doc-requests/:id/document', auth, (req, res) => {
+  const row = store.doc_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  if (row.user_id !== req.user.id && !isManagerRole(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  if (row.status !== 'Issued') return res.status(409).json({ error: 'เอกสารยังไม่ออก' });
+  const u = store.users.find(x => x.id === row.user_id) || {};
+  const emp = store.employees.find(e => e.user_id === u.id) || {};
+  res.json({ ...docRow(row), company: companyInfo(), employee: {
+    name: u.name || '', name_th: u.name_th || '', name_en: u.name_en || '', position: u.position || emp.position || '',
+    department: u.department || emp.department || '', emp_id: emp.emp_id || '', start_date: emp.start_date || '',
+    contract_type: emp.contract_type || '' } });
+});
+app.get('/api/settings/company', auth, requireRole('admin', 'hr_manager', 'hr_staff'), (req, res) => res.json(companyInfo()));
+app.put('/api/settings/company', auth, requireRole('admin'), (req, res) => {
+  const b = req.body || {}, out = {};
+  Object.keys(DEFAULT_COMPANY).forEach(k => { if (b[k] !== undefined) out[k] = String(b[k]).slice(0, 300); });
+  store.settings = store.settings || {};
+  store.settings.company = { ...companyInfo(), ...out };
+  saveDb(); res.json(store.settings.company);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 8 — COMPANY ANNOUNCEMENTS (+ acknowledge)
+// ══════════════════════════════════════════════════════════════════════════════
+function annRow(a, user) {
+  const by = store.users.find(x => x.id === a.created_by) || {};
+  const acks = a.acks || {};
+  const out = { id: a.id, title: a.title, body: a.body, require_ack: !!a.require_ack, pinned: !!a.pinned,
+    created_at: a.created_at, updated_at: a.updated_at || '', created_by_name: by.name || '',
+    acked_at: acks[user.id] || null, ack_count: Object.keys(acks).length, total_users: store.users.length };
+  if (isManagerRole(user.role)) {
+    out.not_acked = store.users.filter(u => !acks[u.id]).map(u => ({ id: u.id, name: u.name, department: u.department || '' }));
+    out.acked = store.users.filter(u => acks[u.id]).map(u => ({ id: u.id, name: u.name, at: acks[u.id] }));
+  }
+  return out;
+}
+app.get('/api/announcements', auth, (req, res) => {
+  const rows = store.announcements.filter(a => !a.deleted)
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.created_at.localeCompare(a.created_at));
+  res.json(rows.map(a => annRow(a, req.user)));
+});
+function annInput(b) {
+  const title = String((b || {}).title || '').trim(), body = String((b || {}).body || '').trim();
+  if (!title) return { error: 'กรุณาใส่หัวข้อประกาศ' };
+  if (!body) return { error: 'กรุณาใส่รายละเอียดประกาศ' };
+  return { title: title.slice(0, 150), body: body.slice(0, 5000), require_ack: !!b.require_ack, pinned: !!b.pinned };
+}
+app.post('/api/announcements', auth, requireRole('admin', 'hr_manager', 'hr_staff'), (req, res) => {
+  const v = annInput(req.body); if (v.error) return res.status(400).json(v);
+  const a = { id: genId('announcements'), ...v, created_by: req.user.id, created_at: new Date().toISOString(), acks: {} };
+  a.acks[req.user.id] = a.created_at; // the author has obviously read it
+  store.announcements.push(a);
+  saveDb(); res.status(201).json(annRow(a, req.user));
+});
+app.put('/api/announcements/:id', auth, requireRole('admin', 'hr_manager', 'hr_staff'), (req, res) => {
+  const a = store.announcements.find(x => x.id == req.params.id && !x.deleted);
+  if (!a) return res.status(404).json({ error: 'Not found' });
+  const v = annInput(req.body); if (v.error) return res.status(400).json(v);
+  Object.assign(a, v, { updated_at: new Date().toISOString() });
+  saveDb(); res.json(annRow(a, req.user));
+});
+app.delete('/api/announcements/:id', auth, requireRole('admin', 'hr_manager', 'hr_staff'), (req, res) => {
+  const a = store.announcements.find(x => x.id == req.params.id && !x.deleted);
+  if (!a) return res.status(404).json({ error: 'Not found' });
+  a.deleted = true; a.deleted_by = req.user.id; a.deleted_at = new Date().toISOString();
+  saveDb(); res.json({ ok: true });
+});
+app.post('/api/announcements/:id/ack', auth, (req, res) => {
+  const a = store.announcements.find(x => x.id == req.params.id && !x.deleted);
+  if (!a) return res.status(404).json({ error: 'Not found' });
+  a.acks = a.acks || {};
+  if (!a.acks[req.user.id]) { a.acks[req.user.id] = new Date().toISOString(); saveDb(); }
+  res.json(annRow(a, req.user));
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 9 — REMINDERS FOR REQUESTS WAITING TOO LONG FOR APPROVAL
+// ══════════════════════════════════════════════════════════════════════════════
+const DEFAULT_REMINDER = { enabled: true, days: 2 };
+function reminderCfg() { return { ...DEFAULT_REMINDER, ...((store.settings || {}).reminder || {}) }; }
+function approvalKind(kind, r) { return kind === 'ot' ? 'ot' : (r.type === 'Comp' || r.type === 'Compensatory') ? 'comp' : 'leave'; }
+function overduePending(days) {
+  const cutoff = Date.now() - days * 864e5, out = [];
+  [['leave', store.leave_requests], ['ot', store.ot_requests]].forEach(([kind, list]) =>
+    list.filter(r => r.status === 'Pending' && r.created_at && Date.parse(r.created_at) <= cutoff).forEach(r => {
+      const u = store.users.find(x => x.id === r.user_id) || {};
+      out.push({ kind, approval: approvalKind(kind, r), id: r.id, user_id: r.user_id, emp_name: u.name || '',
+        label: kind === 'ot' ? `OT ${r.date} ${r.start_time}–${r.end_time}` : `${LEAVE_TH[r.type] || r.type} ${r.from_date}${r.to_date !== r.from_date ? ' – ' + r.to_date : ''}`,
+        created_at: r.created_at, waiting_days: Math.floor((Date.now() - Date.parse(r.created_at)) / 864e5), reminded_at: r.reminded_at || null });
+    }));
+  return out.sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+// Only requests this user is allowed to decide (and not their own)
+app.get('/api/approvals/overdue', auth, (req, res) => {
+  const cfg = reminderCfg();
+  if (!isManagerRole(req.user.role)) return res.json({ ...cfg, items: [] });
+  const items = overduePending(cfg.days).filter(o => o.user_id !== req.user.id && canDecide(req.user.role, o.approval));
+  res.json({ ...cfg, items });
+});
+app.get('/api/settings/reminder', auth, (req, res) => res.json(reminderCfg()));
+app.put('/api/settings/reminder', auth, requireRole('admin'), (req, res) => {
+  const b = req.body || {}, days = parseInt(b.days, 10);
+  if (b.days !== undefined && (!isFinite(days) || days < 1 || days > 30)) return res.status(400).json({ error: 'จำนวนวันต้องอยู่ระหว่าง 1–30' });
+  store.settings = store.settings || {};
+  store.settings.reminder = { ...reminderCfg(), ...(b.enabled !== undefined ? { enabled: !!b.enabled } : {}), ...(b.days !== undefined ? { days } : {}) };
+  saveDb(); res.json(store.settings.reminder);
+});
+// Background job: once a day per request (Bangkok office hours), remind every approver who can decide it
+function runApprovalReminders(force) {
+  const cfg = reminderCfg();
+  if (!cfg.enabled) return 0;
+  const hh = +bkkNowHHMM().slice(0, 2);
+  if (!force && (hh < 8 || hh >= 18)) return 0;
+  const today = bkkToday(); let sent = 0;
+  overduePending(cfg.days).forEach(o => {
+    const list = o.kind === 'ot' ? store.ot_requests : store.leave_requests;
+    const r = list.find(x => x.id === o.id); if (!r) return;
+    if (r.reminded_on === today) return;
+    const approvers = store.users.filter(u => isManagerRole(u.role) && u.id !== r.user_id && canDecide(u.role, o.approval));
+    approvers.forEach(a => notify(r.user_id, a.id, `⏰ คำขอค้างอนุมัติ ${o.waiting_days} วัน — ${o.emp_name}`,
+      `${o.label}\nยื่นเมื่อ ${new Date(o.created_at).toLocaleDateString('th-TH', { timeZone: TZ })} — กรุณาพิจารณาที่เมนู "${o.kind === 'ot' ? 'การทำงานล่วงเวลา (OT)' : 'การจัดการวันลา'}"`));
+    if (approvers.length) { r.reminded_on = today; r.reminded_at = new Date().toISOString(); sent += approvers.length; }
+  });
+  if (sent) { saveDb(); console.log('Approval reminders sent:', sent); }
+  return sent;
+}
+app.post('/api/approvals/remind-now', auth, requireRole('admin'), (req, res) => res.json({ sent: runApprovalReminders(true) }));
+setInterval(() => { try { runApprovalReminders(false); } catch (e) { console.error('Reminder job error:', e.message); } }, 30 * 60 * 1000);
 
 // ── APPOINTMENTS ──────────────────────────────────────────────────────────────
 app.get('/api/appointments', auth, (req, res) => {
@@ -859,13 +1159,28 @@ app.get('/api/directory', auth, (req, res) => {
     .sort((a,b) => (a.name||'').localeCompare(b.name||'')));
 });
 // Settings (approval chain)
-app.get('/api/settings', auth, (req, res) => res.json({ approval_chain: approvalChain() }));
+app.get('/api/settings', auth, (req, res) => res.json({ approval_chain: approvalChain(), workdays: workdaysSetting(), leave_policy: leavePolicy() }));
 app.put('/api/settings', auth, requireRole('admin'), (req, res) => {
   const c = req.body.approval_chain || {};
   for (const k of ['leave','ot','comp']) if (c[k] !== undefined && !ROLE_RANK[c[k]]) return res.status(400).json({ error: 'Invalid role for ' + k });
+  const wd = req.body.workdays;
+  if (wd !== undefined && (!Array.isArray(wd) || !wd.length || wd.some(d => !Number.isInteger(d) || d < 0 || d > 6))) return res.status(400).json({ error: 'วันทำงานไม่ถูกต้อง' });
   store.settings = store.settings || {};
-  store.settings.approval_chain = { ...approvalChain(), ...c };
-  saveDb(); res.json({ ok: true, approval_chain: store.settings.approval_chain });
+  if (req.body.approval_chain) store.settings.approval_chain = { ...approvalChain(), ...c };
+  if (wd !== undefined) store.settings.workdays = [...new Set(wd)].sort();
+  const lp = req.body.leave_policy;
+  if (lp !== undefined) {
+    const next = { ...leavePolicy() };
+    for (const k of ['annual_days','sick_days','casual_days','max_accumulate']) {
+      if (lp[k] === undefined) continue;
+      const v = Number(lp[k]);
+      if (!Number.isInteger(v) || v < 0 || v > 120) return res.status(400).json({ error: 'ค่านโยบายวันลาไม่ถูกต้อง: ' + k });
+      next[k] = v;
+    }
+    if (next.max_accumulate < next.annual_days) return res.status(400).json({ error: 'สะสมสูงสุดต้องไม่น้อยกว่าสิทธิ์ต่อปี' });
+    store.settings.leave_policy = next;
+  }
+  saveDb(); res.json({ ok: true, approval_chain: approvalChain(), workdays: workdaysSetting(), leave_policy: leavePolicy() });
 });
 // Full data export for backups (admin). Password hashes are never included.
 app.get('/api/export', auth, requireRole('admin'), (req, res) => {
@@ -896,25 +1211,119 @@ app.get('/api/stats', auth, requireRole('admin','hr_manager','hr_staff'), (req, 
 });
 
 // ── HOLIDAYS ──────────────────────────────────────────────────────────────────
+// Holidays. Default list = holidays the company observes (active). Admin/HR can ask for ?all=1 to manage inactive ones too.
+function isHolidayManager(req) {
+  const h = req.headers.authorization; if (!h) return false;
+  try { const p = jwt.verify(h.replace('Bearer ', ''), JWT_SECRET); const u = store.users.find(x => x.id === p.id); return !!u && ['admin','hr_manager'].includes(u.role); } catch { return false; }
+}
 app.get('/api/holidays', (req, res) => {
-  const { year, month } = req.query;
+  const { year, month, all } = req.query;
   let rows = [...store.holidays];
+  if (!(all && isHolidayManager(req))) rows = rows.filter(h => h.active !== false);
   if (year)  rows = rows.filter(h => h.year === Number(year));
   if (month) rows = rows.filter(h => h.date && h.date.startsWith(`${year||''}-${String(month).padStart(2,'0')}-`));
   res.json([...rows].sort((a,b) => a.date.localeCompare(b.date)));
 });
+app.get('/api/holidays/presets', auth, (req, res) => {
+  res.json(Object.keys(BANK_HOLIDAYS).map(y => ({ year: +y, count: BANK_HOLIDAYS[y].length, source: BANK_SOURCE[y] })));
+});
+app.post('/api/holidays/preset', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const year = Number(req.body.year);
+  if (!BANK_HOLIDAYS[year]) return res.status(404).json({ error: `ยังไม่มีประกาศวันหยุดธนาคารปี ${year} ในระบบ — เพิ่มวันหยุดเองได้` });
+  const added = applyBankHolidays(year);
+  saveDb(); res.json({ ok: true, added, total: BANK_HOLIDAYS[year].length, source: BANK_SOURCE[year] });
+});
 app.post('/api/holidays', auth, requireRole('admin','hr_manager'), (req, res) => {
   const { date, name, name_en, type } = req.body;
   if (!date || !name) return res.status(400).json({ error: 'date and name required' });
+  if (!isDate(date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
   const year = parseInt(date.slice(0,4));
   const existing = store.holidays.find(h => h.date === date);
-  if (existing) { existing.name = name; existing.name_en = name_en||''; existing.type = type||'official'; }
-  else store.holidays.push({ id: genId('holidays'), date, name, name_en: name_en||'', type: type||'official', year });
+  if (existing) { existing.name = name; existing.name_en = name_en||''; existing.type = type||existing.type||'company'; existing.active = true; }
+  else store.holidays.push({ id: genId('holidays'), date, name, name_en: name_en||'', type: type||'company', year, active: true, source: 'custom' });
   saveDb(); res.status(201).json({ ok: true });
 });
-app.delete('/api/holidays/:date', auth, requireRole('admin'), (req, res) => {
+app.put('/api/holidays/:date', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const h = store.holidays.find(x => x.date === req.params.date);
+  if (!h) return res.status(404).json({ error: 'Not found' });
+  if (req.body.active !== undefined) h.active = !!req.body.active;
+  if (req.body.name) h.name = String(req.body.name);
+  saveDb(); res.json({ ok: true, holiday: h });
+});
+app.delete('/api/holidays/:date', auth, requireRole('admin','hr_manager'), (req, res) => {
   store.holidays = store.holidays.filter(h => h.date !== req.params.date);
   saveDb(); res.json({ ok: true });
+});
+// ── Leave balances per calendar year (feature 4) ─────────────────────────────
+// Annual leave: full entitlement each year after the join year (pro-rated in the join year).
+// Unused annual leave carries over automatically, but the accumulated balance (carry + new entitlement)
+// may not exceed max_accumulate. Sick / casual leave start fresh every year. Carry-over starts from 2027.
+const SYSTEM_START_YEAR = 2026;
+const DEFAULT_POLICY = { annual_days: 6, sick_days: 30, casual_days: 3, max_accumulate: 12 };
+function leavePolicy() { return { ...DEFAULT_POLICY, ...((store.settings || {}).leave_policy || {}) }; }
+function joinDateOf(userId) {
+  const emp = store.employees.find(e => e.user_id === userId) || {};
+  const u = store.users.find(x => x.id === userId) || {};
+  return emp.start_date || emp.join_date || (u.created_at || '').slice(0, 10) || bkkToday();
+}
+function annualEntitlement(userId, year) {
+  const p = leavePolicy(), j = joinDateOf(userId), jy = +j.slice(0, 4), jm = +j.slice(5, 7) - 1;
+  if (jy > year) return 0;
+  if (jy < year) return p.annual_days;
+  return Math.max(1, Math.ceil(((12 - jm) / 12) * p.annual_days));
+}
+function usedDays(userId, type, year) {
+  return store.leave_requests.filter(r => r.user_id === userId && r.type === type && r.status === 'Approved' && (r.from_date || '').startsWith(year + '-'))
+    .reduce((s, r) => s + (+r.days || 0), 0);
+}
+function annualBalance(userId, year, depth = 0) {
+  const p = leavePolicy(), emp = store.employees.find(e => e.user_id === userId) || {};
+  const bonus = +emp.annual_bonus || 0;
+  const entitlement = annualEntitlement(userId, year);
+  const firstYear = Math.max(SYSTEM_START_YEAR, +joinDateOf(userId).slice(0, 4));
+  let carry = 0, prevRemaining = 0;
+  if (year > firstYear && depth < 30) {
+    prevRemaining = annualBalance(userId, year - 1, depth + 1).remaining;
+    carry = Math.max(0, Math.min(prevRemaining, p.max_accumulate - entitlement));
+  }
+  const used = usedDays(userId, 'Annual', year);
+  const total = entitlement + carry + bonus;
+  return { entitlement, carry, bonus, total, used, remaining: Math.max(0, total - used), forfeited: Math.max(0, prevRemaining - carry) };
+}
+function leaveBalance(userId, year) {
+  const p = leavePolicy(), emp = store.employees.find(e => e.user_id === userId) || {};
+  const simple = (type, base, bonusKey) => { const total = base + (+emp[bonusKey] || 0), used = usedDays(userId, type, year); return { total, used, remaining: Math.max(0, total - used) }; };
+  return { user_id: userId, year, join_date: joinDateOf(userId), annual: annualBalance(userId, year),
+    sick: simple('Sick', p.sick_days, 'sick_bonus'), casual: simple('Casual', p.casual_days, 'casual_bonus'), policy: p };
+}
+app.get('/api/leave/balance', auth, (req, res) => {
+  const year = Number(req.query.year) || +bkkToday().slice(0, 4);
+  const uid = req.query.user_id ? Number(req.query.user_id) : req.user.id;
+  if (uid !== req.user.id && !isManagerRole(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  if (!store.users.find(u => u.id === uid)) return res.status(404).json({ error: 'Not found' });
+  res.json(leaveBalance(uid, year));
+});
+app.get('/api/leave/balances', auth, requireRole('admin','hr_manager','hr_staff'), (req, res) => {
+  const year = Number(req.query.year) || +bkkToday().slice(0, 4);
+  res.json(store.users.map(u => ({ name: u.name, init: u.init, color: u.color, ...leaveBalance(u.id, year) }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+});
+
+// Working days between two dates (inclusive): company workdays minus active holidays
+function workdaysSetting() { const w = (store.settings || {}).workdays; return Array.isArray(w) && w.length ? w : [1,2,3,4,5]; }
+function workingDays(from, to) {
+  const wd = workdaysSetting(), hol = new Set(store.holidays.filter(h => h.active !== false).map(h => h.date));
+  let n = 0;
+  for (let t = new Date(from + 'T00:00:00Z'); t <= new Date(to + 'T00:00:00Z'); t = new Date(t.getTime() + 864e5)) {
+    const ds = t.toISOString().slice(0,10);
+    if (wd.includes(t.getUTCDay()) && !hol.has(ds)) n++;
+  }
+  return n;
+}
+app.get('/api/working-days', auth, (req, res) => {
+  const { from, to } = req.query;
+  if (!isDate(from) || !isDate(to) || to < from) return res.status(400).json({ error: 'Invalid range' });
+  res.json({ from, to, days: workingDays(from, to), workdays: workdaysSetting() });
 });
 
 // ── Departments ──────────────────────────────────────────────────────────────
@@ -982,7 +1391,7 @@ function seedAdmin() {
   seedAdmin();
   app.listen(PORT, () => {
     console.log('');
-    console.log('  Teams HRIS Backend Running' + (pgPool ? ' (PostgreSQL)' : ' (file store)'));
+    console.log('  KHUMTONE Teams HRIS Backend Running' + (pgPool ? ' (PostgreSQL)' : ' (file store)'));
     console.log('  http://localhost:' + PORT);
     console.log('');
   });
