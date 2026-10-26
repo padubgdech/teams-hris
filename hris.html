@@ -2787,11 +2787,31 @@ function renderEmployees(list) {
       <td>${e.dept||'—'}</td>
       <td>${e.pos||'—'}</td>
       <td>${e.joined||'—'}</td>
-      <td><span class="badge ${e.status==='Active'?'badge-green':e.status==='On Leave'?'badge-orange':'badge-gray'}">${e.status==='Active'?'ทำงานอยู่':e.status==='On Leave'?'กำลังลา':'ไม่ทำงาน'}</span></td>
+      <td><span class="badge ${e.status==='Active'?'badge-green':e.status==='On Leave'?'badge-orange':'badge-gray'}">${e.status==='Active'?'ทำงานอยู่':e.status==='On Leave'?'กำลังลา':'ไม่ทำงาน'}</span>${_probBadge(e)}</td>
       <td style="white-space:nowrap;display:flex;gap:6px;align-items:center;padding:10px 12px">
+        ${_canPassProb() && e._uid && isProbation(e).inProbation ? `<button class="btn" style="font-size:11px;padding:5px 12px;background:#111;color:#fff;border:none" onclick="setProbation(${e._uid},true,'${String(e.name).replace(/['"\\<>]/g,'')}')" title="ให้ผ่านทดลองงานตอนนี้ — ใช้ลาพักร้อนได้ทันที">✓ ผ่านโปร</button>` : ''}
         ${isAdmin && e._uid ? `<button class="btn btn-primary" style="font-size:11px;padding:5px 12px" onclick="openEditEmpModal(${e._uid})">✏️ แก้ไข</button><button class="btn" style="font-size:11px;padding:5px 12px;background:#EDE9FE;color:#7C3AED;border:none" onclick="openEmpLeaveAdmin(${e._uid})">📋 วันลา</button>` : `<button class="btn btn-outline" style="font-size:11px;padding:5px 10px">ดู</button>`}
       </td>
     </tr>`).join('');
+}
+// ── Probation: badge in the employee table + HR "pass now" action ──
+function _canPassProb() { return currentUser && ['admin','hr_manager'].includes(currentUser.role); }
+function _probBadge(e) {
+  if (!e._uid) return '';
+  if (e.probation_passed) return `<div style="margin-top:4px"><span class="badge badge-gray" ${_canPassProb() ? `style="cursor:pointer" title="กดเพื่อยกเลิก" onclick="setProbation(${e._uid},false,'${String(e.name).replace(/['"\\<>]/g,'')}')"` : ''}>✓ ผ่านโปรแล้ว</span></div>`;
+  const p = isProbation(e);
+  return p.inProbation ? `<div style="margin-top:4px"><span class="badge badge-orange">ทดลองงาน · เหลือ ${p.daysLeft} วัน</span></div>` : '';
+}
+async function setProbation(uid, passed, name) {
+  const msg = passed
+    ? `ให้ ${name} ผ่านทดลองงานตอนนี้?\n\nพนักงานจะใช้สิทธิ์ลาพักร้อนได้ทันที และได้รับข้อความแจ้ง`
+    : `ยกเลิกการผ่านโปรของ ${name}?\n\nระบบจะกลับไปนับทดลองงาน 119 วันจากวันเริ่มงาน`;
+  if (!confirm(msg)) return;
+  const r = await apiCall('PUT', '/api/users/' + uid + '/probation', { passed });
+  if (!r || r.error) { showToast((r && r.error) || 'บันทึกไม่สำเร็จ', 'error'); return; }
+  showToast(passed ? name + ' ผ่านทดลองงานแล้ว — ใช้ลาพักร้อนได้ทันที' : 'ยกเลิกการผ่านโปรแล้ว', 'success');
+  if (currentUser && currentUser.id === uid) { currentUser.probation_passed = passed; }
+  await loadEmployeesFromApi();
 }
 function filterEmps(q) {
   const filtered = employees.filter(e => e.name.toLowerCase().includes(q.toLowerCase()) || e.dept.toLowerCase().includes(q.toLowerCase()));
@@ -3105,6 +3125,7 @@ const LEAVE_QUOTA = { Annual:6, Sick:30, Casual:3 };
 function isProbation(user) {
   const u = user || currentUser;
   if (!u) return { inProbation:false, daysLeft:0, unlockDate:null };
+  if (u.probation_passed) return { inProbation:false, daysLeft:0, unlockDate:null, passedEarly:true }; // HR passed probation early
   const startStr = u.start_date || u.startDate || u.joined;
   if (!startStr) return { inProbation:false, daysLeft:0, unlockDate:null };
   const start = new Date(startStr);
@@ -6602,6 +6623,7 @@ async function loadEmployeesFromApi(){
     const mapped = empData.map(e => ({
       id: e.emp_id, _uid: e.user_id, name: e.name,
       dept: e.department, pos: e.position, joined: e.join_date||'',
+      start_date: e.start_date||e.join_date||'', probation_passed: !!e.probation_passed,
       status: e.status, color: e.color||'#6B7280', initials: e.init||'?'
     }));
     employees.splice(0, employees.length, ...mapped);
