@@ -265,6 +265,8 @@ function fmtUser(u) {
     start_date: emp ? (emp.start_date||'') : '',
     contract_type: emp ? (emp.contract_type||'') : '',
     work_type: emp ? (emp.work_type||emp.work_model||'') : '',
+    probation_passed: !!(emp && emp.probation_passed),
+    probation: probationOf(u.id),
   };
 }
 
@@ -657,6 +659,10 @@ app.post('/api/leave', auth, async (req, res) => {
     const wdays = workingDays(from_date, to_date);
     if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
     nDays = (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
+  }
+  if (type === 'Annual') {
+    const pr = probationOf(req.user.id);
+    if (pr.in_probation) return res.status(400).json({ error: `อยู่ระหว่างทดลองงาน — ใช้ลาพักร้อนได้ตั้งแต่ ${pr.end_date} (หรือเมื่อ HR กดผ่านทดลองงาน)` });
   }
   if (['Annual','Sick','Casual'].includes(type)) {
     const yr = +from_date.slice(0, 4), b = leaveBalance(req.user.id, yr)[type.toLowerCase()];
@@ -1113,6 +1119,21 @@ app.put('/api/users/:id/employment', auth, requireRole('admin','hr_manager'), (r
   saveDb();
   res.json(fmtUser(user));
 });
+// HR passes an employee's probation early (or undoes it) → annual leave unlocks immediately
+app.put('/api/users/:id/probation', auth, requireRole('admin','hr_manager'), (req, res) => {
+  const user = store.users.find(u => u.id == req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  const emp = store.employees.find(e => e.user_id === user.id);
+  if (!emp) return res.status(404).json({ error: 'ไม่พบประวัติพนักงาน' });
+  const passed = (req.body || {}).passed !== false;
+  emp.probation_passed = passed;
+  emp.probation_passed_at = passed ? new Date().toISOString() : null;
+  emp.probation_passed_by = passed ? req.user.id : null;
+  if (passed && user.id !== req.user.id)
+    notify(req.user.id, user.id, '🎉 ผ่านการทดลองงานแล้ว', 'ยินดีด้วย! คุณผ่านการทดลองงานแล้ว — ใช้สิทธิ์ลาพักร้อนได้ตั้งแต่วันนี้');
+  saveDb();
+  res.json(fmtUser(user));
+});
 
 app.put('/api/users/:id/permissions', auth, requireRole('admin'), (req, res) => {
   const user = store.users.find(u => u.id == req.params.id);
@@ -1265,6 +1286,18 @@ function joinDateOf(userId) {
   const emp = store.employees.find(e => e.user_id === userId) || {};
   const u = store.users.find(x => x.id === userId) || {};
   return emp.start_date || emp.join_date || (u.created_at || '').slice(0, 10) || bkkToday();
+}
+// Probation: 119 days from the start date, unless HR marked the employee as passed early
+const PROBATION_DAYS = 119;
+function probationOf(userId) {
+  const emp = store.employees.find(e => e.user_id === userId) || {};
+  const start = joinDateOf(userId);
+  const end = new Date(new Date(start + 'T00:00:00Z').getTime() + PROBATION_DAYS * 864e5).toISOString().slice(0, 10);
+  const passedEarly = !!emp.probation_passed;
+  const daysLeft = Math.max(0, Math.round((Date.parse(end + 'T00:00:00Z') - Date.parse(bkkToday() + 'T00:00:00Z')) / 864e5));
+  const by = store.users.find(u => u.id === emp.probation_passed_by) || {};
+  return { in_probation: !passedEarly && daysLeft > 0, days_left: passedEarly ? 0 : daysLeft, end_date: end,
+    passed_early: passedEarly, passed_at: emp.probation_passed_at || null, passed_by_name: by.name || '' };
 }
 function annualEntitlement(userId, year) {
   const p = leavePolicy(), j = joinDateOf(userId), jy = +j.slice(0, 4), jm = +j.slice(5, 7) - 1;
