@@ -7470,14 +7470,43 @@ function _impUI() {
 // ══ Expired / revoked session → back to the login screen (instead of silently showing empty pages) ══
 {
   const _apiCallSess = apiCall;
+  // Banner shown while the server can't be reached — so a slow/asleep server never looks like "data disappeared"
+  window._connBanner = function(state) {
+    let b = document.getElementById('conn-banner');
+    if (state === 'ok') { if (b) b.remove(); return; }
+    if (!b) {
+      b = document.createElement('div'); b.id = 'conn-banner';
+      b.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100002;background:#111;color:#fff;border-radius:12px;padding:10px 12px 10px 16px;display:flex;gap:12px;align-items:center;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:calc(100vw - 24px)';
+      document.body.appendChild(b);
+    }
+    b.innerHTML = state === 'waking'
+      ? '<span>⏳ กำลังเชื่อมต่อเซิร์ฟเวอร์… (อาจใช้เวลาสักครู่ถ้าไม่ได้ใช้งานนาน)</span>'
+      : '<span>⚠️ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ข้อมูลที่เห็นอาจไม่ครบ ข้อมูลของคุณไม่ได้หายไป</span><button onclick="_connRetry()" style="border:none;border-radius:8px;background:#7A2E2E;color:#fff;font-weight:700;font-size:12px;padding:6px 14px;cursor:pointer;white-space:nowrap">ลองใหม่</button>';
+  };
+  window._connRetry = function() {
+    const v = document.querySelector('.view.active'); const page = v ? v.id.replace('view-', '') : null;
+    if (currentUser && page && typeof nav === 'function') { _connBanner('waking'); nav(page); } else location.reload();
+  };
   apiCall = async function(method, path, body) {
     const hadToken = !!apiToken;
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     if (apiToken) opts.headers['Authorization'] = 'Bearer ' + apiToken;
     if (body) opts.body = JSON.stringify(body);
-    let r;
-    try { r = await fetch(API_BASE + path, opts); } catch { return null; }
-    let data = null; try { data = await r.json(); } catch {}
+    // Reads (GET) are retried while the server is waking up / unreachable (free hosting sleeps when idle).
+    // Writes are sent once only, so nothing is ever saved twice.
+    const isRead = method === 'GET';
+    const waits = isRead ? [0, 2000, 4000, 8000, 15000] : [0];
+    let r = null, data = null, failed = true;
+    for (let i = 0; i < waits.length; i++) {
+      if (waits[i]) { _connBanner('waking'); await new Promise(res => setTimeout(res, waits[i])); }
+      try { r = await fetch(API_BASE + path, opts); } catch { r = null; }
+      data = null;
+      if (r) { try { data = await r.json(); } catch {} }
+      failed = !r || r.status >= 502 || (data === null && r.status >= 500) || (data === null && r.ok);
+      if (!failed) break;
+    }
+    if (failed) { _connBanner('down'); return null; }
+    _connBanner('ok');
     if (r.status === 401 && hadToken && !/^\/api\/auth\/(login|register|google|demo)/.test(path)) {
       // Viewing as a member and that token ended → quietly return to the admin's own session
       let adminBack = null; try { adminBack = localStorage.getItem('hris_admin_session'); } catch (e) {}
