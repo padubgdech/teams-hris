@@ -268,10 +268,10 @@
   .cal-nav button { width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 7px; background: #fff; cursor: pointer; display: grid; place-items: center; }
   .cal-nav button svg { width: 14px; height: 14px; stroke: var(--text); stroke-width: 2; fill: none; }
   .cal-month { font-size: 15px; font-weight: 700; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; flex: 1; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); grid-template-rows: auto; grid-auto-rows: minmax(0,1fr); gap: 2px; flex: 1; min-height: 0; }
   .cal-day-header { text-align: center; font-size: 11px; font-weight: 600; color: var(--text-muted); padding: 6px 0; }
   .cal-day {
-    min-height: 72px; display: flex; align-items: flex-start; justify-content: flex-start;
+    min-height: 0; overflow: hidden; display: flex; align-items: flex-start; justify-content: flex-start;
     border-radius: 8px; font-size: 13px; cursor: pointer; position: relative;
     flex-direction: column; gap: 3px; padding: 7px 8px; border: 1px solid transparent;
   }
@@ -941,15 +941,17 @@
 
     <!-- ════════════════ CALENDAR ════════════════ -->
     <div class="view" id="view-calendar">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px">
         <div class="page-title" style="margin-bottom:0" data-i18n="calendar">ปฏิทิน</div>
+        <div id="cal-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="openModal('modal-appt')">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span data-i18n="new_appointment">นัดหมายใหม่</span>
         </button>
+        </div>
       </div>
 
-      <div class="flex gap-16" style="align-items:flex-start;height:calc(100vh - 160px)">
+      <div class="flex gap-16" style="align-items:flex-start;height:calc(100vh - 150px);min-height:540px">
         <!-- Calendar -->
         <div class="card flex-1 card-p" style="height:100%;display:flex;flex-direction:column;overflow:hidden">
           <div class="cal-header">
@@ -3808,7 +3810,7 @@ function renderCalendar() {
 
   let cells = '';
   const prevDays = new Date(yr, mo, 0).getDate();
-  for(let i=first-1;i>=0;i--) cells += `<div class="cal-day other-month">${prevDays-i}</div>`;
+  for(let i=first-1;i>=0;i--) cells += `<div class="cal-day other-month"><span class="cal-d-num">${prevDays-i}</span></div>`;
 
   for(let d=1;d<=days;d++) {
     const dateStr  = `${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -3844,7 +3846,7 @@ function renderCalendar() {
 
   const total = first + days;
   const remain = total%7===0 ? 0 : 7-(total%7);
-  for(let d=1;d<=remain;d++) cells += `<div class="cal-day other-month">${d}</div>`;
+  for(let d=1;d<=remain;d++) cells += `<div class="cal-day other-month"><span class="cal-d-num">${d}</span></div>`;
 
   grid.innerHTML = headers + cells;
   renderDayEvents(state.selectedDay);
@@ -7170,7 +7172,8 @@ async function _checkHolidayYearAlert() {
   let bar = document.getElementById('hol-manage-bar');
   if (!canManage) { if (bar) bar.remove(); return; }
   if (!bar) {
-    view.insertAdjacentHTML('afterbegin', `<div id="hol-manage-bar" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span id="hol-year-warn" style="flex:1"></span><button class="btn btn-outline" onclick="openHolidayModal()" style="font-size:12px">⚙️ จัดการวันหยุด</button></div>`);
+    const host = document.getElementById('cal-actions') || view;
+    host.insertAdjacentHTML('afterbegin', `<div id="hol-manage-bar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="hol-year-warn"></span><button class="btn btn-outline" onclick="openHolidayModal()" style="font-size:12px">⚙️ จัดการวันหยุด</button></div>`);
   }
   const now = new Date(), ny = now.getFullYear() + 1;
   const warn = document.getElementById('hol-year-warn');
