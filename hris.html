@@ -6394,6 +6394,7 @@ renderLeave = async function() {
   const tbody = document.getElementById('leave-tbody'); if(!tbody) return;
   const sc    = {Approved:'badge-green',Pending:'badge-orange',Rejected:'badge-red',Cancelled:'badge-red'};
   const stTh  = {Approved:'อนุมัติ', Pending:'รออนุมัติ', Rejected:'ปฏิเสธ', Cancelled:'ยกเลิกแล้ว'};
+  window._leaveRowsRaw = fullData;
   window._leaveTableData = displayData.map(r=>({
     type:r.type, from:r.from_date, to:r.to_date, days:r.days, reason:r.reason||'—',
     status:r.status, empName:r.emp_name, empInit:r.emp_init, empColor:r.emp_color, apiId:r.id
@@ -6413,6 +6414,8 @@ renderLeave = async function() {
           ${r.status==='Pending'&&isManager?`
           <button onclick="approveLeaveApi(${r.id},'Approved')" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
           <button onclick="approveLeaveApi(${r.id},'Rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>`:''}
+          ${r.status==='Pending' && (r.user_id===currentUser?.id || isManager)?`
+          <button onclick="openLeaveEdit(${r.id})" style="background:#fff;border:1px solid #D1D5DB;border-radius:99px;padding:4px 10px;cursor:pointer;color:#111;font-size:11px;font-weight:700">✏️ แก้ไข</button>`:''}
           ${r.user_id===currentUser?.id && (r.status==='Pending' || (r.status==='Approved' && r.from_date > localISODate()))?`
           <button onclick="cancelLeaveApi(${r.id})" style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:99px;padding:4px 10px;cursor:pointer;color:#92400E;font-size:11px;font-weight:700">ยกเลิก</button>`:''}
         </div>
@@ -6438,6 +6441,49 @@ async function adminResetPassword(){
   if(r&&r.tempPassword) prompt('รหัสผ่านชั่วคราวของ '+u.name+' (คัดลอกแล้วส่งให้ผู้ใช้ — จะแสดงครั้งเดียว):', r.tempPassword);
   else showToast((r&&r.error)||'รีเซ็ตไม่สำเร็จ','error');
 }
+
+// ── Edit a pending leave request (owner or HR/admin) ──
+function openLeaveEdit(id){
+  const r=(window._leaveRowsRaw||[]).find(x=>x.id===id); if(!r){showToast('ไม่พบคำขอ','error');return;}
+  document.getElementById('leave-edit-modal')?.remove();
+  const types = r.type==='Comp' ? [['Comp','ทำงานวันหยุด']] : [['Annual','ลาพักร้อน'],['Sick','ลาป่วย'],['Casual','ลากิจ'],['Compensatory','ลาชดเชย']];
+  const half = +r.days===0.5;
+  const fld='width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit;background:#fff';
+  document.body.insertAdjacentHTML('beforeend',`<div id="leave-edit-modal" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(17,17,17,.45);z-index:9000;display:grid;place-items:center;padding:16px">
+   <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:16px;font-weight:700">✏️ แก้ไขคำขอลา</div><button onclick="document.getElementById('leave-edit-modal').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#6B7280">×</button></div>
+    ${r.user_id!==currentUser?.id?`<div style="font-size:12px;color:#6B7280;margin-bottom:12px">ของ <b style="color:#111">${r.emp_name||''}</b> — ระบบจะแจ้งเจ้าของคำขอให้ทราบ</div>`:''}
+    <label style="font-size:12px;font-weight:600">ประเภท</label>
+    <select id="le-type" style="${fld};margin:4px 0 12px" onchange="_leAtt()">${types.map(([v,t])=>`<option value="${v}" ${v===r.type?'selected':''}>${t}</option>`).join('')}</select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label style="font-size:12px;font-weight:600">จาก</label><input id="le-from" type="date" value="${r.from_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
+      <div><label style="font-size:12px;font-weight:600">ถึง</label><input id="le-to" type="date" value="${r.to_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
+    </div>
+    <label id="le-half-wrap" style="display:${r.from_date===r.to_date?'flex':'none'};gap:8px;align-items:center;font-size:13px;margin:10px 0 0;cursor:pointer"><input id="le-half" type="checkbox" ${half?'checked':''}> ลาครึ่งวัน (0.5 วัน)</label>
+    <label style="font-size:12px;font-weight:600;display:block;margin-top:12px">เหตุผล</label>
+    <textarea id="le-reason" rows="2" style="${fld};margin-top:4px;resize:vertical">${(r.reason||'').replace(/</g,'&lt;')}</textarea>
+    <div id="le-att-wrap" style="display:none;margin-top:12px"><label style="font-size:12px;font-weight:600">ใบรับรองแพทย์ ${r.has_attachment?'<span style="color:#059669;font-weight:500">(มีไฟล์แล้ว — เลือกใหม่ถ้าต้องการเปลี่ยน)</span>':''}</label><input id="le-att" type="file" accept="image/jpeg,image/png,application/pdf" style="${fld};margin-top:4px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+      <button class="btn btn-outline" onclick="document.getElementById('leave-edit-modal').remove()">ยกเลิก</button>
+      <button id="le-save" class="btn btn-primary" onclick="saveLeaveEdit(${r.id})">บันทึก</button>
+    </div></div></div>`);
+  _leAtt();
+}
+function _leHalf(){ const f=document.getElementById('le-from'),t=document.getElementById('le-to'); if(t.value<f.value) t.value=f.value; document.getElementById('le-half-wrap').style.display=f.value===t.value?'flex':'none'; }
+function _leAtt(){ document.getElementById('le-att-wrap').style.display=document.getElementById('le-type').value==='Sick'?'block':'none'; }
+async function saveLeaveEdit(id){
+  const g=x=>document.getElementById(x), from=g('le-from').value, to=g('le-to').value;
+  if(!from||!to){ showToast('กรุณาเลือกวันที่','error'); return; }
+  const body={type:g('le-type').value, from_date:from, to_date:to, reason:g('le-reason').value.trim(), days: from===to && g('le-half').checked ? 0.5 : (g('le-type').value==='Comp' ? Math.round((new Date(to)-new Date(from))/864e5)+1 : 1)};
+  const f=g('le-att').files[0];
+  if(f && body.type==='Sick'){ if(f.size>5*1024*1024){ showToast('ไฟล์ใหญ่เกิน 5 MB','error'); return; }
+    body.attachment={ name:f.name, data: await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(f); }) }; }
+  const btn=g('le-save'); btn.disabled=true; btn.textContent='กำลังบันทึก…';
+  const r=await apiCall('PUT','/api/leave/'+id, body);
+  if(r && r.ok){ g('leave-edit-modal')?.remove(); showToast('แก้ไขคำขอลาแล้ว','success'); await renderLeave(); }
+  else { btn.disabled=false; btn.textContent='บันทึก'; showToast((r&&r.error)||'แก้ไขไม่สำเร็จ','error'); }
+}
+
 async function cancelLeaveApi(id){
   if(!confirm('ยืนยันยกเลิกคำขอลานี้?')) return;
   const r = await apiCall('PUT','/api/leave/'+id+'/cancel',{});
