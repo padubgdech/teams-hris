@@ -650,8 +650,11 @@ async function loadAttachment(leaveId) {
   return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
 }
 
+// Two requests clash on overlapping dates — unless both are half-day leave for different halves (morning vs afternoon)
+const halfOk = (a, b) => ['am','pm'].includes(a) && ['am','pm'].includes(b) && a !== b;
 app.post('/api/leave', auth, async (req, res) => {
   const { type, from_date, to_date, days, reason, attachment } = req.body;
+  const half = ['am','pm'].includes(req.body.half) && type !== 'Comp' ? req.body.half : null;
   if (!type || !from_date || !to_date) return res.status(400).json({ error: 'Missing fields' });
   if (!LEAVE_TYPES.includes(type)) return res.status(400).json({ error: 'ประเภทการลาไม่ถูกต้อง' });
   if (!isDate(from_date) || !isDate(to_date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
@@ -664,7 +667,7 @@ app.post('/api/leave', auth, async (req, res) => {
   if (type !== 'Comp') {
     const wdays = workingDays(from_date, to_date);
     if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
-    nDays = (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
+    nDays = half ? wdays * 0.5 : (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
   }
   if (type === 'Annual') {
     const pr = probationOf(req.user.id);
@@ -677,7 +680,7 @@ app.post('/api/leave', auth, async (req, res) => {
   // 'Comp' rows record OT-holiday work that EARNS comp days — they aren't time off, so skip the overlap rule
   if (type !== 'Comp') {
     const clash = store.leave_requests.find(r => r.user_id === req.user.id && r.type !== 'Comp'
-      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date);
+      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date && !halfOk(r.half, half));
     if (clash) return res.status(409).json({ error: `มีคำขอลาช่วง ${clash.from_date} – ${clash.to_date} อยู่แล้ว` });
   }
   // Validate attachment if present
@@ -693,7 +696,7 @@ app.post('/api/leave', auth, async (req, res) => {
   }
   const row = {
     id: genId('leave_requests'), user_id: req.user.id, type, from_date, to_date,
-    days: nDays, reason: reason||'', status:'Pending',
+    days: nDays, half, reason: reason||'', status:'Pending',
     approved_by: null, note:'', created_at: new Date().toISOString(),
     has_attachment: !!att, attachment_name: att ? att.name : ''
   };
@@ -739,6 +742,7 @@ app.put('/api/leave/:id', auth, async (req, res) => {
   if (row.status !== 'Pending') return res.status(409).json({ error: 'แก้ไขได้เฉพาะคำขอที่ยังรออนุมัติ' });
   const type = req.body.type || row.type, from_date = req.body.from_date || row.from_date, to_date = req.body.to_date || row.to_date;
   const reason = req.body.reason !== undefined ? String(req.body.reason).slice(0, 500) : row.reason;
+  const half = type === 'Comp' ? null : req.body.half !== undefined ? (['am','pm'].includes(req.body.half) ? req.body.half : null) : (row.half || null);
   if (!LEAVE_TYPES.includes(type)) return res.status(400).json({ error: 'ประเภทการลาไม่ถูกต้อง' });
   if ((row.type === 'Comp') !== (type === 'Comp')) return res.status(400).json({ error: 'เปลี่ยนระหว่างการลาและการทำงานวันหยุดไม่ได้ — กรุณายกเลิกแล้วยื่นใหม่' });
   if (!isDate(from_date) || !isDate(to_date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
@@ -750,7 +754,7 @@ app.put('/api/leave/:id', auth, async (req, res) => {
   if (type !== 'Comp') {
     const wdays = workingDays(from_date, to_date);
     if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
-    nDays = (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
+    nDays = half ? wdays * 0.5 : (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
   }
   if (type === 'Annual') {
     const pr = probationOf(row.user_id);
@@ -762,7 +766,7 @@ app.put('/api/leave/:id', auth, async (req, res) => {
   }
   if (type !== 'Comp') {
     const clash = store.leave_requests.find(r => r.id !== row.id && r.user_id === row.user_id && r.type !== 'Comp'
-      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date);
+      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date && !halfOk(r.half, half));
     if (clash) return res.status(409).json({ error: `มีคำขอลาช่วง ${clash.from_date} – ${clash.to_date} อยู่แล้ว` });
   }
   const att = req.body.attachment;
@@ -775,7 +779,7 @@ app.put('/api/leave/:id', auth, async (req, res) => {
     row.has_attachment = true; row.attachment_name = a.name;
   }
   const before = `${LEAVE_TH[row.type] || row.type} ${row.from_date}${row.to_date !== row.from_date ? ' – ' + row.to_date : ''} (${row.days} วัน)`;
-  Object.assign(row, { type, from_date, to_date, days: nDays, reason, edited_by: req.user.id, edited_at: new Date().toISOString() });
+  Object.assign(row, { type, from_date, to_date, days: nDays, half, reason, edited_by: req.user.id, edited_at: new Date().toISOString() });
   if (row.user_id !== req.user.id) {
     const ed = store.users.find(u => u.id === req.user.id) || {};
     notify(req.user.id, row.user_id, `✏️ คำขอลาของคุณถูกแก้ไข`, `${ed.name || 'HR'} แก้ไขคำขอลา\nเดิม: ${before}\nใหม่: ${LEAVE_TH[type] || type} ${from_date}${to_date !== from_date ? ' – ' + to_date : ''} (${nDays} วัน)`);
