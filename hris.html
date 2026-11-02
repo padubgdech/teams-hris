@@ -7048,7 +7048,7 @@ quickCheckin = function() { if (!useApi) return _quickCheckinLocal(); return tog
 // ══════════════════════════════════════════════════════════════════
 //  FEATURE 1 — Company holidays (bank calendar) + working-day leave counting
 // ══════════════════════════════════════════════════════════════════
-let _workdays = [1,2,3,4,5];
+let _workdays = [1,2,3,4,5,6];
 const _holYearsLoaded = new Set();
 const TH_WD = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
 const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -7166,7 +7166,7 @@ function _renderHolRows(preset) {
   document.getElementById('hol-alert').innerHTML = !_holRows.length
     ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px">⚠️ ยังไม่มีวันหยุดปี ${yr}${preset ? ' — กด <b>"ใช้วันหยุดธนาคาร"</b> เพื่อโหลดตามประกาศ ธปท.' : ' — เพิ่มวันหยุดเองด้านล่าง หรือรอประกาศ ธปท.'}</div>` : '';
   tb.innerHTML = _holRows.length ? _holRows.map(h => {
-    const d = new Date(h.date + 'T00:00:00'), we = d.getDay() === 0 || d.getDay() === 6;
+    const d = new Date(h.date + 'T00:00:00'), we = !_workdays.includes(d.getDay());
     return `<tr style="${h.active === false ? 'opacity:.5' : ''}">
       <td><input type="checkbox" ${h.active !== false ? 'checked' : ''} onchange="holToggle('${h.date}', this.checked)" title="บริษัทหยุดวันนี้"></td>
       <td>${thDateShort(h.date)}</td><td style="${we ? 'color:#DC2626;font-weight:700' : ''}">${TH_WD[d.getDay()]}</td>

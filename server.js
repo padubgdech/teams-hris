@@ -165,6 +165,12 @@ function applyBankHolidays(year) {
 }
 function seedHolidays() {
   store.settings = store.settings || {};
+  // The company works Saturdays (Mon–Sat). One-time switch from the old Mon–Fri default; a custom choice is kept.
+  if (!store.settings.workdays_sat) {
+    const w = store.settings.workdays;
+    if (!Array.isArray(w) || !w.length || w.join(',') === '1,2,3,4,5') store.settings.workdays = [1,2,3,4,5,6];
+    store.settings.workdays_sat = 1; saveDb();
+  }
   if ((store.settings.holiday_version || 0) >= 2) return;
   // v2: company follows the bank holiday calendar. Remove the old non-bank seed day (เข้าพรรษา 30 ก.ค. 2569),
   // then load the official 2026 + 2027 lists. Holidays an admin added by hand are kept.
@@ -1395,7 +1401,7 @@ app.get('/api/leave/balances', auth, requireRole('admin','hr_manager','hr_staff'
 });
 
 // Working days between two dates (inclusive): company workdays minus active holidays
-function workdaysSetting() { const w = (store.settings || {}).workdays; return Array.isArray(w) && w.length ? w : [1,2,3,4,5]; }
+function workdaysSetting() { const w = (store.settings || {}).workdays; return Array.isArray(w) && w.length ? w : [1,2,3,4,5,6]; }
 function workingDays(from, to) {
   const wd = workdaysSetting(), hol = new Set(store.holidays.filter(h => h.active !== false).map(h => h.date));
   let n = 0;
