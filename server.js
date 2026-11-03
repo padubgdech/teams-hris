@@ -778,11 +778,13 @@ app.put('/api/leave/:id', auth, async (req, res) => {
     try { await saveAttachment(row.id, a); } catch (e) { return res.status(500).json({ error: 'บันทึกไฟล์แนบไม่สำเร็จ' }); }
     row.has_attachment = true; row.attachment_name = a.name;
   }
-  const before = `${LEAVE_TH[row.type] || row.type} ${row.from_date}${row.to_date !== row.from_date ? ' – ' + row.to_date : ''} (${row.days} วัน)`;
+  const HALF_TH = { am: ' ครึ่งเช้า', pm: ' ครึ่งบ่าย' };
+  const desc = (t, f, to, d, hf, rs) => `${LEAVE_TH[t] || t} ${f}${to !== f ? ' – ' + to : ''} (${d} วัน${HALF_TH[hf] || ''})${rs ? ' — ' + rs : ''}`;
+  const before = desc(row.type, row.from_date, row.to_date, row.days, row.half, row.reason);
   Object.assign(row, { type, from_date, to_date, days: nDays, half, reason, edited_by: req.user.id, edited_at: new Date().toISOString() });
   if (row.user_id !== req.user.id) {
     const ed = store.users.find(u => u.id === req.user.id) || {};
-    notify(req.user.id, row.user_id, `✏️ คำขอลาของคุณถูกแก้ไข`, `${ed.name || 'HR'} แก้ไขคำขอลา\nเดิม: ${before}\nใหม่: ${LEAVE_TH[type] || type} ${from_date}${to_date !== from_date ? ' – ' + to_date : ''} (${nDays} วัน)`);
+    notify(req.user.id, row.user_id, `✏️ คำขอลาของคุณถูกแก้ไข`, `${ed.name || 'HR'} แก้ไขคำขอลา\nเดิม: ${before}\nใหม่: ${desc(type, from_date, to_date, nDays, half, reason)}`);
   }
   saveDb(); res.json({ ok: true, days: nDays });
 });
