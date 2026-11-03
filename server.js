@@ -94,6 +94,8 @@ const RE_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RE_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const RE_EMAIL = /^[^\s@"'<>]+@[^\s@"'<>]+\.[^\s@"'<>]+$/;
 const isDate = s => typeof s === 'string' && RE_DATE.test(s) && !isNaN(new Date(s + 'T00:00:00Z'));
+// Buddhist-era year typed by mistake (2569-10-13) → Christian year (2026-10-13)
+const ceDate = s => { const m = typeof s === 'string' && /^(\d{4})(-\d\d-\d\d)$/.exec(s); return m && +m[1] >= 2400 ? (+m[1] - 543) + m[2] : s; };
 const toMin  = s => +s.slice(0,2) * 60 + +s.slice(3,5);
 const fmtDur = m => Math.floor(m/60) + 'h ' + String(m%60).padStart(2,'0') + 'm';
 const MANAGER_ROLES = ['admin','hr_manager','hr_staff'];
@@ -650,6 +652,10 @@ async function loadAttachment(leaveId) {
   return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
 }
 
+app.use(['/api/leave', '/api/ot'], (req, res, next) => {
+  if (req.body && typeof req.body === 'object') ['from_date', 'to_date', 'date'].forEach(k => { if (req.body[k]) req.body[k] = ceDate(req.body[k]); });
+  next();
+});
 // Two requests clash on overlapping dates — unless both are half-day leave for different halves (morning vs afternoon)
 const halfOk = (a, b) => ['am','pm'].includes(a) && ['am','pm'].includes(b) && a !== b;
 app.post('/api/leave', auth, async (req, res) => {

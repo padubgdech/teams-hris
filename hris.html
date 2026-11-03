@@ -1872,7 +1872,7 @@
       <span class="login-logo-text">KHUMTONE <span style="color:#6B7280">Teams</span></span>
     </div>
     <div class="login-title" id="signin-title">ยินดีต้อนรับ 👋</div>
-    <div class="login-sub" id="signin-sub">เข้าสู่ระบบบริหารทรัพยากรบุคคล</div>
+    <div class="login-sub" id="signin-sub">พื้นที่ของทีมคุมโทน — ทุกคนคือส่วนสำคัญ</div>
     <div id="login-error" class="login-error" data-th="อีเมลหรือรหัสผ่านไม่ถูกต้อง" data-en="Incorrect email or password.">อีเมลหรือรหัสผ่านไม่ถูกต้อง</div>
     <div class="form-group">
       <label id="lbl-email">อีเมล</label>
@@ -4820,7 +4820,7 @@ function sendReset() {
 let _loginLang = 'th'; // independent from app language
 const LOGIN_STRINGS = {
   th: {
-    title: 'ยินดีต้อนรับ 👋', sub: 'เข้าสู่ระบบบริหารทรัพยากรบุคคล',
+    title: 'ยินดีต้อนรับ 👋', sub: 'พื้นที่ของทีมคุมโทน — ทุกคนคือส่วนสำคัญ',
     email: 'อีเมล', password: 'รหัสผ่าน', passph: 'กรอกรหัสผ่าน',
     remember: 'จดจำฉัน', forgot: 'ลืมรหัสผ่าน?', btn: 'เข้าสู่ระบบ',
     noAccount: 'ยังไม่มีบัญชี?', signup: 'สมัครสมาชิก',
@@ -4829,7 +4829,7 @@ const LOGIN_STRINGS = {
     toggle: 'EN'
   },
   en: {
-    title: 'Welcome back 👋', sub: 'Sign in to your HR workspace',
+    title: 'Welcome back 👋', sub: 'Home of Team KHUMTONE — where everyone matters',
     email: 'Email Address', password: 'Password', passph: 'Enter your password',
     remember: 'Remember me', forgot: 'Forgot password?', btn: 'Sign In',
     noAccount: "Don't have an account?", signup: 'Sign Up',
@@ -6448,9 +6448,11 @@ async function adminResetPassword(){
 
 // ── Edit a pending leave request (owner or HR/admin) ──
 function openLeaveEdit(id){
-  const r=(window._leaveRowsRaw||[]).find(x=>x.id===id); if(!r){showToast('ไม่พบคำขอ','error');return;}
+  let r=(window._leaveRowsRaw||[]).find(x=>x.id===id); if(!r){showToast('ไม่พบคำขอ','error');return;}
   document.getElementById('leave-edit-modal')?.remove();
   const types = r.type==='Comp' ? [['Comp','ทำงานวันหยุด']] : [['Annual','ลาพักร้อน'],['Sick','ลาป่วย'],['Casual','ลากิจ'],['Compensatory','ลาชดเชย']];
+  const ce = s => { const m=/^(\d{4})(-\d\d-\d\d)$/.exec(s||''); return m && +m[1]>=2400 ? (+m[1]-543)+m[2] : s; };
+  r = { ...r, from_date: ce(r.from_date), to_date: ce(r.to_date) };
   const half = !!r.half || (+r.days===0.5 && r.from_date===r.to_date);
   const fld='width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit;background:#fff';
   document.body.insertAdjacentHTML('beforeend',`<div id="leave-edit-modal" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(17,17,17,.45);z-index:9000;display:grid;place-items:center;padding:16px">
@@ -6463,6 +6465,7 @@ function openLeaveEdit(id){
       <div><label style="font-size:12px;font-weight:600">จาก</label><input id="le-from" type="date" value="${r.from_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
       <div><label style="font-size:12px;font-weight:600">ถึง</label><input id="le-to" type="date" value="${r.to_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
     </div>
+    ${r.type==='Comp'?`<div style="margin-top:12px"><label style="font-size:12px;font-weight:600">จำนวนวันที่ขอชดเชย</label><select id="le-comp-days" style="${fld};margin-top:4px"><option value="0.5" ${+r.days===0.5?'selected':''}>ครึ่งวัน (0.5)</option><option value="1" ${+r.days!==0.5?'selected':''}>1 วัน</option></select></div>`:''}
     <div id="le-half-wrap" style="display:${r.type==='Comp'?'none':'flex'};gap:10px;align-items:center;font-size:13px;margin:10px 0 0;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap;width:auto;margin:0;font-size:13px;font-weight:500"><input id="le-half" type="checkbox" ${half?'checked':''} style="width:auto;margin:0"> 🌗 ลาครึ่งวัน</label>
       <select id="le-half-v" style="${fld};width:auto;padding:5px 10px"><option value="am" ${r.half!=='pm'?'selected':''}>ครึ่งเช้า</option><option value="pm" ${r.half==='pm'?'selected':''}>ครึ่งบ่าย</option></select></div>
     <label style="font-size:12px;font-weight:600;display:block;margin-top:12px">เหตุผล</label>
@@ -6479,7 +6482,7 @@ function _leAtt(){ document.getElementById('le-att-wrap').style.display=document
 async function saveLeaveEdit(id){
   const g=x=>document.getElementById(x), from=g('le-from').value, to=g('le-to').value;
   if(!from||!to){ showToast('กรุณาเลือกวันที่','error'); return; }
-  const body={type:g('le-type').value, from_date:from, to_date:to, reason:g('le-reason').value.trim(), days: g('le-type').value==='Comp' ? Math.round((new Date(to)-new Date(from))/864e5)+1 : (g('le-half').checked ? 0.5 : 1), half: g('le-type').value!=='Comp' && g('le-half').checked ? g('le-half-v').value : null};
+  const body={type:g('le-type').value, from_date:from, to_date:to, reason:g('le-reason').value.trim(), days: g('le-type').value==='Comp' ? (from===to && g('le-comp-days') ? +g('le-comp-days').value : Math.round((new Date(to)-new Date(from))/864e5)+1) : (g('le-half').checked ? 0.5 : 1), half: g('le-type').value!=='Comp' && g('le-half').checked ? g('le-half-v').value : null};
   const f=g('le-att').files[0];
   if(f && body.type==='Sick'){ if(f.size>5*1024*1024){ showToast('ไฟล์ใหญ่เกิน 5 MB','error'); return; }
     body.attachment={ name:f.name, data: await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(f); }) }; }
@@ -6489,6 +6492,12 @@ async function saveLeaveEdit(id){
   else { btn.disabled=false; btn.textContent='บันทึก'; showToast((r&&r.error)||'แก้ไขไม่สำเร็จ','error'); }
 }
 
+// Date inputs: a Buddhist-era year typed by mistake (e.g. 2569) is converted to the Christian year (2026)
+document.addEventListener('change', e => {
+  const el = e.target; if (!el || el.type !== 'date' || !el.value) return;
+  const m = /^(\d{4})(-\d\d-\d\d)$/.exec(el.value);
+  if (m && +m[1] >= 2400) { el.value = (+m[1] - 543) + m[2]; showToast(`ปีที่กรอกเป็น พ.ศ. — ระบบแปลงเป็น ค.ศ. ${+m[1] - 543} ให้แล้ว`, 'info'); el.dispatchEvent(new Event('input', { bubbles: true })); }
+}, true);
 async function cancelLeaveApi(id){
   if(!confirm('ยืนยันยกเลิกคำขอลานี้?')) return;
   const r = await apiCall('PUT','/api/leave/'+id+'/cancel',{});
@@ -6567,7 +6576,7 @@ const _submitCompRequest = submitCompRequest;
 submitCompRequest = async function() {
   if (!useApi) { _submitCompRequest(); return; }
   const workDate = document.getElementById('cr-work-date').value;
-  const days     = parseInt(document.getElementById('cr-days').value) || 1;
+  const days     = parseFloat(document.getElementById('cr-days').value) || 1;
   const reason   = document.getElementById('cr-reason').value.trim();
   if (!workDate) { showToast('กรุณาระบุวันที่ทำงานในวันหยุด', 'error'); return; }
   if (!reason)   { showToast('กรุณาระบุเหตุผล', 'error'); return; }
