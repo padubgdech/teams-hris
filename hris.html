@@ -492,7 +492,7 @@
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>button,input,select,textarea{font-family:inherit}.half-opt{display:inline-flex;align-items:center;gap:4px;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;padding:3px 10px;cursor:pointer;background:#fff}.half-opt:has(input:checked){background:#EEF2FF;border-color:#6366F1;color:#4338CA;font-weight:600}.half-opt input{accent-color:#6366F1;margin:0}
+<style>button,input,select,textarea{font-family:inherit}.half-opt{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0;width:auto!important;margin:0!important;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;padding:3px 10px;cursor:pointer;background:#fff}.half-opt:has(input:checked){background:#EEF2FF;border-color:#6366F1;color:#4338CA;font-weight:600}.half-opt input{accent-color:#6366F1;margin:0}
 </style>
 </head>
 <body>
@@ -1673,7 +1673,7 @@
         <input type="checkbox" id="leave-half-day" onchange="toggleHalfDay(this)" style="width:16px;height:16px;accent-color:#6366F1;cursor:pointer">
         🌗 ลาครึ่งวัน
       </label>
-      <span id="leave-half-opts" style="display:none;gap:4px">
+      <span id="leave-half-opts" style="display:none;gap:6px;flex-wrap:nowrap">
         <label class="half-opt"><input type="radio" name="leave-half" value="am" checked onchange="updateLeaveDaysPreview()"> ครึ่งเช้า</label>
         <label class="half-opt"><input type="radio" name="leave-half" value="pm" onchange="updateLeaveDaysPreview()"> ครึ่งบ่าย</label>
       </span>
@@ -6463,7 +6463,7 @@ function openLeaveEdit(id){
       <div><label style="font-size:12px;font-weight:600">จาก</label><input id="le-from" type="date" value="${r.from_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
       <div><label style="font-size:12px;font-weight:600">ถึง</label><input id="le-to" type="date" value="${r.to_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
     </div>
-    <div id="le-half-wrap" style="display:${r.type==='Comp'?'none':'flex'};gap:10px;align-items:center;font-size:13px;margin:10px 0 0;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input id="le-half" type="checkbox" ${half?'checked':''}> ลาครึ่งวัน</label>
+    <div id="le-half-wrap" style="display:${r.type==='Comp'?'none':'flex'};gap:10px;align-items:center;font-size:13px;margin:10px 0 0;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap;width:auto;margin:0;font-size:13px;font-weight:500"><input id="le-half" type="checkbox" ${half?'checked':''} style="width:auto;margin:0"> 🌗 ลาครึ่งวัน</label>
       <select id="le-half-v" style="${fld};width:auto;padding:5px 10px"><option value="am" ${r.half!=='pm'?'selected':''}>ครึ่งเช้า</option><option value="pm" ${r.half==='pm'?'selected':''}>ครึ่งบ่าย</option></select></div>
     <label style="font-size:12px;font-weight:600;display:block;margin-top:12px">เหตุผล</label>
     <textarea id="le-reason" rows="2" style="${fld};margin-top:4px;resize:vertical">${(r.reason||'').replace(/</g,'&lt;')}</textarea>
