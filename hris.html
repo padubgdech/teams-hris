@@ -152,7 +152,7 @@
   .grid-2 { grid-template-columns: repeat(2, 1fr); }
   .flex { display: flex; }
   .gap-16 { gap: 16px; }
-  .flex-1 { flex: 1; }
+  .flex-1 { flex: 1; min-width: 0; } .card canvas { max-width: 100%; }
   .mt-16 { margin-top: 16px; }
   .mt-20 { margin-top: 20px; }
 
@@ -492,7 +492,8 @@
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>button,input,select,textarea{font-family:inherit}</style>
+<style>button,input,select,textarea{font-family:inherit}.half-opt{display:inline-flex;align-items:center;gap:4px;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;padding:3px 10px;cursor:pointer;background:#fff}.half-opt:has(input:checked){background:#EEF2FF;border-color:#6366F1;color:#4338CA;font-weight:600}.half-opt input{accent-color:#6366F1;margin:0}
+</style>
 </head>
 <body>
 
@@ -1664,14 +1665,18 @@
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-      <div class="form-group"><label>วันที่เริ่มลา</label><input type="date" id="leave-from" data-today="1" onchange="if(document.getElementById('leave-half-day')?.checked){document.getElementById('leave-to').value=this.value;}"></div>
+      <div class="form-group"><label>วันที่เริ่มลา</label><input type="date" id="leave-from" data-today="1" onchange="const t=document.getElementById('leave-to');if(t&&(!t.value||t.value<this.value))t.value=this.value;"></div>
       <div class="form-group"><label>วันที่สิ้นสุด</label><input type="date" id="leave-to" data-today="1"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;margin:-4px 0 10px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 10px">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#374151;user-select:none">
         <input type="checkbox" id="leave-half-day" onchange="toggleHalfDay(this)" style="width:16px;height:16px;accent-color:#6366F1;cursor:pointer">
-        🌗 ลาครึ่งวัน (0.5 วัน)
+        🌗 ลาครึ่งวัน
       </label>
+      <span id="leave-half-opts" style="display:none;gap:4px">
+        <label class="half-opt"><input type="radio" name="leave-half" value="am" checked onchange="updateLeaveDaysPreview()"> ครึ่งเช้า</label>
+        <label class="half-opt"><input type="radio" name="leave-half" value="pm" onchange="updateLeaveDaysPreview()"> ครึ่งบ่าย</label>
+      </span>
       <span id="leave-days-preview" style="font-size:12px;color:#6366F1;font-weight:600"></span>
     </div>
     <div class="form-group"><label>เหตุผลการลา</label><textarea id="leave-reason" rows="3" placeholder="อธิบายเหตุผลการลาโดยย่อ..."></textarea></div>
@@ -2650,13 +2655,11 @@ function toggleHalfDay(el) {
   const toEl   = document.getElementById('leave-to');
   const fromEl = document.getElementById('leave-from');
   const dp     = document.getElementById('leave-days-preview');
-  if (el.checked) {
-    if (fromEl && toEl) { toEl.value = fromEl.value; toEl.disabled = true; }
-    if (dp) dp.textContent = '= 0.5 วัน';
-  } else {
-    if (toEl) toEl.disabled = false;
-    if (dp) dp.textContent = '';
-  }
+  const opts = document.getElementById('leave-half-opts');
+  if (opts) opts.style.display = el.checked ? 'inline-flex' : 'none';
+  if (toEl) toEl.disabled = false;
+  if (fromEl && toEl && !toEl.value) toEl.value = fromEl.value;
+  if (typeof updateLeaveDaysPreview === 'function') updateLeaveDaysPreview();
 }
 
 // ════════════ EMPLOYMENT EDIT (Admin) ════════════
@@ -3292,6 +3295,7 @@ function openLeaveModal() {
   const hdCb = document.getElementById('leave-half-day');
   const toEl = document.getElementById('leave-to');
   if (hdCb) { hdCb.checked = false; }
+  { const o = document.getElementById('leave-half-opts'); if (o) o.style.display = 'none'; const am = document.querySelector('input[name="leave-half"][value="am"]'); if (am) am.checked = true; }
   if (toEl) toEl.disabled = false;
   const dp = document.getElementById('leave-days-preview');
   if (dp) dp.textContent = '';
@@ -6394,6 +6398,7 @@ renderLeave = async function() {
   const tbody = document.getElementById('leave-tbody'); if(!tbody) return;
   const sc    = {Approved:'badge-green',Pending:'badge-orange',Rejected:'badge-red',Cancelled:'badge-red'};
   const stTh  = {Approved:'อนุมัติ', Pending:'รออนุมัติ', Rejected:'ปฏิเสธ', Cancelled:'ยกเลิกแล้ว'};
+  window._leaveRowsRaw = fullData;
   window._leaveTableData = displayData.map(r=>({
     type:r.type, from:r.from_date, to:r.to_date, days:r.days, reason:r.reason||'—',
     status:r.status, empName:r.emp_name, empInit:r.emp_init, empColor:r.emp_color, apiId:r.id
@@ -6404,7 +6409,7 @@ renderLeave = async function() {
       <td><div style="display:flex;align-items:center;gap:8px"><div class="emp-avatar" style="background:${r.emp_color||'#6B7280'};width:28px;height:28px;font-size:10px">${r.emp_init||'?'}</div>${r.emp_name||'—'}</div></td>
       <td>${leaveTypeBadge(r.type)}</td>
       <td>${r.from_date}</td><td>${r.to_date}</td>
-      <td style="font-weight:700">${r.days} วัน</td>
+      <td style="font-weight:700;white-space:nowrap">${r.days} วัน${r.half?`<div style="font-size:11px;font-weight:600;color:#6366F1">${r.half==='pm'?'🌇 ครึ่งบ่าย':'🌅 ครึ่งเช้า'}</div>`:''}</td>
       <td style="color:var(--text-muted);font-size:12px">${r.reason||'—'}${r.has_attachment?`<br><button onclick="viewLeaveAttachment(${r.id})" style="margin-top:4px;background:#FEF2F2;border:1px solid #FECACA;border-radius:99px;padding:2px 8px;cursor:pointer;color:#B91C1C;font-size:11px;font-weight:600">📎 ใบรับรองแพทย์</button>`:''}</td>
       <td><span class="badge ${sc[r.status]}">${stTh[r.status]||r.status}</span></td>
       <td>
@@ -6413,6 +6418,8 @@ renderLeave = async function() {
           ${r.status==='Pending'&&isManager?`
           <button onclick="approveLeaveApi(${r.id},'Approved')" style="background:#DCFCE7;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#16A34A;font-size:11px;font-weight:700">✓</button>
           <button onclick="approveLeaveApi(${r.id},'Rejected')" style="background:#FEE2E2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#DC2626;font-size:11px;font-weight:700">✕</button>`:''}
+          ${r.status==='Pending' && (r.user_id===currentUser?.id || isManager)?`
+          <button onclick="openLeaveEdit(${r.id})" style="background:#fff;border:1px solid #D1D5DB;border-radius:99px;padding:4px 10px;cursor:pointer;color:#111;font-size:11px;font-weight:700">✏️ แก้ไข</button>`:''}
           ${r.user_id===currentUser?.id && (r.status==='Pending' || (r.status==='Approved' && r.from_date > localISODate()))?`
           <button onclick="cancelLeaveApi(${r.id})" style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:99px;padding:4px 10px;cursor:pointer;color:#92400E;font-size:11px;font-weight:700">ยกเลิก</button>`:''}
         </div>
@@ -6438,6 +6445,50 @@ async function adminResetPassword(){
   if(r&&r.tempPassword) prompt('รหัสผ่านชั่วคราวของ '+u.name+' (คัดลอกแล้วส่งให้ผู้ใช้ — จะแสดงครั้งเดียว):', r.tempPassword);
   else showToast((r&&r.error)||'รีเซ็ตไม่สำเร็จ','error');
 }
+
+// ── Edit a pending leave request (owner or HR/admin) ──
+function openLeaveEdit(id){
+  const r=(window._leaveRowsRaw||[]).find(x=>x.id===id); if(!r){showToast('ไม่พบคำขอ','error');return;}
+  document.getElementById('leave-edit-modal')?.remove();
+  const types = r.type==='Comp' ? [['Comp','ทำงานวันหยุด']] : [['Annual','ลาพักร้อน'],['Sick','ลาป่วย'],['Casual','ลากิจ'],['Compensatory','ลาชดเชย']];
+  const half = !!r.half || (+r.days===0.5 && r.from_date===r.to_date);
+  const fld='width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;font-family:inherit;background:#fff';
+  document.body.insertAdjacentHTML('beforeend',`<div id="leave-edit-modal" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(17,17,17,.45);z-index:9000;display:grid;place-items:center;padding:16px">
+   <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:16px;font-weight:700">✏️ แก้ไขคำขอลา</div><button onclick="document.getElementById('leave-edit-modal').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#6B7280">×</button></div>
+    ${r.user_id!==currentUser?.id?`<div style="font-size:12px;color:#6B7280;margin-bottom:12px">ของ <b style="color:#111">${r.emp_name||''}</b> — ระบบจะแจ้งเจ้าของคำขอให้ทราบ</div>`:''}
+    <label style="font-size:12px;font-weight:600">ประเภท</label>
+    <select id="le-type" style="${fld};margin:4px 0 12px" onchange="_leAtt()">${types.map(([v,t])=>`<option value="${v}" ${v===r.type?'selected':''}>${t}</option>`).join('')}</select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label style="font-size:12px;font-weight:600">จาก</label><input id="le-from" type="date" value="${r.from_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
+      <div><label style="font-size:12px;font-weight:600">ถึง</label><input id="le-to" type="date" value="${r.to_date}" style="${fld};margin-top:4px" onchange="_leHalf()"></div>
+    </div>
+    <div id="le-half-wrap" style="display:${r.type==='Comp'?'none':'flex'};gap:10px;align-items:center;font-size:13px;margin:10px 0 0;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input id="le-half" type="checkbox" ${half?'checked':''}> ลาครึ่งวัน</label>
+      <select id="le-half-v" style="${fld};width:auto;padding:5px 10px"><option value="am" ${r.half!=='pm'?'selected':''}>ครึ่งเช้า</option><option value="pm" ${r.half==='pm'?'selected':''}>ครึ่งบ่าย</option></select></div>
+    <label style="font-size:12px;font-weight:600;display:block;margin-top:12px">เหตุผล</label>
+    <textarea id="le-reason" rows="2" style="${fld};margin-top:4px;resize:vertical">${(r.reason||'').replace(/</g,'&lt;')}</textarea>
+    <div id="le-att-wrap" style="display:none;margin-top:12px"><label style="font-size:12px;font-weight:600">ใบรับรองแพทย์ ${r.has_attachment?'<span style="color:#059669;font-weight:500">(มีไฟล์แล้ว — เลือกใหม่ถ้าต้องการเปลี่ยน)</span>':''}</label><input id="le-att" type="file" accept="image/jpeg,image/png,application/pdf" style="${fld};margin-top:4px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+      <button class="btn btn-outline" onclick="document.getElementById('leave-edit-modal').remove()">ยกเลิก</button>
+      <button id="le-save" class="btn btn-primary" onclick="saveLeaveEdit(${r.id})">บันทึก</button>
+    </div></div></div>`);
+  _leAtt();
+}
+function _leHalf(){ const f=document.getElementById('le-from'),t=document.getElementById('le-to'); if(t.value<f.value) t.value=f.value; }
+function _leAtt(){ document.getElementById('le-att-wrap').style.display=document.getElementById('le-type').value==='Sick'?'block':'none'; }
+async function saveLeaveEdit(id){
+  const g=x=>document.getElementById(x), from=g('le-from').value, to=g('le-to').value;
+  if(!from||!to){ showToast('กรุณาเลือกวันที่','error'); return; }
+  const body={type:g('le-type').value, from_date:from, to_date:to, reason:g('le-reason').value.trim(), days: g('le-type').value==='Comp' ? Math.round((new Date(to)-new Date(from))/864e5)+1 : (g('le-half').checked ? 0.5 : 1), half: g('le-type').value!=='Comp' && g('le-half').checked ? g('le-half-v').value : null};
+  const f=g('le-att').files[0];
+  if(f && body.type==='Sick'){ if(f.size>5*1024*1024){ showToast('ไฟล์ใหญ่เกิน 5 MB','error'); return; }
+    body.attachment={ name:f.name, data: await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(f); }) }; }
+  const btn=g('le-save'); btn.disabled=true; btn.textContent='กำลังบันทึก…';
+  const r=await apiCall('PUT','/api/leave/'+id, body);
+  if(r && r.ok){ g('leave-edit-modal')?.remove(); showToast('แก้ไขคำขอลาแล้ว','success'); await renderLeave(); }
+  else { btn.disabled=false; btn.textContent='บันทึก'; showToast((r&&r.error)||'แก้ไขไม่สำเร็จ','error'); }
+}
+
 async function cancelLeaveApi(id){
   if(!confirm('ยืนยันยกเลิกคำขอลานี้?')) return;
   const r = await apiCall('PUT','/api/leave/'+id+'/cancel',{});
@@ -6475,7 +6526,8 @@ submitLeave = async function(){
   if(new Date(to) < new Date(from)) { showToast('วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น','error'); return; }
   const reason= document.getElementById('leave-reason')?.value||'Personal';
   const halfDay = document.getElementById('leave-half-day')?.checked;
-  const days  = halfDay ? 0.5 : (type==='Comp' ? Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1) : countWorkingDays(from, to));
+  const half = halfDay && type!=='Comp' ? (document.querySelector('input[name="leave-half"]:checked')?.value || 'am') : null;
+  const days  = halfDay ? (type==='Comp' ? 0.5 : Math.max(0.5, countWorkingDays(from, to) * 0.5)) : (type==='Comp' ? Math.max(1,Math.ceil((new Date(to)-new Date(from))/(1000*86400))+1) : countWorkingDays(from, to));
   // Balance check
   const myName = currentUser?.name||'';
   const approved = leaveData.filter(r=>r.status==='Approved'&&(r.userId!==undefined ? r.userId===currentUser?.id : (r.emp||r.empName||'')===myName));
@@ -6502,7 +6554,7 @@ submitLeave = async function(){
     try { attachment = await prepareLeaveAttachment(attFile); }
     catch(e){ showToast(e?.message||'อ่านไฟล์ไม่สำเร็จ','error'); return; }
   }
-  const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,reason,attachment});
+  const result= await apiCall('POST','/api/leave',{type,from_date:from,to_date:to,days,half,reason,attachment});
   if(result&&result.id){
     closeModal('modal-leave');
     renderLeave();
@@ -7002,7 +7054,7 @@ quickCheckin = function() { if (!useApi) return _quickCheckinLocal(); return tog
 // ══════════════════════════════════════════════════════════════════
 //  FEATURE 1 — Company holidays (bank calendar) + working-day leave counting
 // ══════════════════════════════════════════════════════════════════
-let _workdays = [1,2,3,4,5];
+let _workdays = [1,2,3,4,5,6];
 const _holYearsLoaded = new Set();
 const TH_WD = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
 const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -7031,7 +7083,7 @@ function countWorkingDays(from, to) {
 }
 async function updateLeaveDaysPreview() {
   const dp = document.getElementById('leave-days-preview'); if (!dp) return;
-  if (document.getElementById('leave-half-day')?.checked) { dp.textContent = '= 0.5 วัน'; return; }
+  const half = document.getElementById('leave-half-day')?.checked;
   const from = document.getElementById('leave-from')?.value, to = document.getElementById('leave-to')?.value;
   if (!from || !to) { dp.textContent = ''; return; }
   if (to < from) { dp.textContent = '⚠ วันที่สิ้นสุดก่อนวันเริ่ม'; dp.style.color = '#DC2626'; return; }
@@ -7039,14 +7091,17 @@ async function updateLeaveDaysPreview() {
   const n = countWorkingDays(from, to);
   const span = Math.round((new Date(to) - new Date(from)) / 864e5) + 1;
   dp.style.color = n ? '#6366F1' : '#DC2626';
-  dp.textContent = n ? `= ${n} วันทำงาน${span > n ? ` (ไม่นับวันหยุด ${span - n} วัน)` : ''}` : '⚠ ช่วงนี้เป็นวันหยุดทั้งหมด';
+  const hv = document.querySelector('input[name="leave-half"]:checked')?.value === 'pm' ? 'ครึ่งบ่าย' : 'ครึ่งเช้า';
+  dp.textContent = !n ? '⚠ ช่วงนี้เป็นวันหยุดทั้งหมด'
+    : half ? `= ${n} วัน × ${hv} = ${n * 0.5} วัน${span > n ? ` (ไม่นับวันหยุด ${span - n} วัน)` : ''}`
+    : `= ${n} วันทำงาน${span > n ? ` (ไม่นับวันหยุด ${span - n} วัน)` : ''}`;
 }
 document.addEventListener('change', e => { if (e.target && ['leave-from','leave-to','leave-half-day'].includes(e.target.id)) updateLeaveDaysPreview(); });
 
 // Leave submit: count working days (server applies the same rule and has the final say)
 const _submitLeaveBeforeWD = submitLeave;
 submitLeave = async function() {
-  if (useApi && !document.getElementById('leave-half-day')?.checked && (state.selectedLeaveType || 'Annual') !== 'Comp') {
+  if (useApi && (state.selectedLeaveType || 'Annual') !== 'Comp') {
     const from = document.getElementById('leave-from').value, to = document.getElementById('leave-to').value;
     if (from && to && to >= from) {
       await Promise.all([loadHolidaysYear(+from.slice(0,4)), loadHolidaysYear(+to.slice(0,4))]);
@@ -7120,7 +7175,7 @@ function _renderHolRows(preset) {
   document.getElementById('hol-alert').innerHTML = !_holRows.length
     ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px">⚠️ ยังไม่มีวันหยุดปี ${yr}${preset ? ' — กด <b>"ใช้วันหยุดธนาคาร"</b> เพื่อโหลดตามประกาศ ธปท.' : ' — เพิ่มวันหยุดเองด้านล่าง หรือรอประกาศ ธปท.'}</div>` : '';
   tb.innerHTML = _holRows.length ? _holRows.map(h => {
-    const d = new Date(h.date + 'T00:00:00'), we = d.getDay() === 0 || d.getDay() === 6;
+    const d = new Date(h.date + 'T00:00:00'), we = !_workdays.includes(d.getDay());
     return `<tr style="${h.active === false ? 'opacity:.5' : ''}">
       <td><input type="checkbox" ${h.active !== false ? 'checked' : ''} onchange="holToggle('${h.date}', this.checked)" title="บริษัทหยุดวันนี้"></td>
       <td>${thDateShort(h.date)}</td><td style="${we ? 'color:#DC2626;font-weight:700' : ''}">${TH_WD[d.getDay()]}</td>

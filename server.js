@@ -165,6 +165,12 @@ function applyBankHolidays(year) {
 }
 function seedHolidays() {
   store.settings = store.settings || {};
+  // The company works Saturdays (Mon–Sat). One-time switch from the old Mon–Fri default; a custom choice is kept.
+  if (!store.settings.workdays_sat) {
+    const w = store.settings.workdays;
+    if (!Array.isArray(w) || !w.length || w.join(',') === '1,2,3,4,5') store.settings.workdays = [1,2,3,4,5,6];
+    store.settings.workdays_sat = 1; saveDb();
+  }
   if ((store.settings.holiday_version || 0) >= 2) return;
   // v2: company follows the bank holiday calendar. Remove the old non-bank seed day (เข้าพรรษา 30 ก.ค. 2569),
   // then load the official 2026 + 2027 lists. Holidays an admin added by hand are kept.
@@ -644,8 +650,11 @@ async function loadAttachment(leaveId) {
   return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
 }
 
+// Two requests clash on overlapping dates — unless both are half-day leave for different halves (morning vs afternoon)
+const halfOk = (a, b) => ['am','pm'].includes(a) && ['am','pm'].includes(b) && a !== b;
 app.post('/api/leave', auth, async (req, res) => {
   const { type, from_date, to_date, days, reason, attachment } = req.body;
+  const half = ['am','pm'].includes(req.body.half) && type !== 'Comp' ? req.body.half : null;
   if (!type || !from_date || !to_date) return res.status(400).json({ error: 'Missing fields' });
   if (!LEAVE_TYPES.includes(type)) return res.status(400).json({ error: 'ประเภทการลาไม่ถูกต้อง' });
   if (!isDate(from_date) || !isDate(to_date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
@@ -658,7 +667,7 @@ app.post('/api/leave', auth, async (req, res) => {
   if (type !== 'Comp') {
     const wdays = workingDays(from_date, to_date);
     if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
-    nDays = (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
+    nDays = half ? wdays * 0.5 : (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
   }
   if (type === 'Annual') {
     const pr = probationOf(req.user.id);
@@ -671,7 +680,7 @@ app.post('/api/leave', auth, async (req, res) => {
   // 'Comp' rows record OT-holiday work that EARNS comp days — they aren't time off, so skip the overlap rule
   if (type !== 'Comp') {
     const clash = store.leave_requests.find(r => r.user_id === req.user.id && r.type !== 'Comp'
-      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date);
+      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date && !halfOk(r.half, half));
     if (clash) return res.status(409).json({ error: `มีคำขอลาช่วง ${clash.from_date} – ${clash.to_date} อยู่แล้ว` });
   }
   // Validate attachment if present
@@ -687,7 +696,7 @@ app.post('/api/leave', auth, async (req, res) => {
   }
   const row = {
     id: genId('leave_requests'), user_id: req.user.id, type, from_date, to_date,
-    days: nDays, reason: reason||'', status:'Pending',
+    days: nDays, half, reason: reason||'', status:'Pending',
     approved_by: null, note:'', created_at: new Date().toISOString(),
     has_attachment: !!att, attachment_name: att ? att.name : ''
   };
@@ -723,6 +732,59 @@ app.put('/api/leave/:id/status', auth, requireRole('admin','hr_manager','hr_staf
     `${ok?'✅':'❌'} คำขอ${LEAVE_TH[row.type]||'ลา'} ${row.from_date}${row.to_date!==row.from_date?' – '+row.to_date:''} — ${ok?'อนุมัติ':'ไม่อนุมัติ'}`,
     `${(store.users.find(u=>u.id===req.user.id)||{}).name||''} ${ok?'อนุมัติ':'ไม่อนุมัติ'}คำขอของคุณ (${row.days} วัน)${note?'\nหมายเหตุ: '+note:''}`);
   saveDb(); res.json({ ok: true });
+});
+// Edit a leave request that is still waiting for approval — the owner or a manager (HR/admin)
+app.put('/api/leave/:id', auth, async (req, res) => {
+  const row = store.leave_requests.find(r => r.id == req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  const mgr = isManagerRole(req.user.role);
+  if (row.user_id !== req.user.id && !mgr) return res.status(403).json({ error: 'Forbidden' });
+  if (row.status !== 'Pending') return res.status(409).json({ error: 'แก้ไขได้เฉพาะคำขอที่ยังรออนุมัติ' });
+  const type = req.body.type || row.type, from_date = req.body.from_date || row.from_date, to_date = req.body.to_date || row.to_date;
+  const reason = req.body.reason !== undefined ? String(req.body.reason).slice(0, 500) : row.reason;
+  const half = type === 'Comp' ? null : req.body.half !== undefined ? (['am','pm'].includes(req.body.half) ? req.body.half : null) : (row.half || null);
+  if (!LEAVE_TYPES.includes(type)) return res.status(400).json({ error: 'ประเภทการลาไม่ถูกต้อง' });
+  if ((row.type === 'Comp') !== (type === 'Comp')) return res.status(400).json({ error: 'เปลี่ยนระหว่างการลาและการทำงานวันหยุดไม่ได้ — กรุณายกเลิกแล้วยื่นใหม่' });
+  if (!isDate(from_date) || !isDate(to_date)) return res.status(400).json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' });
+  if (to_date < from_date) return res.status(400).json({ error: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' });
+  const reqDays = req.body.days === undefined ? (from_date === to_date && +row.days === 0.5 ? 0.5 : 1) : Number(req.body.days);
+  const span = Math.round((new Date(to_date) - new Date(from_date)) / 864e5) + 1;
+  if (!isFinite(reqDays) || reqDays < 0.5 || reqDays > Math.max(span, 1) || reqDays > 365) return res.status(400).json({ error: 'จำนวนวันลาไม่ถูกต้อง' });
+  let nDays = reqDays;
+  if (type !== 'Comp') {
+    const wdays = workingDays(from_date, to_date);
+    if (wdays === 0) return res.status(400).json({ error: 'ช่วงวันที่เลือกเป็นวันหยุดทั้งหมด ไม่ต้องยื่นลา' });
+    nDays = half ? wdays * 0.5 : (reqDays === 0.5 && from_date === to_date) ? 0.5 : wdays;
+  }
+  if (type === 'Annual') {
+    const pr = probationOf(row.user_id);
+    if (pr.in_probation) return res.status(400).json({ error: `อยู่ระหว่างทดลองงาน — ใช้ลาพักร้อนได้ตั้งแต่ ${pr.end_date} (หรือเมื่อ HR กดผ่านทดลองงาน)` });
+  }
+  if (['Annual','Sick','Casual'].includes(type)) {
+    const yr = +from_date.slice(0, 4), b = leaveBalance(row.user_id, yr)[type.toLowerCase()];
+    if (nDays > b.remaining) return res.status(400).json({ error: `${LEAVE_TH[type]}ปี ${yr + 543} เหลือ ${b.remaining} วัน (ขอ ${nDays} วัน)` });
+  }
+  if (type !== 'Comp') {
+    const clash = store.leave_requests.find(r => r.id !== row.id && r.user_id === row.user_id && r.type !== 'Comp'
+      && ['Pending','Approved'].includes(r.status) && r.from_date <= to_date && r.to_date >= from_date && !halfOk(r.half, half));
+    if (clash) return res.status(409).json({ error: `มีคำขอลาช่วง ${clash.from_date} – ${clash.to_date} อยู่แล้ว` });
+  }
+  const att = req.body.attachment;
+  if (att && att.data) {
+    const m = /^data:([^;]+);base64,(.+)$/.exec(att.data);
+    if (!m || !ATT_ALLOWED.includes(m[1])) return res.status(400).json({ error: 'รองรับเฉพาะรูปภาพ (JPG/PNG) หรือ PDF' });
+    if (Math.floor(m[2].length * 3 / 4) > ATT_MAX_BYTES) return res.status(400).json({ error: 'ไฟล์ใหญ่เกิน 5 MB' });
+    const a = { name: String(att.name || 'medical-certificate').slice(0, 120), type: m[1], data: att.data };
+    try { await saveAttachment(row.id, a); } catch (e) { return res.status(500).json({ error: 'บันทึกไฟล์แนบไม่สำเร็จ' }); }
+    row.has_attachment = true; row.attachment_name = a.name;
+  }
+  const before = `${LEAVE_TH[row.type] || row.type} ${row.from_date}${row.to_date !== row.from_date ? ' – ' + row.to_date : ''} (${row.days} วัน)`;
+  Object.assign(row, { type, from_date, to_date, days: nDays, half, reason, edited_by: req.user.id, edited_at: new Date().toISOString() });
+  if (row.user_id !== req.user.id) {
+    const ed = store.users.find(u => u.id === req.user.id) || {};
+    notify(req.user.id, row.user_id, `✏️ คำขอลาของคุณถูกแก้ไข`, `${ed.name || 'HR'} แก้ไขคำขอลา\nเดิม: ${before}\nใหม่: ${LEAVE_TH[type] || type} ${from_date}${to_date !== from_date ? ' – ' + to_date : ''} (${nDays} วัน)`);
+  }
+  saveDb(); res.json({ ok: true, days: nDays });
 });
 // Cancel a leave request — owner (pending, or approved leave that hasn't started) or a manager
 app.put('/api/leave/:id/cancel', auth, (req, res) => {
@@ -1343,7 +1405,7 @@ app.get('/api/leave/balances', auth, requireRole('admin','hr_manager','hr_staff'
 });
 
 // Working days between two dates (inclusive): company workdays minus active holidays
-function workdaysSetting() { const w = (store.settings || {}).workdays; return Array.isArray(w) && w.length ? w : [1,2,3,4,5]; }
+function workdaysSetting() { const w = (store.settings || {}).workdays; return Array.isArray(w) && w.length ? w : [1,2,3,4,5,6]; }
 function workingDays(from, to) {
   const wd = workdaysSetting(), hol = new Set(store.holidays.filter(h => h.active !== false).map(h => h.date));
   let n = 0;
